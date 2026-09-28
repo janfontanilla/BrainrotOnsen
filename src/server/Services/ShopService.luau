@@ -1,0 +1,199 @@
+--!strict
+-- Buying and merging. Stepping on a pad is the intent; the server decides
+-- everything else.
+--   Buy 1 / 5 / 25   sell the player's buy tier, buy as many as fit in the free
+--                    spots and charge only for those; never auto-merge
+--   Buy 100          buys 100 and merges them together with what the player
+--                    already owns, instantly; refused only if the result won't fit
+--   Merge!           merges every triple, cascading upward, silently. The pad is
+--                    lit when something can merge and grey when nothing can.
+--   Upgrade Buy Tier raises the tier the buy pads sell and resets price scaling
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Tiers = require(Shared.Config.Tiers)
+local Economy = require(Shared.Config.Economy)
+local Format = require(Shared.Format)
+local Remotes = require(Shared.Remotes)
+local Plots = require(script.Parent.Parent.Plots)
+local DataService = require(script.Parent.DataService)
+local PoolService = require(script.Parent.PoolService)
+
+type Plot = Plots.Plot
+type Data = DataService.Data
+
+local ShopService = {}
+
+local notify: RemoteEvent
+
+-- Merges every triple in `counts` in place, cascading upward. Tier MAX_TIER never
+-- merges. Returns how many merges happened.
+function ShopService.mergeCounts(counts: { number }): number
+	local merges = 0
+	for tier = 1, Tiers.MAX_TIER - 1 do
+		local made = counts[tier] // Economy.MERGE_COUNT
+		if made > 0 then
+			counts[tier] -= made * Economy.MERGE_COUNT
+			counts[tier + 1] += made
+			merges += made
+		end
+	end
+	return merges
+end
+
+local MERGE_READY_COLOR = Color3.fromRGB(255, 200, 60)
+local MERGE_IDLE_COLOR = Color3.fromRGB(150, 150, 160)
+
+-- Whether any tier below MAX_TIER has enough to merge.
+local function canMerge(counts: { number }): boolean
+	for tier = 1, Tiers.MAX_TIER - 1 do
+		if counts[tier] >= Economy.MERGE_COUNT then
+			return true
+		end
+	end
+	return false
+end
+
+local function total(counts: { number }): number
+	local sum = 0
+	for _, count in counts do
+		sum += count
+	end
+	return sum
+end
+
+function ShopService.refreshPads(plot: Plot)
+	local owner = plot.owner
+	local data = if owner then DataService.get(owner) else nil
+	for _, pad in plot.pads do
+		if data then
+			local price = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, pad.amount)
+			pad.label.Text = `Buy {pad.amount}\n{Tiers.get(data.buyTier).name}\n`
+				.. `<font color="#7dff8a">{Format.short(price)} Cash</font>`
+		else
+			pad.label.Text = `Buy {pad.amount}`
+		end
+	end
+
+	local mergePad = plot.stations.merge
+	mergePad.label.Text = `<font color="#ffd966">Merge!</font>`
+	mergePad.part.Color = if data and canMerge(data.counts) then MERGE_READY_COLOR else MERGE_IDLE_COLOR
+	local upgradeLabel = plot.stations.upgradeBuyTier.label
+	if not data then
+		upgradeLabel.Text = "Upgrade Buy Tier"
+		return
+	end
+	local cost = Economy.buyTierUpgradeCost(data.buyTier)
+	if cost then
+		upgradeLabel.Text = `Upgrade Buy Tier\n{Tiers.get(data.buyTier).name} &gt;&gt; {Tiers.get(data.buyTier + 1).name}\n`
+			.. `<font color="#7dff8a">{Format.short(cost)} Cash</font>`
+	else
+		upgradeLabel.Text = `Upgrade Buy Tier\n{Tiers.get(data.buyTier).name}\n<font color="#ffd966">Max tier</font>`
+	end
+end
+
+local function afterChange(player: Player, plot: Plot, data: Data)
+	DataService.markOwned(data)
+	DataService.sync(player)
+	PoolService.render(plot, data)
+	ShopService.refreshPads(plot)
+end
+
+local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: number)
+	local after = table.clone(data.counts)
+	after[data.buyTier] += amount
+	ShopService.mergeCounts(after)
+	if total(after) > Economy.MAX_SPOTS then
+		notify:FireClient(player, `Not enough room, even after merging ({Economy.MAX_SPOTS} spots)`)
+		return
+	end
+	local cost = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, amount)
+	if not DataService.spendCash(player, cost) then
+		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
+		return
+	end
+	data.boughtAtBuyTier += amount
+	data.counts = after
+	afterChange(player, plot, data)
+	notify:FireClient(player, `Bought {amount} {Tiers.get(data.buyTier).name}!`, "good")
+end
+
+local function buy(player: Player, plot: Plot, amount: number)
+	local data = DataService.get(player)
+	if not data then
+		return
+	end
+	if amount == Economy.AUTO_MERGE_BUY_AMOUNT then
+		buyAndMerge(player, plot, data, amount)
+		return
+	end
+	local free = Economy.MAX_SPOTS - DataService.brainrotCount(data)
+	local count = math.min(amount, free)
+	if count <= 0 then
+		notify:FireClient(player, `Your onsen is full ({Economy.MAX_SPOTS}/{Economy.MAX_SPOTS}). Step on Merge!`)
+		return
+	end
+	local cost = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, count)
+	if not DataService.spendCash(player, cost) then
+		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
+		return
+	end
+	data.boughtAtBuyTier += count
+	data.counts[data.buyTier] += count
+	afterChange(player, plot, data)
+	if count < amount then
+		notify:FireClient(player, `Only room for {count}: bought {count}`)
+	end
+end
+
+local function merge(player: Player, plot: Plot)
+	local data = DataService.get(player)
+	if not data then
+		return
+	end
+	if ShopService.mergeCounts(data.counts) > 0 then
+		afterChange(player, plot, data)
+	end
+end
+
+local function upgradeBuyTier(player: Player, plot: Plot)
+	local data = DataService.get(player)
+	if not data then
+		return
+	end
+	local cost = Economy.buyTierUpgradeCost(data.buyTier)
+	if not cost then
+		notify:FireClient(player, "Already at the highest buy tier")
+		return
+	end
+	if not DataService.spendCash(player, cost) then
+		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
+		return
+	end
+	data.buyTier += 1
+	data.boughtAtBuyTier = 0
+	ShopService.refreshPads(plot)
+	notify:FireClient(player, `Buy pads now sell {Tiers.get(data.buyTier).name}!`, "good")
+end
+
+function ShopService:Init()
+	notify = Remotes.event("Notify")
+end
+
+function ShopService:Start()
+	for _, plot in Plots.all() do
+		for _, pad in plot.pads do
+			Plots.onStep(plot, pad, function(player)
+				buy(player, plot, pad.amount)
+			end)
+		end
+		Plots.onStep(plot, plot.stations.merge, function(player)
+			merge(player, plot)
+		end)
+		Plots.onStep(plot, plot.stations.upgradeBuyTier, function(player)
+			upgradeBuyTier(player, plot)
+		end)
+		ShopService.refreshPads(plot)
+	end
+end
+
+return ShopService

@@ -1,6 +1,6 @@
 # Progress
 
-Current phase: **Phase 1 (plots and drops)**
+Current phase: **Phase 3 (progression and saving)**
 Last updated: 2026-09-28
 
 ## Phase checklist
@@ -28,30 +28,34 @@ Last updated: 2026-09-28
 - Done when: the project syncs into Studio and every config module loads without errors
 
 ### Phase 1: Plots and drops
-- [ ] 6 plots, assigned on join, cleared on leave, name sign
-- [ ] 8 lanes x 6 spots per plot, floating name + tier labels
-- [ ] Buy 1 / 5 / 25 pads with price scaling
-- [ ] Drops every 7 seconds, batched per tier, floating in the lanes
-- [ ] Walk over drops = Aura, 50-drop cap
-- [ ] Aura counter on the HUD
+- [x] 6 plots, assigned on join, cleared on leave, name sign (`Plots.luau`, `PlotService`)
+- [x] 8 rows x 5 spots per side (80) per plot, floating name + tier labels (`PoolService`)
+- [x] Buy 1 / 5 / 25 pads with price scaling (`ShopService`)
+- [x] Drops every 7 seconds from every brainrot (own timer each), floating bath > slide > river > channel > pool (`DropService`, client `DropController`)
+- [x] Walk over drops = Aura, 50-drop cap (server distance check via `CollectDrop` remote)
+- [x] Aura counter on the HUD (`HudController`)
+- [x] Testing aid: new players get `Economy.STARTING_CASH` (1,000); Cash on the HUD
+- Done when: you can buy Tim Cheeses, watch them drop cheese, and collect Aura until the cap stops them
+- **Phase 1 done 2026-09-28** (user play test: buying, drops, pickup, cap).
 
 ### Phase 2: Cash loop
-- [ ] Server-wide market multiplier, 0.50x to 1.50x every 30 seconds
-- [ ] Market board with graph and countdown
-- [ ] Deposit Aura stand
-- [ ] Processor queue, rate per second, sign
-- [ ] Collect Cash pad
-- [ ] Processor upgrade pad
-- [ ] Cash on the HUD
+- [x] Server-wide market multiplier, 0.50x to 1.50x every 30 seconds (`MarketService`, `ReplicatedStorage.Market` attributes)
+- [x] Market board with graph and countdown (client `MarketBoardController`, one board per plot)
+- [x] Deposit Aura stand (`ProcessorService`)
+- [x] Processor queue, rate per second, sign (`ProcessorService`)
+- [x] Collect Cash pad
+- [x] Processor upgrade pad
+- [x] Cash on the HUD
+- **Phase 2 done 2026-09-28** (user play test: deposit, processor, Collect Cash, upgrade, market board, popups).
 
 ### Phase 3: Progression and saving
-- [ ] Merge! pad, cascading merges
-- [ ] Buy 100 with auto-merge
-- [ ] Upgrade Buy Tier pad
-- [ ] All 20 tiers in config
-- [ ] ProfileStore saving with session locking
-- [ ] Offline earnings, 100% rate, straight to Aura
-- [ ] Home button
+- [x] Merge! pad, cascading merges (silent; pad gold when something can merge, grey otherwise)
+- [x] Buy 100 with auto-merge
+- [x] Upgrade Buy Tier pad
+- [x] All 20 tiers in config
+- [ ] ProfileStore saving with session locking (coded; persistence test deferred until the place is published with API access)
+- [ ] Offline earnings, 100% rate, straight to Aura (coded; needs the same test)
+- [x] Home button
 
 ### Phase 4: Lucky blocks and Index
 - [ ] Block spawning every 3 minutes, block type by highest tier
@@ -70,6 +74,7 @@ Last updated: 2026-09-28
 - [ ] 20 brainrot parody models + 20 drop item models
 - [ ] Onsen map: lanes, water, processor, market stand, decoration
 - [ ] Idle animations
+- [ ] Bath polish: steam, flowing water in rivers/channel, splash where slides meet the river
 - [ ] Mobile UI scaling and touch testing
 - [ ] Balance playtest (first merge < 1 min, first Upgrade Buy Tier < 10 min)
 - [ ] Title, description, icon, thumbnails
@@ -82,11 +87,37 @@ Last updated: 2026-09-28
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- To work in Studio: run `rojo serve` in `C:\dev\BrainrotOnsen`, then Connect from the Rojo plugin.
+- Phases 1 and 2 live on branch `claude/priceless-cori-962788` (worktree `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`), uncommitted and not on `main`. Run `rojo serve` from that folder, or ask Claude to commit and merge so `C:\dev\BrainrotOnsen` works again.
+- Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence).
+- Deferred: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
-- Code is untested in-game until Rojo syncs into Studio.
+- Some Capybara Onsen screenshots (HUD, Index, lucky box panel) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
+- Data is in memory only until Phase 3 (ProfileStore); every join starts with 1,000 Cash.
 
 ## Log (newest first)
+- 2026-09-28: User confirmed Merge!, Buy 100 and Upgrade Buy Tier. Saving/offline test deferred until API access is set up.
+- 2026-09-28: Buy 100 merges instantly again (delay removed at user's request); message stays "Bought 100 <name>!".
+- 2026-09-28: Buy 100 now says "Bought 100 <name>!" and shows the new brainrots for `AUTO_MERGE_DELAY` (1.2s) before merging; Merge! is silent; Merge! pad is gold when something can merge, grey otherwise. User confirmed Phase 3 features working so far.
+- 2026-09-28: `Economy.STUDIO_STARTING_CASH` = 500K: brand-new profiles in Studio start with it for testing; live stays 1,000. Set to 0 to test the real start.
+- 2026-09-28: Design doc save-data shape updated to match `DataService`. Rojo serve restarted so it picks up ServerPackages.
+- 2026-09-28: Phase 3 coded: ProfileStore saving (`PlayerData_v1`, key `Player_<UserId>`, session lock, lastOnline stamped every 10s), offline earnings at join (brainrots straight to Aura, processor keeps processing, "While you were away" popup), Merge! pad (cascading), Buy 100 (buy + merge with what you own, refused only if it won't fit), Upgrade Buy Tier pad, Home button. HUD moved to the doc layout: Home top center, Aura bottom center, Cash bottom left. ServerPackages copied into the worktree from the main checkout.
+- 2026-09-28: Phase 2 done (user confirmed). Moving to Phase 3.
+- 2026-09-28: Drops no longer carry name/value labels; collecting shows a green "+X" over the player that adds up quick pickups, then floats up and fades (`DropCollected` remote, `reference/drop-pickup-gain.png`).
+- 2026-09-28: Blockers refreshed (branch/worktree note, Phase 2 retest of station row and popups).
+- 2026-09-28: Deposit and Collect Cash now show big outlined popups ("Deposited X (+Y) Aura [x1.36]!", "Collected X Cash!") styled after `reference/popup-*.png`.
+- 2026-09-28: Stations rearranged into one row in front of the pool facing it (from `reference/capybara-onsen-stations.webp`): processor info board, processor tank, deposit stand, market board, pads on the pool side; floating processor sign replaced by a framed info board. User confirmed the Phase 2 loop works.
+- 2026-09-28: Phase 1 done. Phase 2 coded: MarketService (server-wide 0.50x-1.50x, 30s, last 20 rolls), market board per plot, Deposit Aura pad + stand, processor tank with "Processing / per second" sign, Collect Cash pad, processor upgrade pad; stations on the player's right of the pool. Shared `Plots.onStep` pad helper (buy pads use it too). Green "good" toasts. STARTING_CASH kept as the real new-player Cash (added to design doc).
+- 2026-09-28: User confirmed drop pickup and Aura counter work. Drops changed from one batched drop per tier per cycle to one drop per brainrot every 7s, each on its own timer from when it was placed (user decision; design doc updated). With 80 spots a full onsen makes 80 drops per 7s against the 50-drop cap.
+- 2026-09-28: Studio play test: plots, bath rows, fill order, buy pads and the rise/press animations confirmed by user. Drop pickup and the 50-drop cap still unconfirmed.
+- 2026-09-28: Polish: new brainrots rise out of the bath (client `BrainrotController`; server now only rebuilds changed spots and stamps SpawnedAt), buy pads sink while pressed (server `Pressed` attribute on `Pad`-tagged parts, client `PadController`). Bath polish (steam, water flow) added to Phase 6.
+- 2026-09-28: Spot fill order is now front row first, left to right across both sides (10 spots), then the next row back. Buy pads moved to the player's left of the pool (as in the reference).
+- 2026-09-28: Rows changed from bath pairs sharing a river to river-then-bath repeated 8 times (each bath drains into its own lower river); plot depth 220. Doc + CLAUDE.md updated.
+- 2026-09-28: Spots now 80 (8 rows x 5 per side; user decision, design doc + ConfigCheck updated). Rows rebuilt as raised stone baths paired around lower rivers, with wooden slides and lanterns, matching the new `reference/capybara-onsen-baths.webp`. Drops follow brainrot > slide > river > channel > pool (`Shared/DropPath`) and can be collected anywhere along the way; server checks distance to the drop's live position and warns in Studio when it refuses. HUD "Onsen x/N" box removed. DROP_FLOW_SECONDS 5 -> 10 for the longer path. Pickup bug reported; cause not confirmed, needs retest.
+- 2026-09-28: 6 lanes x 8 spots (was 8 x 6; still 48) to match Capybara Onsen; lanes longer, plot 190 x 140. Design doc, CLAUDE.md updated.
+- 2026-09-28: Plot scaled up (160 x 150 studs), longer lanes, narrow pool (14 wide) right in front of the lanes, open ground in front for stations; `DROP_FLOW_SECONDS` 4 -> 5 for the longer path. Second reference screenshot saved and added to the design doc.
+- 2026-09-28: `reference/` folder added with the Capybara Onsen plot layout screenshot; same image added to the design doc under "Plot layout".
+- 2026-09-28: Plot layout reworked from Capybara Onsen screenshots: lanes are rows (4 per side) flowing into a center channel and a stone-rimmed collection pool at the front; drops float down lane and channel into the pool (`DROP_FLOW_SECONDS` = 4) and are collected there. Design doc and CLAUDE.md updated. Screenshots still to be added to the doc.
+- 2026-09-28: Phase 1 coded: plots (built in code), lanes/spots with placeholder brainrots, Buy 1/5/25 pads, 7s batched drops, walk-over collection with server distance check, 50-drop cap, HUD (Aura, Cash, Onsen x/48), Remotes module. Economy: STARTING_CASH, DROP_TOUCH_RANGE, STUDIO_DROP_INTERVAL. stylua/selene/rojo build clean. Awaiting Studio play test.
 - 2026-09-28: Phase 0 done. Studio play test prints ConfigCheck OK, server and client started. Moving to Phase 1.
 - 2026-09-28: Studio installed; Rojo plugin added; `rojo serve` running on port 34872.
 - 2026-09-28: Selene Roblox std generated (Avast shield paused); lint clean.

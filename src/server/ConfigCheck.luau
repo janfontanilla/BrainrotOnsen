@@ -27,8 +27,13 @@ function ConfigCheck.run()
 		end
 	end
 
-	assert(Economy.MAX_SPOTS == 48, `Expected 48 spots, got {Economy.MAX_SPOTS}`)
+	assert(Economy.MAX_SPOTS == 80, `Expected 80 spots, got {Economy.MAX_SPOTS}`)
 	assert(Economy.MARKET_MIN < Economy.MARKET_MAX, "Market min must be below max")
+	assert(
+		Economy.DROP_TOUCH_RANGE < Economy.DROP_PICKUP_RANGE,
+		"Client touch range must be inside server pickup range"
+	)
+	assert(Economy.STARTING_CASH >= Economy.basePrice(1), "Starting Cash must buy at least one tier 1 brainrot")
 
 	for _, block in LuckyBlocks.list do
 		local total = 0

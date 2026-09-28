@@ -8,14 +8,27 @@ local Economy = {}
 
 -- Plots
 Economy.PLAYERS_PER_SERVER = 6
-Economy.LANES = 8
-Economy.SPOTS_PER_LANE = 6
-Economy.MAX_SPOTS = Economy.LANES * Economy.SPOTS_PER_LANE -- 48
+Economy.ROWS = 8 -- rows of baths, front to back
+Economy.LANES = Economy.ROWS * 2 -- one bath on each side of the center channel per row
+Economy.SPOTS_PER_LANE = 5
+Economy.MAX_SPOTS = Economy.LANES * Economy.SPOTS_PER_LANE -- 80
 
 -- Drops
 Economy.DROP_INTERVAL = 7 -- seconds between drops
 Economy.DROP_CAP = 50 -- uncollected drops per plot before production stops
-Economy.DROP_PICKUP_RANGE = 12 -- studs; server-side distance check
+Economy.DROP_PICKUP_RANGE = 12 -- studs; server-side distance check (lenient for latency)
+Economy.DROP_TOUCH_RANGE = 4 -- studs, horizontal; how close the client must walk before it asks to collect
+Economy.DROP_FLOW_SECONDS = 10 -- time a drop takes to float from its brainrot to its resting point in the pool
+-- Studio-only override for DROP_INTERVAL so the drop cap can be tested quickly. 0 = off.
+-- Ignored in live servers.
+Economy.STUDIO_DROP_INTERVAL = 0
+
+-- New players start with this much Cash to buy their first brainrots.
+-- (Until saving exists in Phase 3, every join is a new player.)
+Economy.STARTING_CASH = 1_000
+-- Studio-only: a brand-new profile in Studio starts with this much Cash instead,
+-- for testing. 0 = off. Ignored in live servers.
+Economy.STUDIO_STARTING_CASH = 500_000
 
 -- Buying
 Economy.BUY_AMOUNTS = { 1, 5, 25, 100 }
@@ -53,6 +66,7 @@ Economy.CASH_PACK_MULTIPLIERS = { S = 50, M = 2_500, L = 125_000 }
 
 -- Offline
 Economy.OFFLINE_RATE = 1.0 -- 100%, no time cap, straight into Aura
+Economy.OFFLINE_POPUP_MIN_SECONDS = 60 -- show "While you were away" only after this long offline
 
 function Economy.basePrice(tier: number): number
 	return Tiers.get(tier).aura * Economy.BASE_PRICE_MULTIPLIER
