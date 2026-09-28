@@ -9,7 +9,7 @@ Last updated: 2026-09-28
 - [x] Project folder `C:\dev\BrainrotOnsen` (outside OneDrive)
 - [x] CLAUDE.md and PROGRESS.md
 - [x] Stop hook that enforces PROGRESS.md updates (`.claude/settings.json`)
-- [x] Git repo initialized (nothing committed yet)
+- [x] Git repo initialized, Phase 0 committed (8ae4205)
 - [x] Rojo project file (`default.project.json`)
 - [x] `wally.toml` with ProfileStore 1.0.3 (server realm)
 - [x] StyLua + Selene config
