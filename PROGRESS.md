@@ -87,7 +87,7 @@ Last updated: 2026-09-28
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- Phases 1 and 2 live on branch `claude/priceless-cori-962788` (worktree `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`), uncommitted and not on `main`. Run `rojo serve` from that folder, or ask Claude to commit and merge so `C:\dev\BrainrotOnsen` works again.
+- Phases 1 and 2 live on branch `claude/priceless-cori-962788` (worktree `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`), committed (45a8502) but not merged into `main`. Run `rojo serve` from that folder, or ask Claude to commit and merge so `C:\dev\BrainrotOnsen` works again.
 - Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence).
 - Deferred: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
@@ -95,6 +95,7 @@ Last updated: 2026-09-28
 - Data is in memory only until Phase 3 (ProfileStore); every join starts with 1,000 Cash.
 
 ## Log (newest first)
+- 2026-09-28: Phases 1-3 committed on branch `claude/priceless-cori-962788` (45a8502). Not merged into `main` yet.
 - 2026-09-28: User confirmed Merge!, Buy 100 and Upgrade Buy Tier. Saving/offline test deferred until API access is set up.
 - 2026-09-28: Buy 100 merges instantly again (delay removed at user's request); message stays "Bought 100 <name>!".
 - 2026-09-28: Buy 100 now says "Bought 100 <name>!" and shows the new brainrots for `AUTO_MERGE_DELAY` (1.2s) before merging; Merge! is silent; Merge! pad is gold when something can merge, grey otherwise. User confirmed Phase 3 features working so far.
