@@ -88,7 +88,7 @@ Coded 2026-09-28 (lint + build clean), waiting on the Studio play test.
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- Phases 1 and 2 live on branch `claude/priceless-cori-962788` (worktree `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`), committed (45a8502) but not merged into `main`. Run `rojo serve` from that folder, or ask Claude to commit and merge so `C:\dev\BrainrotOnsen` works again.
+- Phases 1 and 2 live on branch `claude/priceless-cori-962788` (worktree `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`), committed (latest 0fc8e9f) but not merged into `main`. Run `rojo serve` from that folder, or ask Claude to commit and merge so `C:\dev\BrainrotOnsen` works again.
 - Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence).
 - Deferred: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
@@ -96,6 +96,7 @@ Coded 2026-09-28 (lint + build clean), waiting on the Studio play test.
 - Data is in memory only until Phase 3 (ProfileStore); every join starts with 1,000 Cash.
 
 ## Log (newest first)
+- 2026-09-28: Phase 4 work committed on branch `claude/priceless-cori-962788` (0fc8e9f). Not merged into `main` yet.
 - 2026-09-28: Unlock reveal moved to the screen: the chest leaves the hand, a big chest drops into the middle of the owner's screen, shakes, then pops open into the brainrot (name + tier), holds, shrinks away.
 - 2026-09-28: Held lucky block: right arm held straight out (tool pose), chest rests on the end of the right hand; left arm stays down.
 - 2026-09-28: Lucky block fixes: panel never showed (clearing the viewport destroyed its camera, error on show); held chest now rests on the character's raised hands (shoulders rotated locally) and stays still, shaking only during the unlock reveal.
