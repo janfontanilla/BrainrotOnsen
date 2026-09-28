@@ -19,6 +19,7 @@ local Tiers = require(Shared.Config.Tiers)
 local Economy = require(Shared.Config.Economy)
 local Remotes = require(Shared.Remotes)
 local DropPath = require(Shared.DropPath)
+local Visuals = require(Shared.Visuals)
 local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
 local PoolService = require(script.Parent.PoolService)
@@ -41,6 +42,8 @@ local drops: { [number]: { [string]: Drop } } = {}
 local dropCounts: { [number]: number } = {}
 -- plot index -> spot index -> timer for that spot's brainrot
 local timers: { [number]: { [number]: { since: number, nextAt: number } } } = {}
+-- plot index -> takes the place of that plot's next drop (lucky blocks)
+local replacers: { [number]: (path: { Vector3 }, flowAt: number) -> () } = {}
 local nextId = 0
 local random = Random.new()
 local TICK = 0.2 -- seconds between timer checks
@@ -55,6 +58,12 @@ end
 local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: number)
 	local path = Plots.dropPath(plot, spotIndex, random)
 	local flowAt = workspace:GetServerTimeNow()
+	local replacer = replacers[plot.index]
+	if replacer then
+		replacers[plot.index] = nil
+		replacer(path, flowAt)
+		return
+	end
 
 	nextId += 1
 	local id = tostring(nextId)
@@ -69,7 +78,7 @@ local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: num
 	part.CanTouch = false
 	part.CanQuery = false
 	part.Material = Enum.Material.Neon
-	part.Color = PoolService.tierColor(tier)
+	part.Color = Visuals.tierColor(tier)
 	part:SetAttribute("Tier", tier)
 	DropPath.write(part, path, flowAt)
 
@@ -150,7 +159,19 @@ local function onCollect(player: Player, dropId: unknown)
 	dropCollected:FireClient(player, drop.value)
 end
 
+-- Uncollected drops on the plot right now.
+function DropService.dropCount(plot: Plot): number
+	return dropCounts[plot.index] or 0
+end
+
+-- The plot's next drop is replaced: instead of an Aura drop, `replacer` gets
+-- the drop's path and start time (it floats its own thing down that path).
+function DropService.replaceNextDrop(plot: Plot, replacer: (path: { Vector3 }, flowAt: number) -> ())
+	replacers[plot.index] = replacer
+end
+
 function DropService.clearPlot(plot: Plot)
+	replacers[plot.index] = nil
 	plot.dropFolder:ClearAllChildren()
 	drops[plot.index] = nil
 	dropCounts[plot.index] = nil

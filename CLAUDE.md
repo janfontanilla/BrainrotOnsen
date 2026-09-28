@@ -21,7 +21,7 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 - 80 brainrot spots per plot (8 rows x 5 per side of the center channel). No capacity upgrades.
 - Plot layout (Capybara Onsen): 8 rows at the back, each a raised stone-rimmed bath on both sides of a center channel; each bath has its own lower river in front of it (river, bath, river, bath...), wooden slides carry drops from bath to river, rivers flow into the channel, and the channel empties into a narrow stone-rimmed pool just in front of the lanes; Merge!/buy pads beside the pool; big open ground in front for the other stations.
 - Drop cap: 50 uncollected drops per plot. At the cap, all production silently stops (no banner) until drops are picked up.
-- Only Buy 100 auto-merges (together with what the player already owns). Buy 1/5/25 and lucky block results never auto-merge; they wait for the Merge! pad. Buy 1/5/25 buy as many as fit and charge only for those.
+- Buy 100 always auto-merges (together with what the player already owns). Buy 1/5/25 and lucky block results only merge when the onsen maxes out: if they wouldn't fit, or the onsen is full after adding them, everything merges automatically. Otherwise they wait for the Merge! pad. Buy 1/5/25 buy as many as fit and charge only for those.
 - Tier value is roughly 4x the tier below (must always be more than 3x so merging pays).
 - Upgrade Buy Tier permanently raises the tier the buy pads sell and resets price scaling.
 - Offline: brainrots earn at 100% forever, straight into the Aura counter (ignores the drop cap). Processor keeps processing.

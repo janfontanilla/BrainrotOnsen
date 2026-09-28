@@ -60,6 +60,9 @@ Economy.PREMIUM_AURA_BOOST = 0.10 -- applies to Aura from drops
 -- Lucky blocks
 Economy.LUCKY_BLOCK_SPAWN_INTERVAL = 180 -- seconds of production per block
 Economy.LUCKY_BLOCK_PRICE_MULTIPLIER = 800 -- price = unlock tier's aura x this
+Economy.LUCKY_BLOCK_PICKUP_RANGE = 5 -- studs, horizontal; walking this close picks the block up
+-- Studio-only override for LUCKY_BLOCK_SPAWN_INTERVAL so blocks can be tested quickly. 0 = off.
+Economy.STUDIO_LUCKY_BLOCK_INTERVAL = 0
 
 -- Cash packs (dev products): amount = base price of highest tier x multiplier
 Economy.CASH_PACK_MULTIPLIERS = { S = 50, M = 2_500, L = 125_000 }

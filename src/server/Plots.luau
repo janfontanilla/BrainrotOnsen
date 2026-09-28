@@ -533,6 +533,13 @@ function Plots.build()
 	root.Parent = workspace
 end
 
+-- A random point floating in the pool (world space).
+function Plots.poolPoint(plot: Plot, random: Random): Vector3
+	local x = random:NextNumber(-(POOL_WIDTH / 2 - 2), POOL_WIDTH / 2 - 2)
+	local z = random:NextNumber(POOL_FRONT_Z + 2, POOL_BACK_Z - 2)
+	return plot.origin:PointToWorldSpace(Vector3.new(x, WATER_TOP + DROP_FLOAT, z))
+end
+
 -- The path a new drop floats along, in world space: off the brainrot in spot
 -- `spotIndex`, over the rim and down the slide into the river, along the river
 -- to the channel, down the channel into the pool, to a random resting point.
@@ -545,15 +552,14 @@ function Plots.dropPath(plot: Plot, spotIndex: number, random: Random): { Vector
 	local slideX = x + side * SLIDE_OFFSET
 	local floatY = WATER_TOP + DROP_FLOAT
 	local floatZ = riverZ + random:NextNumber(-RIVER_WIDTH / 4, RIVER_WIDTH / 4)
-	local restX = random:NextNumber(-(POOL_WIDTH / 2 - 2), POOL_WIDTH / 2 - 2)
-	local restZ = random:NextNumber(POOL_FRONT_Z + 2, POOL_BACK_Z - 2)
+	local rest = plot.origin:PointToObjectSpace(Plots.poolPoint(plot, random))
 	local points = {
 		Vector3.new(x, BATH_WATER_TOP + DROP_FLOAT, z),
 		Vector3.new(slideX, BATH_RIM_TOP + DROP_FLOAT, z + toward * (LANE_WIDTH / 2 - BATH_RIM)),
 		Vector3.new(slideX, floatY, floatZ),
 		Vector3.new(0, floatY, floatZ),
 		Vector3.new(0, floatY, POOL_BACK_Z),
-		Vector3.new(restX, floatY, restZ),
+		Vector3.new(rest.X, floatY, rest.Z),
 	}
 	for i, point in points do
 		points[i] = plot.origin:PointToWorldSpace(point)

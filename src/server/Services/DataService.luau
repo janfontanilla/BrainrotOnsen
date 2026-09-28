@@ -4,7 +4,7 @@
 -- mutate it and call DataService.sync so balances reach the client.
 --
 -- Balances replicate to the owning client as read-only player attributes
--- (Aura, Cash, Brainrots). Attributes a client sets never reach the server.
+-- (Aura, Cash, Brainrots, Discovered = "0101..." one char per tier). Attributes a client sets never reach the server.
 --
 -- In Studio, saving only persists when the place is published and "Enable
 -- Studio Access to API Services" is on; otherwise ProfileStore runs in mock
@@ -30,6 +30,8 @@ export type Data = {
 	processorQueue: number, -- deposited Aura (already x market) waiting to become Cash
 	pendingCash: number, -- processed Cash waiting on the Collect Cash pad
 	lastOnline: number, -- os.time() while online, for offline earnings
+	luckyBlock: string, -- name of the lucky block waiting or held ("" = none)
+	luckyProgress: number, -- seconds of production toward the next lucky block
 }
 
 local STORE_NAME = "PlayerData_v1"
@@ -47,6 +49,8 @@ local TEMPLATE: Data = {
 	processorQueue = 0,
 	pendingCash = 0,
 	lastOnline = 0,
+	luckyBlock = "",
+	luckyProgress = 0,
 }
 
 local DataService = {}
@@ -127,14 +131,20 @@ function DataService.auraPerSecond(data: Data): number
 	return total / Economy.DROP_INTERVAL
 end
 
--- Updates highestTier and discovered from what the player owns now.
-function DataService.markOwned(data: Data)
+-- Updates highestTier and discovered from what the player owns now. Returns
+-- the tiers discovered for the first time.
+function DataService.markOwned(data: Data): { number }
+	local new: { number } = {}
 	for tier, count in data.counts do
 		if count > 0 then
-			data.discovered[tier] = true
+			if not data.discovered[tier] then
+				data.discovered[tier] = true
+				table.insert(new, tier)
+			end
 			data.highestTier = math.max(data.highestTier, tier)
 		end
 	end
+	return new
 end
 
 -- Applies earnings since lastOnline: brainrots at Economy.OFFLINE_RATE straight
@@ -162,6 +172,13 @@ function DataService.sync(player: Player)
 	player:SetAttribute("Aura", data.aura)
 	player:SetAttribute("Cash", data.cash)
 	player:SetAttribute("Brainrots", DataService.brainrotCount(data))
+	local discovered = table.create(Tiers.MAX_TIER, "0")
+	for tier = 1, Tiers.MAX_TIER do
+		if data.discovered[tier] then
+			discovered[tier] = "1"
+		end
+	end
+	player:SetAttribute("Discovered", table.concat(discovered))
 end
 
 function DataService.addAura(player: Player, amount: number)

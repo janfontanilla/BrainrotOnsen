@@ -1,0 +1,518 @@
+--!strict
+-- Lucky blocks on the client:
+--   * Held block: every player whose LuckyBlock attribute is set sticks their
+--     right arm out in front (like holding a tool) with the chest resting on the
+--     end of the hand (drawn locally, so it's smooth).
+--   * Panel (owner only, right side): block picture, "<Name> / Lucky Box", odds
+--     with each tier's name and number, the Cash cost, Unlock! and Discard.
+--     Odds and price come from the shared Config/LuckyBlocks; the server rolls.
+--   * Reveal: on LuckyBlockOpened the chest leaves the holder's hand. For the
+--     owner, a big chest drops into the middle of the screen, shakes, then pops
+--     open into the brainrot that was rolled (name + tier), holds, and shrinks away.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Tiers = require(Shared.Config.Tiers)
+local LuckyBlocks = require(Shared.Config.LuckyBlocks)
+local Format = require(Shared.Format)
+local Remotes = require(Shared.Remotes)
+local Visuals = require(Shared.Visuals)
+
+local player = Players.LocalPlayer
+
+local HELD_SIZE = 3
+local HELD_FALLBACK = CFrame.new(1.5, 1, -2.5) -- from the root part when the hand can't be found
+-- Right shoulder rotation that points the arm straight forward (R15: about X, R6: about Z).
+local ARM_OUT_R15 = CFrame.Angles(math.pi / 2, 0, 0)
+local ARM_OUT_R6 = CFrame.Angles(0, 0, math.pi / 2)
+local DROP_TIME = 0.5 -- chest drops into the middle of the screen
+local SHAKE_TIME = 1 -- then shakes
+local REVEAL_HOLD = 1.8 -- the brainrot stays on screen this long
+local REVEAL_SIZE = 320 -- pixels
+
+local LuckyBlockController = {}
+
+-- Player -> chest held in their right hand
+local held: { [Player]: Model } = {}
+-- Shoulder motor -> its original C0, while the arm is held out
+local raisedShoulders: { [Motor6D]: CFrame } = {}
+
+local function findBlock(name: unknown): LuckyBlocks.Block?
+	if typeof(name) ~= "string" or name == "" then
+		return nil
+	end
+	for _, block in LuckyBlocks.list do
+		if block.name == name then
+			return block
+		end
+	end
+	return nil
+end
+
+local function rootOf(target: Player): BasePart?
+	local character = target.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		return root
+	end
+	return nil
+end
+
+-- The right shoulder motor and the rotation that holds the arm out.
+local function rightShoulder(character: Model): (Motor6D?, CFrame)
+	local r15 = character:FindFirstChild("RightShoulder", true)
+	if r15 and r15:IsA("Motor6D") then
+		return r15, ARM_OUT_R15
+	end
+	local r6 = character:FindFirstChild("Right Shoulder", true)
+	if r6 and r6:IsA("Motor6D") then
+		return r6, ARM_OUT_R6
+	end
+	return nil, CFrame.new()
+end
+
+-- Holds the target's right arm out in front, or lowers it again (local only).
+local function setArmsUp(target: Player, up: boolean)
+	local character = target.Character
+	if not character then
+		return
+	end
+	local motor, out = rightShoulder(character)
+	if not motor then
+		return
+	end
+	local original = raisedShoulders[motor]
+	if up and not original then
+		raisedShoulders[motor] = motor.C0
+		motor.C0 = motor.C0 * out
+	elseif not up and original then
+		motor.C0 = original
+		raisedShoulders[motor] = nil
+	end
+end
+
+-- Where the held chest sits: resting on the end of the outstretched right hand.
+local function aboveHead(target: Player): CFrame?
+	local root = rootOf(target)
+	if not root then
+		return nil
+	end
+	local character = target.Character
+	local hand = character and (character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm"))
+	if not hand or not hand:IsA("BasePart") then
+		return root.CFrame * HELD_FALLBACK
+	end
+	-- With the arm pointing forward, the hand's -Y end is its fingertips.
+	local tip = (hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, 0)).Position
+	return CFrame.new(tip + Vector3.new(0, HELD_SIZE / 2 + hand.Size.Z / 2, 0)) * root.CFrame.Rotation
+end
+
+local function dropHeld(target: Player)
+	local model = held[target]
+	if model then
+		model:Destroy()
+		held[target] = nil
+	end
+	setArmsUp(target, false)
+end
+
+local function refreshHeld(target: Player)
+	local block = findBlock(target:GetAttribute("LuckyBlock"))
+	if not block then
+		dropHeld(target)
+		return
+	end
+	dropHeld(target)
+	setArmsUp(target, true)
+	local model = Visuals.makeLuckyBlock(block.name, HELD_SIZE)
+	model.Parent = workspace
+	held[target] = model
+end
+
+local function watchPlayer(target: Player)
+	target:GetAttributeChangedSignal("LuckyBlock"):Connect(function()
+		refreshHeld(target)
+	end)
+	target.CharacterAdded:Connect(function(character)
+		character:WaitForChild("HumanoidRootPart")
+		character:WaitForChild("Humanoid")
+		task.wait()
+		refreshHeld(target)
+	end)
+	refreshHeld(target)
+end
+
+-- The screen reveal (owner only). Built once in Start.
+local revealFrame: Frame
+local revealView: ViewportFrame
+local revealCamera: Camera
+local revealScale: UIScale
+local revealName: TextLabel
+local revealTier: TextLabel
+local revealSerial = 0
+
+local function buildReveal(): ScreenGui
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "LuckyReveal"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 10
+
+	local frame = Instance.new("Frame")
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Size = UDim2.fromOffset(REVEAL_SIZE, REVEAL_SIZE + 90)
+	frame.BackgroundTransparency = 1
+	frame.Visible = false
+	frame.Parent = gui
+	local scale = Instance.new("UIScale")
+	scale.Parent = frame
+
+	local view = Instance.new("ViewportFrame")
+	view.Size = UDim2.fromOffset(REVEAL_SIZE, REVEAL_SIZE)
+	view.BackgroundTransparency = 1
+	view.Parent = frame
+	local camera = Instance.new("Camera")
+	camera.FieldOfView = 40
+	camera.CFrame = CFrame.lookAt(Vector3.new(0, 2.5, -11), Vector3.zero)
+	camera.Parent = view
+	view.CurrentCamera = camera
+
+	local function caption(y: number, height: number): TextLabel
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.Size = UDim2.new(1, 0, 0, height)
+		label.Position = UDim2.fromOffset(0, y)
+		label.Parent = frame
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 3
+		stroke.Color = Color3.fromRGB(30, 20, 10)
+		stroke.Parent = label
+		return label
+	end
+	revealName = caption(REVEAL_SIZE, 50)
+	revealTier = caption(REVEAL_SIZE + 50, 32)
+	revealTier.TextColor3 = Color3.new(1, 1, 1)
+
+	revealFrame = frame
+	revealView = view
+	revealCamera = camera
+	revealScale = scale
+	return gui
+end
+
+local function setRevealContent(model: Instance)
+	for _, child in revealView:GetChildren() do
+		if child ~= revealCamera then
+			child:Destroy()
+		end
+	end
+	model.Parent = revealView
+end
+
+local function brainrotModel(tier: number): Model
+	local model = Instance.new("Model")
+	local size = 4
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.Size = Vector3.new(size, size, size)
+	part.Color = Visuals.tierColor(tier)
+	part.Material = Enum.Material.SmoothPlastic
+	part.CFrame = CFrame.Angles(math.rad(-10), math.rad(-30), 0)
+	part.Parent = model
+	model.PrimaryPart = part
+	return model
+end
+
+-- Owner's screen: chest drops in, shakes, opens into the brainrot.
+local function playScreenReveal(blockName: string, tier: number)
+	revealSerial += 1
+	local serial = revealSerial
+	local def = Tiers.get(tier)
+
+	local chest = Visuals.makeLuckyBlock(blockName, 4)
+	chest:PivotTo(CFrame.Angles(math.rad(-10), math.rad(-30), 0))
+	setRevealContent(chest)
+	revealName.Text = ""
+	revealTier.Text = ""
+	revealView.Rotation = 0
+	revealScale.Scale = 1
+	revealFrame.Position = UDim2.fromScale(0.5, -0.3)
+	revealFrame.Visible = true
+
+	-- Drop in.
+	TweenService:Create(
+		revealFrame,
+		TweenInfo.new(DROP_TIME, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out),
+		{ Position = UDim2.fromScale(0.5, 0.45) }
+	):Play()
+	task.wait(DROP_TIME)
+
+	-- Shake, harder towards the end.
+	local start = os.clock()
+	while os.clock() - start < SHAKE_TIME do
+		if revealSerial ~= serial then
+			return
+		end
+		local t = os.clock() - start
+		revealView.Rotation = math.sin(t * 45) * (4 + 10 * t / SHAKE_TIME)
+		RunService.RenderStepped:Wait()
+	end
+	revealView.Rotation = 0
+
+	-- Open: the chest pops away and the brainrot pops in.
+	local pop = TweenService:Create(
+		revealScale,
+		TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Scale = 0.2 }
+	)
+	pop:Play()
+	pop.Completed:Wait()
+	setRevealContent(brainrotModel(tier))
+	revealName.Text = def.name
+	revealName.TextColor3 = Visuals.tierColor(tier)
+	revealTier.Text = `Tier {tier}`
+	TweenService
+		:Create(revealScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+	task.wait(REVEAL_HOLD)
+	if revealSerial ~= serial then
+		return
+	end
+
+	-- Shrink away.
+	local out = TweenService:Create(
+		revealScale,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		{ Scale = 0 }
+	)
+	out:Play()
+	out.Completed:Wait()
+	if revealSerial == serial then
+		revealFrame.Visible = false
+	end
+end
+
+local function reveal(target: Player, blockName: string, tier: number)
+	-- The chest leaves the holder's hand (the arm comes down with it).
+	dropHeld(target)
+	if target == player then
+		playScreenReveal(blockName, tier)
+	end
+end
+
+local function text(parent: Instance, value: string, color: Color3, size: UDim2, position: UDim2): TextLabel
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = color
+	label.Text = value
+	label.Size = size
+	label.Position = position
+	label.Parent = parent
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = Color3.fromRGB(30, 20, 10)
+	stroke.Parent = label
+	return label
+end
+
+local function box(parent: Instance, color: Color3, size: UDim2, position: UDim2, radius: number): Frame
+	local frame = Instance.new("Frame")
+	frame.BackgroundColor3 = color
+	frame.Size = size
+	frame.Position = position
+	frame.Parent = parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = frame
+	local border = Instance.new("UIStroke")
+	border.Thickness = 3
+	border.Color = Color3.fromRGB(40, 25, 10)
+	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	border.Parent = frame
+	return frame
+end
+
+local function button(parent: Instance, value: string, color: Color3, position: UDim2): TextButton
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, 0, 0, 60)
+	b.Position = position
+	b.BackgroundColor3 = color
+	b.Font = Enum.Font.FredokaOne
+	b.TextScaled = true
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.Text = value
+	b.Parent = parent
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = b
+	local border = Instance.new("UIStroke")
+	border.Thickness = 3
+	border.Color = Color3.fromRGB(30, 20, 10)
+	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	border.Parent = b
+	local textStroke = Instance.new("UIStroke")
+	textStroke.Thickness = 2
+	textStroke.Color = Color3.fromRGB(30, 20, 10)
+	textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	textStroke.Parent = b
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingBottom = UDim.new(0, 10)
+	padding.Parent = b
+	return b
+end
+
+local function buildPanel(): (ScreenGui, () -> ())
+	local action = Remotes.event("LuckyBlockAction")
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "LuckyBlock"
+	gui.ResetOnSpawn = false
+
+	local root = Instance.new("Frame")
+	root.AnchorPoint = Vector2.new(1, 0.5)
+	root.Position = UDim2.new(1, -16, 0.5, 0)
+	root.Size = UDim2.fromOffset(320, 560)
+	root.BackgroundTransparency = 1
+	root.Visible = false
+	root.Parent = gui
+
+	-- Main card: picture + title, then the odds box.
+	local card = box(root, Color3.fromRGB(220, 170, 90), UDim2.new(1, 0, 0, 380), UDim2.new(), 12)
+	local viewport = Instance.new("ViewportFrame")
+	viewport.BackgroundTransparency = 1
+	viewport.Size = UDim2.fromOffset(110, 110)
+	viewport.Position = UDim2.fromOffset(4, -20)
+	viewport.Parent = card
+	local camera = Instance.new("Camera")
+	camera.FieldOfView = 40
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+	local title = text(card, "", Color3.new(1, 1, 1), UDim2.new(1, -124, 0, 50), UDim2.fromOffset(118, 10))
+	text(card, "Lucky Box", Color3.new(1, 1, 1), UDim2.new(1, -124, 0, 34), UDim2.fromOffset(118, 60))
+
+	local odds = box(card, Color3.fromRGB(80, 60, 35), UDim2.new(1, -24, 0, 256), UDim2.fromOffset(12, 110), 10)
+	local cost = box(root, Color3.fromRGB(70, 60, 45), UDim2.new(1, 0, 0, 52), UDim2.fromOffset(0, 392), 10)
+	text(cost, "Cost:", Color3.new(1, 1, 1), UDim2.new(0.4, -12, 1, -12), UDim2.fromOffset(12, 6))
+	local price = text(cost, "", Color3.fromRGB(125, 255, 110), UDim2.new(0.6, -12, 1, -12), UDim2.new(0.4, 0, 0, 6))
+	price.TextXAlignment = Enum.TextXAlignment.Right
+
+	local unlock = button(root, "🔓 Unlock!", Color3.fromRGB(110, 210, 50), UDim2.fromOffset(0, 454))
+	local discard = button(root, "🗑 Discard", Color3.fromRGB(230, 80, 40), UDim2.fromOffset(0, 520))
+	unlock.Size = UDim2.new(1, 0, 0, 58)
+	discard.Size = UDim2.new(1, 0, 0, 40)
+	unlock.Activated:Connect(function()
+		action:FireServer("unlock")
+	end)
+	discard.Activated:Connect(function()
+		action:FireServer("discard")
+	end)
+
+	local function show()
+		local block = findBlock(player:GetAttribute("LuckyBlock"))
+		if not block then
+			root.Visible = false
+			return
+		end
+		local color = Visuals.blockColor(block.name)
+		card.BackgroundColor3 = color:Lerp(Color3.fromRGB(220, 170, 90), 0.5)
+		title.Text = block.name
+		title.TextColor3 = color:Lerp(Color3.new(1, 1, 1), 0.5)
+
+		for _, child in viewport:GetChildren() do
+			if child:IsA("Model") then
+				child:Destroy()
+			end
+		end
+		local model = Visuals.makeLuckyBlock(block.name, 4)
+		model:PivotTo(CFrame.Angles(math.rad(-15), math.rad(-30), 0))
+		model.Parent = viewport
+		camera.CFrame = CFrame.lookAt(Vector3.new(0, 2, -11), Vector3.zero)
+
+		for _, child in odds:GetChildren() do
+			if child:IsA("TextLabel") then
+				child:Destroy()
+			end
+		end
+		local rowHeight = 236 / #block.rolls
+		for i, roll in block.rolls do
+			local y = 10 + (i - 1) * rowHeight
+			local tier = Tiers.get(roll.tier)
+			local nameLabel = text(
+				odds,
+				tier.name,
+				Visuals.tierColor(roll.tier),
+				UDim2.new(0.72, -12, 0, rowHeight * 0.55),
+				UDim2.fromOffset(12, y)
+			)
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+			local tierLabel = text(
+				odds,
+				`Tier {roll.tier}`,
+				Color3.new(1, 1, 1),
+				UDim2.new(0.4, 0, 0, rowHeight * 0.3),
+				UDim2.fromOffset(12, y + rowHeight * 0.55)
+			)
+			tierLabel.TextXAlignment = Enum.TextXAlignment.Left
+			local percent = text(
+				odds,
+				`{roll.weight}%`,
+				Color3.new(1, 1, 1),
+				UDim2.new(0.28, -12, 0, rowHeight * 0.6),
+				UDim2.new(0.72, 0, 0, y + rowHeight * 0.1)
+			)
+			percent.TextXAlignment = Enum.TextXAlignment.Right
+		end
+		price.Text = `{Format.short(block.price)} Cash`
+		root.Visible = true
+	end
+
+	player:GetAttributeChangedSignal("LuckyBlock"):Connect(show)
+	return gui, show
+end
+
+function LuckyBlockController:Start()
+	for _, target in Players:GetPlayers() do
+		watchPlayer(target)
+	end
+	Players.PlayerAdded:Connect(watchPlayer)
+	Players.PlayerRemoving:Connect(function(target)
+		dropHeld(target)
+	end)
+
+	-- Keep every held chest on its holder's outstretched hand (still; it only shakes
+	-- while being unlocked).
+	RunService.RenderStepped:Connect(function()
+		for target, model in held do
+			local place = aboveHead(target)
+			if place then
+				model:PivotTo(place)
+			end
+		end
+	end)
+
+	Remotes.event("LuckyBlockOpened").OnClientEvent:Connect(function(target: unknown, blockName: unknown, tier: unknown)
+		if
+			typeof(target) == "Instance"
+			and target:IsA("Player")
+			and typeof(blockName) == "string"
+			and typeof(tier) == "number"
+		then
+			task.spawn(reveal, target, blockName, tier)
+		end
+	end)
+
+	buildReveal().Parent = player:WaitForChild("PlayerGui")
+
+	local gui, show = buildPanel()
+	show()
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+return LuckyBlockController

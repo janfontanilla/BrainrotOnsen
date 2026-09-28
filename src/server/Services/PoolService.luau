@@ -8,6 +8,7 @@
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
+local Visuals = require(Shared.Visuals)
 local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
 
@@ -23,10 +24,6 @@ local spotParts: { [number]: { [number]: BasePart } } = {}
 -- plot index -> spot index -> os.clock() when that spot's brainrot was placed
 local spotSince: { [number]: { [number]: number } } = {}
 
-function PoolService.tierColor(tier: number): Color3
-	return Color3.fromHSV(((tier - 1) * 0.137) % 1, 0.65, 0.95)
-end
-
 local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): BasePart
 	local def = Tiers.get(tier)
 	local size = 3 + tier * 0.1
@@ -38,7 +35,7 @@ local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): BaseP
 	block.Size = Vector3.new(size, size, size)
 	-- Sit in the raised bath's shallow water.
 	block.CFrame = spot * CFrame.new(0, size / 2 - 0.4, 0)
-	block.Color = PoolService.tierColor(tier)
+	block.Color = Visuals.tierColor(tier)
 	block.Material = Enum.Material.SmoothPlastic
 	block:SetAttribute("Tier", tier)
 	block:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())

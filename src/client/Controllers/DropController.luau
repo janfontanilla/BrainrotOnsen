@@ -33,11 +33,13 @@ type Tracked = {
 
 local DropController = {}
 
-local tracked: { [BasePart]: Tracked } = {}
-local requested: { [BasePart]: number } = {}
+-- Drop parts, plus lucky block models (animated the same way, never collected
+-- through CollectDrop: the server picks those up itself).
+local tracked: { [PVInstance]: Tracked } = {}
+local requested: { [PVInstance]: number } = {}
 
 local function track(child: Instance)
-	if not child:IsA("BasePart") then
+	if not (child:IsA("BasePart") or child:IsA("Model")) then
 		return
 	end
 	local path, flowAt = DropPath.read(child)
@@ -45,7 +47,7 @@ local function track(child: Instance)
 end
 
 local function untrack(child: Instance)
-	if child:IsA("BasePart") then
+	if child:IsA("PVInstance") then
 		tracked[child] = nil
 		requested[child] = nil
 	end
@@ -169,12 +171,15 @@ function DropController:Start()
 		local root = rootPart()
 		local mine = myDropFolder(plots)
 		for part, info in tracked do
+			local lucky = part:IsA("Model")
 			local position = DropPath.at(info.path, info.flowAt, serverNow)
-			part.CFrame = CFrame.new(position)
-				* CFrame.new(0, math.sin(now * 2 + info.phase) * 0.3, 0)
-				* CFrame.Angles(0, now * 1.5 + info.phase, 0)
+			part:PivotTo(
+				CFrame.new(position)
+					* CFrame.new(0, math.sin(now * 2 + info.phase) * 0.3, 0)
+					* CFrame.Angles(0, if lucky then 0 else now * 1.5 + info.phase, 0)
+			)
 
-			if root and mine and part.Parent == mine then
+			if not lucky and root and mine and part.Parent == mine then
 				local offset = root.Position - position
 				local flat = Vector3.new(offset.X, 0, offset.Z).Magnitude
 				local last = requested[part]

@@ -2,7 +2,8 @@
 -- Buying and merging. Stepping on a pad is the intent; the server decides
 -- everything else.
 --   Buy 1 / 5 / 25   sell the player's buy tier, buy as many as fit in the free
---                    spots and charge only for those; never auto-merge
+--                    spots and charge only for those. They only merge when the
+--                    onsen is full (see ShopService.makeRoom / mergeIfFull)
 --   Buy 100          buys 100 and merges them together with what the player
 --                    already owns, instantly; refused only if the result won't fit
 --   Merge!           merges every triple, cascading upward, silently. The pad is
@@ -53,6 +54,21 @@ local function canMerge(counts: { number }): boolean
 	return false
 end
 
+-- When the onsen maxes out it merges by itself. Call before adding `needed`
+-- brainrots: merges if they wouldn't all fit.
+function ShopService.makeRoom(data: Data, needed: number)
+	if Economy.MAX_SPOTS - DataService.brainrotCount(data) < needed then
+		ShopService.mergeCounts(data.counts)
+	end
+end
+
+-- Call after adding brainrots: merges if the onsen is now full.
+function ShopService.mergeIfFull(data: Data)
+	if DataService.brainrotCount(data) >= Economy.MAX_SPOTS then
+		ShopService.mergeCounts(data.counts)
+	end
+end
+
 local function total(counts: { number }): number
 	local sum = 0
 	for _, count in counts do
@@ -92,10 +108,13 @@ function ShopService.refreshPads(plot: Plot)
 end
 
 local function afterChange(player: Player, plot: Plot, data: Data)
-	DataService.markOwned(data)
+	local discovered = DataService.markOwned(data)
 	DataService.sync(player)
 	PoolService.render(plot, data)
 	ShopService.refreshPads(plot)
+	if #discovered > 0 then
+		notify:FireClient(player, `New brainrot! {Tiers.get(discovered[#discovered]).name}`, "newBrainrot")
+	end
 end
 
 local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: number)
@@ -126,19 +145,24 @@ local function buy(player: Player, plot: Plot, amount: number)
 		buyAndMerge(player, plot, data, amount)
 		return
 	end
+	local before = table.clone(data.counts)
+	ShopService.makeRoom(data, amount)
 	local free = Economy.MAX_SPOTS - DataService.brainrotCount(data)
 	local count = math.min(amount, free)
 	if count <= 0 then
-		notify:FireClient(player, `Your onsen is full ({Economy.MAX_SPOTS}/{Economy.MAX_SPOTS}). Step on Merge!`)
+		data.counts = before
+		notify:FireClient(player, `Your onsen is full ({Economy.MAX_SPOTS}/{Economy.MAX_SPOTS}) and nothing can merge`)
 		return
 	end
 	local cost = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, count)
 	if not DataService.spendCash(player, cost) then
+		data.counts = before
 		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
 		return
 	end
 	data.boughtAtBuyTier += count
 	data.counts[data.buyTier] += count
+	ShopService.mergeIfFull(data)
 	afterChange(player, plot, data)
 	if count < amount then
 		notify:FireClient(player, `Only room for {count}: bought {count}`)

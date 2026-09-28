@@ -18,6 +18,8 @@ local POPUP_STYLES: { [string]: { text: Color3, stroke: Color3 } } = {
 	deposit = { text = Color3.fromRGB(255, 226, 150), stroke = Color3.fromRGB(90, 55, 20) },
 	away = { text = Color3.fromRGB(255, 226, 150), stroke = Color3.fromRGB(90, 55, 20) },
 	cash = { text = Color3.fromRGB(110, 255, 90), stroke = Color3.fromRGB(20, 70, 10) },
+	lucky = { text = Color3.fromRGB(255, 215, 60), stroke = Color3.fromRGB(90, 50, 0) },
+	newBrainrot = { text = Color3.fromRGB(255, 120, 255), stroke = Color3.fromRGB(60, 0, 80) },
 }
 local POPUP_HOLD = 1.6 -- seconds on screen before floating away
 
@@ -61,8 +63,9 @@ function HudController:Start()
 
 	local home = Instance.new("TextButton")
 	home.Name = "Home"
-	home.AnchorPoint = Vector2.new(0.5, 0)
-	home.Position = UDim2.new(0.5, 0, 0, 8)
+	-- Home sits left of center; IndexController puts Index right of center.
+	home.AnchorPoint = Vector2.new(1, 0)
+	home.Position = UDim2.new(0.5, -6, 0, 8)
 	home.Size = UDim2.fromOffset(160, 48)
 	home.BackgroundColor3 = Color3.fromRGB(60, 190, 230)
 	home.Font = Enum.Font.FredokaOne

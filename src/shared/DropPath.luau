@@ -9,7 +9,7 @@ local Economy = require(script.Parent.Config.Economy)
 
 local DropPath = {}
 
-function DropPath.write(part: BasePart, points: { Vector3 }, flowAt: number)
+function DropPath.write(part: Instance, points: { Vector3 }, flowAt: number)
 	for i, point in points do
 		part:SetAttribute(`Path{i}`, point)
 	end
@@ -17,8 +17,8 @@ function DropPath.write(part: BasePart, points: { Vector3 }, flowAt: number)
 	part:SetAttribute("FlowAt", flowAt)
 end
 
--- Points and start time from a drop part. Falls back to the part's own position.
-function DropPath.read(part: BasePart): ({ Vector3 }, number)
+-- Points and start time from a drop part or model. Falls back to its position.
+function DropPath.read(part: PVInstance): ({ Vector3 }, number)
 	local points: { Vector3 } = {}
 	local count = part:GetAttribute("PathCount")
 	if typeof(count) == "number" then
@@ -30,7 +30,7 @@ function DropPath.read(part: BasePart): ({ Vector3 }, number)
 		end
 	end
 	if #points == 0 then
-		points = { part.Position }
+		points = { part:GetPivot().Position }
 	end
 	local flowAt = part:GetAttribute("FlowAt")
 	return points, if typeof(flowAt) == "number" then flowAt else 0

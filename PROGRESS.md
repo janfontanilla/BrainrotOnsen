@@ -1,6 +1,6 @@
 # Progress
 
-Current phase: **Phase 3 (progression and saving)**
+Current phase: **Phase 4 (lucky blocks and Index)**
 Last updated: 2026-09-28
 
 ## Phase checklist
@@ -58,6 +58,7 @@ Last updated: 2026-09-28
 - [x] Home button
 
 ### Phase 4: Lucky blocks and Index
+Coded 2026-09-28 (lint + build clean), waiting on the Studio play test.
 - [ ] Block spawning every 3 minutes, block type by highest tier
 - [ ] Pick up and hold a block, odds panel, Unlock / Discard
 - [ ] Rolls with 60 / 30 / 9 / 1 odds, no auto-merge
@@ -95,6 +96,13 @@ Last updated: 2026-09-28
 - Data is in memory only until Phase 3 (ProfileStore); every join starts with 1,000 Cash.
 
 ## Log (newest first)
+- 2026-09-28: Unlock reveal moved to the screen: the chest leaves the hand, a big chest drops into the middle of the owner's screen, shakes, then pops open into the brainrot (name + tier), holds, shrinks away.
+- 2026-09-28: Held lucky block: right arm held straight out (tool pose), chest rests on the end of the right hand; left arm stays down.
+- 2026-09-28: Lucky block fixes: panel never showed (clearing the viewport destroyed its camera, error on show); held chest now rests on the character's raised hands (shoulders rotated locally) and stays still, shaking only during the unlock reveal.
+- 2026-09-28: Lucky blocks now arrive as a drop (user decision): when due, the next drop from a brainrot is the block and it floats bath > slide > river > channel > pool; pick up anywhere on the way. Held block drawn client-side as a chest swinging above the head; panel restyled after `reference/lucky-block-panel.png` (picture, name / Lucky Box, odds box, Cost box, Unlock! / Discard); unlock reveal: chest shakes then pops open into the brainrot above the head (`LuckyBlockOpened`). Shared chest builder `Visuals.makeLuckyBlock`.
+- 2026-09-28: Lucky blocks: Studio-only Output line explaining why no block spawns (no block unlocked below tier 3, no brainrots, or drop cap reached).
+- 2026-09-28: Full onsen now auto-merges (user decision): Buy 1/5/25 and lucky block unlocks merge first if they wouldn't fit, and merge again if the onsen is full afterwards. Design doc + CLAUDE.md updated.
+- 2026-09-28: Phase 4 coded: LuckyBlockService (block floats into the pool after 3 min of production, best unlocked type, walk over to pick up and hold above head, Unlock for Cash / Discard, 60/30/9/1 roll into a free spot, no auto-merge, saved across rejoin), lucky block panel (client), Index button + grid with "???" silhouettes, "New brainrot!" popup on first discovery. Shared `Visuals` for placeholder colors. Economy: LUCKY_BLOCK_PICKUP_RANGE, STUDIO_LUCKY_BLOCK_INTERVAL.
 - 2026-09-28: Phases 1-3 committed on branch `claude/priceless-cori-962788` (45a8502). Not merged into `main` yet.
 - 2026-09-28: User confirmed Merge!, Buy 100 and Upgrade Buy Tier. Saving/offline test deferred until API access is set up.
 - 2026-09-28: Buy 100 merges instantly again (delay removed at user's request); message stays "Bought 100 <name>!".

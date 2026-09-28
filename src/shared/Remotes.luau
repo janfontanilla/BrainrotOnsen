@@ -5,13 +5,15 @@
 -- CollectDrop  client -> server  (dropId: string)   "I walked over this drop"
 -- DropCollected server -> client (aura: number)     a drop was credited; show "+X" over the player
 -- GoHome       client -> server  ()                 Home button: send my character to my plot
+-- LuckyBlockAction client -> server ("unlock" | "discard")  buttons on the held block's panel
+-- LuckyBlockOpened server -> all clients (player, blockName, tier)  play the open-up reveal
 -- Notify       server -> client  (message: string, kind: string?)  HUD message:
---              "deposit" / "cash" / "away" = big popup; "good" = green toast; nil = red toast
+--              "deposit" / "cash" / "away" / "lucky" / "newBrainrot" = big popup; "good" = green toast; nil = red toast
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-export type Name = "CollectDrop" | "DropCollected" | "GoHome" | "Notify"
+export type Name = "CollectDrop" | "DropCollected" | "GoHome" | "LuckyBlockAction" | "LuckyBlockOpened" | "Notify"
 
 local FOLDER_NAME = "Remotes"
 
