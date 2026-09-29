@@ -120,6 +120,7 @@ Last updated: 2026-09-28
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-29: Lucky block hold pose and handoff docs committed on branch `claude/priceless-cori-962788` (cdf2a96). Not merged into `main` yet.
 - 2026-09-28: Handoff docs: PROGRESS "Handoff (start here)" section, Phase 4 lucky block items ticked (user confirmed), stale blockers removed; CLAUDE.md gained a module map, conventions and workflow notes.
 - 2026-09-28: User confirmed the tool-hold arm pose. Held chest now sits in front of the hand at hand height, gripped like a tool (bigger, 3.6), per `reference/lucky-block-held-tool-pose.png`.
 - 2026-09-28: Held lucky block arm pose now uses Roblox's default tool-hold animation (R15 507768375 / R6 182393478) played by the holder; editing shoulder Motor6D C0 had no effect on the user's rig.
