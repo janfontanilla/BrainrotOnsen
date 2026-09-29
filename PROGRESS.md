@@ -137,6 +137,7 @@ Last updated: 2026-09-29
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-29: Phase 5 code, brainrot pack import, decoration and Index images committed on branch `claude/priceless-cori-962788` (e31030f). Not merged into `main` yet.
 - 2026-09-29: Added "lucky block polish" to the Phase 6 list at the user's request (details to be asked).
 - 2026-09-29: User decided the brainrots should stand still (no idle needed) and drop items can be fixed later. Added map decoration (`server/Decor.luau`, per plot: fence, three cliffs with a waterfall, cherry trees, bamboo clusters, stone lanterns; plot floor grass green) and the Index now shows the brainrot models in ViewportFrames (silhouettes when undiscovered).
 - 2026-09-29: User confirmed the pack brainrot models load in the baths (needed a Rojo serve restart after the project file changed). Idle animation still unconfirmed.
