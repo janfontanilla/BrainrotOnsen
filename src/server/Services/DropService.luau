@@ -19,15 +19,16 @@ local Tiers = require(Shared.Config.Tiers)
 local Economy = require(Shared.Config.Economy)
 local Remotes = require(Shared.Remotes)
 local DropPath = require(Shared.DropPath)
-local Visuals = require(Shared.Visuals)
+local Models = require(Shared.Models)
 local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
 local PoolService = require(script.Parent.PoolService)
+local MonetizationService = require(script.Parent.MonetizationService)
 
 type Plot = Plots.Plot
 
 type Drop = {
-	part: BasePart,
+	part: Model,
 	value: number,
 	path: { Vector3 },
 	flowAt: number, -- server time the drop appeared
@@ -55,7 +56,7 @@ local function interval(): number
 	return Economy.DROP_INTERVAL
 end
 
-local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: number)
+local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: number, autoCollect: boolean)
 	local path = Plots.dropPath(plot, spotIndex, random)
 	local flowAt = workspace:GetServerTimeNow()
 	local replacer = replacers[plot.index]
@@ -64,21 +65,21 @@ local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: num
 		replacer(path, flowAt)
 		return
 	end
+	local owner = plot.owner
+	if autoCollect and owner then
+		-- Auto Collect: no drop floats out, the Aura is credited straight away.
+		local credited = value * MonetizationService.auraMultiplier(owner)
+		DataService.addAura(owner, credited)
+		dropCollected:FireClient(owner, credited)
+		return
+	end
 
 	nextId += 1
 	local id = tostring(nextId)
 
-	local part = Instance.new("Part")
+	local part = Models.makeDropItem(tier)
 	part.Name = id
-	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.new(1.6, 1.6, 1.6)
-	part.CFrame = CFrame.new(path[#path])
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = false
-	part.Material = Enum.Material.Neon
-	part.Color = Visuals.tierColor(tier)
+	part:PivotTo(CFrame.new(path[#path]))
 	part:SetAttribute("Tier", tier)
 	DropPath.write(part, path, flowAt)
 
@@ -104,6 +105,7 @@ local function produce(plot: Plot, now: number)
 		timers[plot.index] = plotTimers
 	end
 	local step = interval()
+	local autoCollect = MonetizationService.hasAutoCollect(plot.owner)
 	for i, tier in tiers do
 		local placed = since[i] or now
 		local timer = plotTimers[i]
@@ -117,8 +119,9 @@ local function produce(plot: Plot, now: number)
 			while timer.nextAt <= now do
 				timer.nextAt += step
 			end
-			if (dropCounts[plot.index] or 0) < Economy.DROP_CAP then
-				spawnDrop(plot, i, tier, Tiers.get(tier).aura)
+			-- Auto Collect owners never fill up: nothing is left lying around.
+			if autoCollect or (dropCounts[plot.index] or 0) < Economy.DROP_CAP then
+				spawnDrop(plot, i, tier, Tiers.get(tier).aura, autoCollect)
 			end
 		end
 	end
@@ -155,8 +158,9 @@ local function onCollect(player: Player, dropId: unknown)
 	plotDrops[dropId] = nil
 	dropCounts[plot.index] -= 1
 	drop.part:Destroy()
-	DataService.addAura(player, drop.value)
-	dropCollected:FireClient(player, drop.value)
+	local credited = drop.value * MonetizationService.auraMultiplier(player)
+	DataService.addAura(player, credited)
+	dropCollected:FireClient(player, credited)
 end
 
 -- Uncollected drops on the plot right now.

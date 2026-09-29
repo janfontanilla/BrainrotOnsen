@@ -1,6 +1,8 @@
 --!strict
--- HUD: Home button (top center), Aura (bottom center) and Cash (bottom left)
--- from the player's server-set attributes, plus messages
+-- HUD: Home button (top center), Aura (bottom center), Cash (bottom left) with
+-- the Cash multiplier and friend boost, Total Brainrots (bottom right), Cash
+-- pack buttons + Premium + friend boost (left side), all from the player's
+-- server-set attributes, plus messages
 -- the server sends through Notify: big outlined popups for deposits and
 -- collected Cash, small toasts for everything else.
 
@@ -8,6 +10,8 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Economy = require(Shared.Config.Economy)
+local Products = require(Shared.Config.Products)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 
@@ -22,6 +26,13 @@ local POPUP_STYLES: { [string]: { text: Color3, stroke: Color3 } } = {
 	newBrainrot = { text = Color3.fromRGB(255, 120, 255), stroke = Color3.fromRGB(60, 0, 80) },
 }
 local POPUP_HOLD = 1.6 -- seconds on screen before floating away
+
+-- Cash pack buttons (left side): the amount scales with the highest tier owned.
+local PACKS: { { name: string, size: "S" | "M" | "L" } } = {
+	{ name = "CashPackS", size = "S" },
+	{ name = "CashPackM", size = "M" },
+	{ name = "CashPackL", size = "L" },
+}
 
 local HudController = {}
 
@@ -60,6 +71,57 @@ function HudController:Start()
 	cash.AnchorPoint = Vector2.new(0, 1)
 	cash.Position = UDim2.new(0, 16, 1, -16)
 	cash.Size = UDim2.fromOffset(240, 52)
+
+	-- Active boosts, above Cash (bottom left): "x4 Cash", friend boost.
+	local boosts = makeLabel(gui, "Boosts", 3, Color3.fromRGB(255, 226, 90))
+	boosts.AnchorPoint = Vector2.new(0, 1)
+	boosts.Position = UDim2.new(0, 16, 1, -74)
+	boosts.Size = UDim2.fromOffset(240, 36)
+
+	local total = makeLabel(gui, "TotalBrainrots", 4, Color3.fromRGB(255, 226, 150))
+	total.AnchorPoint = Vector2.new(1, 1)
+	total.Position = UDim2.new(1, -16, 1, -16)
+	total.Size = UDim2.fromOffset(340, 44)
+
+	-- Left side: Cash pack buttons, then Premium and friend boost.
+	local buyProduct = Remotes.event("BuyProduct")
+	local packButtons: { [string]: TextButton } = {}
+	for i, pack in PACKS do
+		local button = Instance.new("TextButton")
+		button.Name = pack.name
+		button.AnchorPoint = Vector2.new(0, 0.5)
+		button.Position = UDim2.new(0, 16, 0.5, -84 + (i - 1) * 56)
+		button.Size = UDim2.fromOffset(200, 48)
+		button.BackgroundColor3 = Color3.fromRGB(110, 210, 50)
+		button.Font = Enum.Font.FredokaOne
+		button.TextScaled = true
+		button.TextColor3 = Color3.new(1, 1, 1)
+		button.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = button
+		local border = Instance.new("UIStroke")
+		border.Thickness = 3
+		border.Color = Color3.fromRGB(30, 70, 15)
+		border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		border.Parent = button
+		local padding = Instance.new("UIPadding")
+		padding.PaddingTop = UDim.new(0, 7)
+		padding.PaddingBottom = UDim.new(0, 7)
+		padding.Parent = button
+		button.Activated:Connect(function()
+			buyProduct:FireServer(pack.name)
+		end)
+		packButtons[pack.name] = button
+	end
+	local premium = makeLabel(gui, "Premium", 5, Color3.fromRGB(255, 226, 150))
+	premium.AnchorPoint = Vector2.new(0, 0.5)
+	premium.Position = UDim2.new(0, 16, 0.5, 92)
+	premium.Size = UDim2.fromOffset(200, 36)
+	local friends = makeLabel(gui, "Friends", 6, Color3.fromRGB(255, 226, 150))
+	friends.AnchorPoint = Vector2.new(0, 0.5)
+	friends.Position = UDim2.new(0, 16, 0.5, 134)
+	friends.Size = UDim2.fromOffset(200, 36)
 
 	local home = Instance.new("TextButton")
 	home.Name = "Home"
@@ -164,8 +226,34 @@ function HudController:Start()
 	local function refresh()
 		aura.Text = `Aura {Format.short(number("Aura"))}`
 		cash.Text = `Cash {Format.short(number("Cash"))}`
+		total.Text = `Total Brainrots: {Format.commas(number("TotalBrainrots"))}`
+
+		local parts: { string } = {}
+		local pass = number("CashPass")
+		if pass > 1 then
+			table.insert(parts, `x{pass} Cash`)
+		end
+		local friendBoost = number("FriendBoost")
+		if friendBoost > 0 then
+			table.insert(parts, `Friends +{math.round(friendBoost * 100)}%`)
+		end
+		boosts.Text = table.concat(parts, "  ")
+		boosts.Visible = #parts > 0
+
+		local highest = math.max(1, number("HighestTier"))
+		for _, pack in PACKS do
+			local button = packButtons[pack.name]
+			local amount = Economy.cashPackAmount(highest, pack.size)
+			local robux = Products.DevProducts[pack.name].robux
+			button.Text = `+{Format.short(amount)}  R$ {robux}`
+		end
+		local isPremium = player:GetAttribute("Premium") == true
+		premium.Text = if isPremium
+			then `Premium +{math.round(Economy.PREMIUM_AURA_BOOST * 100)}% Aura`
+			else "Premium: Inactive"
+		friends.Text = `Friends +{math.round(friendBoost * 100)}%`
 	end
-	for _, name in { "Aura", "Cash" } do
+	for _, name in { "Aura", "Cash", "TotalBrainrots", "CashPass", "FriendBoost", "Premium", "HighestTier" } do
 		player:GetAttributeChangedSignal(name):Connect(refresh)
 	end
 	refresh()

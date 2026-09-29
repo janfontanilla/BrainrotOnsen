@@ -28,7 +28,9 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 - Lucky blocks: after every 3 minutes of production the next drop is a lucky block instead of Aura (floats into the pool like a drop, one at a time). Type depends on highest tier ever owned (Wood unlocks at tier 3); contains unlock tier -1 to +2 at 60/30/9/1 odds; paid with Cash only (never Robux directly); very expensive.
 - Cash multiplier game passes: x2 / x4 / x7 at 40 / 80 / 140 Robux (multiplier x 20). Highest owned applies, no stacking between them.
 - Auto Collect game pass collects Aura drops, not Cash.
-- Finish Now dev product instantly processes the processor queue.
+- Finish Now dev product instantly processes the processor queue (with the same Cash multipliers).
+- Boosts multiply: Aura = 2x pass x (1 + 10% Premium); processor Cash = highest Cash pass x (1 + friend boost). Auto Collect credits each drop straight to Aura (no floating drop, never hits the cap).
+- Total Brainrots counts brainrots obtained by buying or lucky block unlocks (not merges).
 - No pedestals. The Index is the collection.
 - 6 players per server, one plot each.
 - New players start with 1,000 Cash (`Economy.STARTING_CASH`).
@@ -38,12 +40,14 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 Rojo project. The server owns every number; the client only renders and sends intents ("stepped on Merge!"). Never trust amounts from the client.
 
 ```
-src/shared/   -> ReplicatedStorage.Shared   (Config/, Format, Remotes, DropPath, Visuals)
+src/shared/   -> ReplicatedStorage.Shared   (Config/, Format, Remotes, DropPath, Visuals, Models)
 src/server/   -> ServerScriptService.Server (ConfigCheck, Plots, Services/)
 src/client/   -> StarterPlayerScripts.Client (Controllers/)
 Packages/       -> ReplicatedStorage.Packages (Wally shared deps, gitignored)
 ServerPackages/ -> ServerStorage.ServerPackages (Wally server deps like ProfileStore, gitignored)
 reference/    Capybara Onsen screenshots: the visual reference for layout and UI
+assets/       Brainrots.rbxmx: the 20 pack models (Tier1..Tier20), synced to ReplicatedStorage.Assets.Brainrots
+tools/        extract_brainrot_pack.py: rebuilds assets/Brainrots.rbxmx from the pack
 ```
 
 - `src/server/init.server.luau` runs `ConfigCheck` (asserts config invariants), then loads every module in `Services/`: `:Init()` on all, then `:Start()` on all (Start runs in its own thread). The client does the same with `Controllers/`.
@@ -62,9 +66,11 @@ Module map:
 | `Services/MarketService` | Server-wide multiplier (`ReplicatedStorage.Market` attributes) |
 | `Services/ProcessorService` | Deposit, processor queue, Collect Cash, processor upgrades, station labels |
 | `Services/LuckyBlockService` | Lucky block timer, block-as-drop, pickup, Unlock / Discard |
-| `Controllers/HudController` | Home button, Aura / Cash, toasts and big popups (`Notify` kinds) |
+| `Services/MonetizationService` | Game passes, dev products (`ProcessReceipt` + `data.receipts`), Aura / Cash multipliers, friend + Premium boosts, Robux pads, `BuyProduct` intent |
+| `Services/LeaderboardService` | `Total Brainrots` leaderstat, global OrderedDataStore board in the middle of the map |
+| `Controllers/HudController` | Home button, Aura / Cash / boosts / Total Brainrots, Cash pack buttons, Premium + friend boost, toasts and big popups (`Notify` kinds) |
 | `Controllers/DropController` | Animates drops and lucky blocks along their path, asks to collect, "+X" gain |
-| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath and pad-press animations |
+| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath (whole model) + loops the pack models' `Anims/Idle`; pad-press animation |
 | `Controllers/MarketBoardController` | Draws the market boards |
 | `Controllers/LuckyBlockController` | Held chest + tool-hold animation, odds panel, on-screen unlock reveal |
 | `Controllers/IndexController` | Index button and grid |
@@ -72,12 +78,13 @@ Module map:
 Conventions:
 
 - All tunable numbers live in `src/shared/Config/` (`Tiers`, `Economy`, `LuckyBlocks`, `Products`). Never hard-code a balance number in a service. Visual-only layout numbers (studs, colors) live at the top of the module that uses them.
-- Studio-only test knobs are `Economy.STUDIO_*` (0 = off), always gated by `RunService:IsStudio()`.
+- Studio-only test knobs are `Economy.STUDIO_*` (0 / false = off), always gated by `RunService:IsStudio()`. `STUDIO_SIMULATE_PURCHASES` grants passes / products whose ID is still 0 for free in Studio.
 - Brainrots are stored as counts per tier (`data.counts`, dense array), not as instances.
 - Saving: ProfileStore with session locking. New `Data` fields go in `DataService`'s `TEMPLATE`; `Reconcile` fills them into old profiles. Dev product receipts are logged in the profile.
-- Server -> client state: player attributes (`Aura`, `Cash`, `Brainrots`, `Discovered`, `LuckyBlock`, `PlotIndex`) and part attributes; events through `Shared.Remotes` (the list and payloads are in its header).
+- Server -> client state: player attributes (`Aura`, `Cash`, `Brainrots`, `TotalBrainrots`, `HighestTier`, `Discovered`, `LuckyBlock`, `PlotIndex`, and from MonetizationService `CashPass`, `FriendBoost`, `Premium`, `AuraMultiplier`, `AutoCollect`) and part attributes; events through `Shared.Remotes` (the list and payloads are in its header).
 - Messages: `Notify(message, kind?)`: nil = red toast, "good" = green toast, "deposit" / "cash" / "away" / "lucky" / "newBrainrot" = big popup.
-- Placeholder art until Phase 6: colored parts from `Shared.Visuals` (`tierColor`, `blockColor`, `makeLuckyBlock`).
+- Brainrot art: the free "Brainrot Pack [150+]" by Agus_Fellini2 (Creator Store asset 137461628889541; credit him in-game). `Shared.Models.makeBrainrot(tier)` clones `ReplicatedStorage.Assets.Brainrots.Tier<N>` (scaled to the bath, pivot at the bottom centre) and falls back to a code-built model. Models must not set a `PrimaryPart` (it overrides `WorldPivot`). Drop items are still code-built (`makeDropItem`).
+- Placeholder art: `Shared.Visuals` (`tierColor`, `blockColor`, `makeLuckyBlock`) and `Shared.Models` (`makeBrainrot(tier)`, `makeDropItem(tier)`: blocky models built in code; brainrot origin = bottom centre, front = -Z, `Label` anchor above the head). Art order (user decision): code-built models, then Studio-MCP-built models, and the user's own models last. Swap models by keeping these function signatures.
 - Luau with `--!strict` at the top of every module.
 - Number display always goes through `Shared.Format`.
 

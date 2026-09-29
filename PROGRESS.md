@@ -1,7 +1,7 @@
 # Progress
 
-Current phase: **Phase 4 (lucky blocks and Index): lucky blocks confirmed, Index check pending. Next: Phase 5.**
-Last updated: 2026-09-28
+Current phase: **Phase 6 (art, polish and launch) in progress. Phase 5 game passes / dev products are deferred to the end (user decision 2026-09-29); Phase 4: Index check pending.**
+Last updated: 2026-09-29
 
 ## Handoff (start here)
 
@@ -19,12 +19,15 @@ Last updated: 2026-09-28
   the user asks.
 - **Studio-only test knobs** in `Config/Economy` (ignored in live servers):
   `STUDIO_DROP_INTERVAL` (0 = off), `STUDIO_STARTING_CASH` (500K for new profiles),
-  `STUDIO_LUCKY_BLOCK_INTERVAL` (0 = off; the user sets 10 to test blocks).
+  `STUDIO_LUCKY_BLOCK_INTERVAL` (0 = off; the user sets 10 to test blocks),
+  `STUDIO_SIMULATE_PURCHASES` (true: a pass / product with ID 0 is granted free in Studio).
 - **Visual references:** `reference/*.webp|png` are Capybara Onsen screenshots the user gave;
   the user wants layout and UI to match them closely. When the user shares a new screenshot,
   save it to `reference/` and add it to the design doc.
-- **Next up:** confirm the Index in Studio, tick Phase 4, then Phase 5 (monetization and social).
-  Product IDs in `Config/Products` are 0 until created on the Creator Dashboard.
+- **Next up:** Phase 6 art: play-test the pack models (fit, facing, idle animation), then Index viewports, drop items, bath polish, map decoration, credits. Phase 5 monetization (passes, products,
+  Robux pads) is deferred to the end; resume it with the known issue in the Phase 5 section. Studio purchases are
+  simulated free while product IDs are 0 (`Economy.STUDIO_SIMULATE_PURCHASES`); product IDs in `Config/Products` are
+  0 until created on the Creator Dashboard.
 - **Open decisions for the user:** drop cap stays 50 even though a full onsen (80 brainrots)
   fills it in ~5 s (raised with the user, no answer yet; kept at 50); Robux prices marked "suggested" in the doc.
 
@@ -90,16 +93,28 @@ Last updated: 2026-09-28
 - Done when: you can open every block type and each result shows up correctly in the Index
 
 ### Phase 5: Monetization and social
-- [ ] Game passes: 2x Aura, Auto Collect, x2 / x4 / x7 Cash
-- [ ] Dev products: Finish Now, Cash packs S / M / L, ProcessReceipt + receipt log
-- [ ] Robux pads next to their stations, Cash pack buttons on the HUD
-- [ ] Friend boost, Premium boost
-- [ ] Total Brainrots leaderstat + global leaderboard
+**Game passes and dev products are DEFERRED to the end** (user decision 2026-09-29): do them after Phase 6 art / polish, before publishing. The code exists and is in the game, but treat it as unfinished. Tested by the user so far: the Cash x2 / x4 / x7 pads work (simulated Studio purchases) and Auto Collect works.
+- **Known issue to fix when this resumes:** the Cash multiplier is applied when the processor produces Cash, so Cash already waiting on the Collect Cash pad is not multiplied when a pass is bought (the user saw no multiplication on walking over the pad). Capybara Onsen applies it at collection ("[x4 Cash] Collect Cash" on the pad, `reference/capybara-onsen-stations.webp`). Fix: keep `pendingCash` raw, multiply in `collectCash` and in the pad label (show `[xN Cash]`), stop multiplying in `process` and `finishNow` (`ProcessorService`), and refresh the label every tick so it follows pass / friend changes.
+- [ ] Game passes: 2x Aura, Auto Collect (credits drops instantly, never fills the cap), x2 / x4 / x7 Cash (`MonetizationService`)
+- [ ] Dev products: Finish Now, Cash packs S / M / L, ProcessReceipt + receipt log (`data.receipts`)
+- [ ] Robux pads next to their stations (Finish Now, Auto Collect, 2x Aura, Cash pass), Cash pack buttons on the HUD
+- [ ] Friend boost (+10% per friend, max 50%, on processor Cash), Premium boost (+10% Aura)
+- [ ] Total Brainrots leaderstat + global leaderboard board in the middle of the map (`LeaderboardService`)
+- Done when: every pass and product works in a Studio test purchase and survives a rejoin
 
 ### Phase 6: Art, polish and launch
-- [ ] 20 brainrot parody models + 20 drop item models
-- [ ] Onsen map: lanes, water, processor, market stand, decoration
+**Art plan (user decision 2026-09-29): use all three approaches, in this order:** (1) blocky models built in code (`Shared/Models`), (3) models built directly in Studio through the Studio MCP, and (2) the user's own / bought models at the very end.
+- **Studio MCP:** added 2026-09-29 with `claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c "cd /d %LOCALAPPDATA%\Roblox && .\mcp.bat"` (Roblox's built-in `StudioMCP.exe`; health check "Connected"). It is in the local config of the worktree path only, so a new worktree needs the command again (or `--scope user`), and its tools only appear in a session started after it was added. Studio must be open with the project and Assistant > Manage MCP Servers > "Enable Studio as MCP server" on. Models built this way must be saved as `.rbxm` under the repo (e.g. `assets/`) and synced by Rojo, then `Shared/Models` should clone them when present and fall back to the code-built ones.
+- [x] 20 brainrot models: **imported from the free "Brainrot Pack [150+]" by Agus_Fellini2** (Creator Store asset 137461628889541, [store page](https://create.roblox.com/store/asset/137461628889541/Brainrot-Pack-150); free / public domain flag; the user's copy is `C:\Users\janfo\OneDrive\Desktop\Brainrot Models.rbxm`). User confirmed in Studio (2026-09-29) that they load and look right. Not yet confirmed: whether the idle animation plays (it may not, see Known risks); test in the published game too.
+  - How it works: `tools/extract_brainrot_pack.py` trims the pack (87 characters x 7 rarity variants, skinned + animated) to the 20 Normal-variant models in `assets/Brainrots.rbxmx` (Tier1..Tier20, scripts and lights removed). Rojo syncs it to `ReplicatedStorage.Assets.Brainrots`; `Shared/Models.makeBrainrot` clones `Tier<N>`, scales it to fit a bath (max 4.6 wide, 6.5 tall), stands it on the origin (WorldPivot, no PrimaryPart) and falls back to the code-built design if the asset is missing. Client `BrainrotController` loops the pack's `Anims/Idle`.
+  - Tier mapping (in the script): 1 Tim Cheese, 2 Trippi Troppi, 3 Boneca Ambalabu, 4 Frigo Camelo, 5 Lirili Larila, 6 Chimpanzini Bananini, 7 Brr Brr Patapim, 8 Bombombini Gusini, 9 Cappuccino Assassino, 10 Ballerina Cappuccina, 11 Bombardiro Crocodilo, 12 Tralalero Tralala, 13 Tung Sahur, 14 La Vacca Saturno Saturnita, 15 Glorbo Fruttodrillo, 16 Cocofanto Elefanto, 17 Odin Din Din Dun, 18 Girafa Celeste, 19 Gorillo Watermelondrillo (substitute: no Tigrrullini Watermellini in the pack), 20 Los Tralaleritos.
+  - Known risks: the pack's meshes, textures and animation are owned by Agus_Fellini2, referenced by ID, so they can break if he removes them, and his idle animation may not play in our experience (Roblox restricts animation ownership); fall back to a code-driven idle if so. Test in the published game, not only Studio.
+  - To do: credit Agus_Fellini2 in-game / in the description; the pack has ~65 more characters and rarity variants (Oro, Diamante, Galaxia, Lava, Arcoiris, Hacker) usable later (events, lucky block rewards, more tiers).
+- [ ] 20 drop item models: code-built for all 20 tiers (`Models.makeDropItem`), untested in Studio; the pack has none, so replace via Studio MCP or the user's models later.
+- [x] Index grid: shows the models (ViewportFrames; silhouettes when undiscovered) instead of color swatches. Coded, waiting on the Studio look.
+- [ ] Onsen map: lanes, water, processor, market stand done; decoration coded 2026-09-29 (`server/Decor.luau`: fences, cliffs + waterfall, cherry trees, bamboo, stone lanterns; plot floor now grass green), waiting on the Studio look. Still to do: steam / water flow, backdrop beyond the plots
 - [ ] Idle animations
+- [ ] Lucky block polish (user 2026-09-29: "lucky blocks can be polished"; what to change is not specified yet, ask): chest look, floating / pickup effect, panel, reveal
 - [ ] Bath polish: steam, flowing water in rivers/channel, splash where slides meet the river
 - [ ] Mobile UI scaling and touch testing
 - [ ] Balance playtest (first merge < 1 min, first Upgrade Buy Tier < 10 min)
@@ -113,13 +128,24 @@ Last updated: 2026-09-28
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
+- After changing `default.project.json` (or adding files Rojo must serve), restart `rojo serve` and Disconnect / Connect the plugin; an old server keeps serving the old tree (this is why the pack did not show the first time).
 - Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence) and every join is a new player.
 - Deferred by the user: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
 - Confirm the Index (open it after getting a few tiers; undiscovered = "???").
+- Before launch, create the 5 game passes and 4 dev products on the Creator Dashboard and put their IDs in `Config/Products` (Robux prices in that file are reference only; the doc marks Cash pack prices 29 / 149 / 499 as suggested). The global leaderboard also needs the published place + Studio API access.
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-29: Added "lucky block polish" to the Phase 6 list at the user's request (details to be asked).
+- 2026-09-29: User decided the brainrots should stand still (no idle needed) and drop items can be fixed later. Added map decoration (`server/Decor.luau`, per plot: fence, three cliffs with a waterfall, cherry trees, bamboo clusters, stone lanterns; plot floor grass green) and the Index now shows the brainrot models in ViewportFrames (silhouettes when undiscovered).
+- 2026-09-29: User confirmed the pack brainrot models load in the baths (needed a Rojo serve restart after the project file changed). Idle animation still unconfirmed.
+- 2026-09-29: Docs updated for the imported brainrot pack (Phase 6 section, tier mapping, risks, credit to do); CLAUDE.md gained the assets/, tools/ and pack notes.
+- 2026-09-29: Brainrot pack imported: user's `Brainrot Models.rbxm` (by Agus_Fellini2; 87 characters x 7 rarity variants, skinned + animated) trimmed by `tools/extract_brainrot_pack.py` into `assets/Brainrots.rbxmx` (20 Normal-variant models Tier1..Tier20, scripts + lights removed), synced by Rojo to ReplicatedStorage.Assets.Brainrots. `Shared/Models.makeBrainrot` uses them (scaled to fit a bath, bottom-centre pivot) with the code-built ones as fallback; client `BrainrotController` loops the pack's Anims.Idle. Tier 19 uses Gorillo Watermelondrillo (no Tigrrullini in the pack). Fixed: code-built models set a PrimaryPart, which overrides WorldPivot, so they sank into the baths.
+- 2026-09-29: Studio MCP server added to the Claude Code config for this worktree (see Phase 6 art plan); tools available from the next session.
+- 2026-09-29: Phase 6 started. Art plan: code-built models first, Studio MCP models second (user must connect it), user's own models last. Added `Shared/Models` (brainrot designs 1-5 + generic 6-20, 20 drop items); baths, drops and the unlock reveal now use models instead of cubes / balls.
+- 2026-09-29: User deferred game passes / dev products to the end. Recorded the known Cash-multiplier-at-collection issue and the fix in the Phase 5 section; Phase 5 code left in place, uncommitted. Rojo serve running on the worktree (port 34872).
+- 2026-09-29: Phase 5 coded (untested): MonetizationService (passes, Finish Now, Cash packs via ProcessReceipt + receipt log, Aura / Cash multipliers, friend + Premium boosts, Auto Collect), Robux pads beside their stations, HUD Cash pack buttons / Premium / friend boost / Cash multiplier / Total Brainrots, LeaderboardService (leaderstat + global OrderedDataStore board in the middle of the map). Studio-only `STUDIO_SIMULATE_PURCHASES` grants purchases free while product IDs are 0.
 - 2026-09-29: Lucky block hold pose and handoff docs committed on branch `claude/priceless-cori-962788` (cdf2a96). Not merged into `main` yet.
 - 2026-09-28: Handoff docs: PROGRESS "Handoff (start here)" section, Phase 4 lucky block items ticked (user confirmed), stale blockers removed; CLAUDE.md gained a module map, conventions and workflow notes.
 - 2026-09-28: User confirmed the tool-hold arm pose. Held chest now sits in front of the hand at hand height, gripped like a tool (bigger, 3.6), per `reference/lucky-block-held-tool-pose.png`.

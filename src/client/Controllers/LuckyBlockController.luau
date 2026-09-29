@@ -20,6 +20,7 @@ local Tiers = require(Shared.Config.Tiers)
 local LuckyBlocks = require(Shared.Config.LuckyBlocks)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
+local Models = require(Shared.Models)
 local Visuals = require(Shared.Visuals)
 
 local player = Players.LocalPlayer
@@ -224,16 +225,14 @@ local function setRevealContent(model: Instance)
 end
 
 local function brainrotModel(tier: number): Model
-	local model = Instance.new("Model")
-	local size = 4
-	local part = Instance.new("Part")
-	part.Anchored = true
-	part.Size = Vector3.new(size, size, size)
-	part.Color = Visuals.tierColor(tier)
-	part.Material = Enum.Material.SmoothPlastic
-	part.CFrame = CFrame.Angles(math.rad(-10), math.rad(-30), 0)
-	part.Parent = model
-	model.PrimaryPart = part
+	local model = Models.makeBrainrot(tier)
+	local anchor = model:FindFirstChild("Label")
+	if anchor then
+		anchor:Destroy()
+	end
+	-- Centre it on the origin and turn it a little towards the camera.
+	local height = model:GetExtentsSize().Y
+	model:PivotTo(CFrame.new(0, -height / 2, 0) * CFrame.Angles(0, math.rad(-30), 0))
 	return model
 end
 

@@ -15,6 +15,7 @@ local ShopService = require(script.Parent.ShopService)
 local DropService = require(script.Parent.DropService)
 local ProcessorService = require(script.Parent.ProcessorService)
 local LuckyBlockService = require(script.Parent.LuckyBlockService)
+local MonetizationService = require(script.Parent.MonetizationService)
 
 local PlotService = {}
 
@@ -53,6 +54,7 @@ local function onPlayerAdded(player: Player)
 	ShopService.refreshPads(plot)
 	ProcessorService.refresh(plot)
 	LuckyBlockService.onAssigned(player, plot)
+	MonetizationService.refresh(player)
 
 	player.CharacterAdded:Connect(function(character)
 		sendHome(player, character)
@@ -83,6 +85,7 @@ local function onPlayerRemoving(player: Player)
 		PoolService.clear(plot)
 		ShopService.refreshPads(plot)
 		ProcessorService.refresh(plot)
+		MonetizationService.refreshPads(plot)
 	end
 	DataService.release(player)
 	lastHome[player] = nil

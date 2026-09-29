@@ -30,6 +30,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
+local Decor = require(script.Parent.Decor)
 
 export type Pad = {
 	amount: number, -- buy amount for buy pads, 0 for station pads
@@ -43,6 +44,11 @@ export type Stations = {
 	upgradeProcessor: Pad,
 	merge: Pad,
 	upgradeBuyTier: Pad,
+	-- Robux pads, each beside the station it boosts (labels set by MonetizationService)
+	finishNow: Pad,
+	autoCollect: Pad,
+	doubleAura: Pad,
+	cashPass: Pad,
 	processorLabel: TextLabel, -- the processor info board's text
 }
 
@@ -99,6 +105,7 @@ local COLLECT_CASH_X = -44
 local PROCESSOR_X = -30
 local DEPOSIT_X = -10
 local DEPOSIT_PAD_SIZE = 11
+local ROBUX_PAD_SIZE = 6
 local MARKET_X = 12
 -- Buy pads (amount -> plot-local x), on the player's left of the pool
 -- (+x, seen from the spawn facing the baths).
@@ -114,7 +121,7 @@ local MERGE_PAD_SIZE = 10
 local UPGRADE_BUY_TIER_X, UPGRADE_BUY_TIER_Z = 36, 58
 local UPGRADE_BUY_TIER_PAD_SIZE = 10
 
-local FLOOR_COLOR = Color3.fromRGB(196, 170, 128)
+local FLOOR_COLOR = Color3.fromRGB(112, 190, 74)
 local LANE_COLOR = Color3.fromRGB(96, 190, 220)
 local PAD_COLOR = Color3.fromRGB(80, 200, 110)
 local BUY_100_COLOR = Color3.fromRGB(255, 120, 40)
@@ -124,6 +131,7 @@ local DEPOSIT_COLOR = Color3.fromRGB(255, 220, 90)
 local COLLECT_COLOR = Color3.fromRGB(60, 220, 90)
 local UPGRADE_COLOR = Color3.fromRGB(70, 170, 255)
 local PROCESSOR_COLOR = Color3.fromRGB(230, 150, 50)
+local ROBUX_COLOR = Color3.fromRGB(255, 180, 40)
 local SIGN_COLOR = Color3.fromRGB(120, 80, 50)
 local STONE_COLOR = Color3.fromRGB(140, 140, 150)
 local WOOD_COLOR = Color3.fromRGB(150, 100, 60)
@@ -217,6 +225,7 @@ local function buildPlot(root: Instance, index: number): Plot
 	geometry.Parent = folder
 
 	makePart(geometry, "Floor", Vector3.new(WIDTH, 1, DEPTH), at(0, FLOOR_TOP - 0.5, DEPTH / 2), FLOOR_COLOR)
+	Decor.build(geometry, { at = at, width = WIDTH, depth = DEPTH, floorTop = FLOOR_TOP, seed = index })
 
 	local function water(name: string, size: Vector3, cframe: CFrame)
 		local part = makePart(geometry, name, size, cframe, LANE_COLOR)
@@ -480,6 +489,11 @@ local function buildPlot(root: Instance, index: number): Plot
 			0,
 			UPGRADE_BUY_TIER_PAD_SIZE
 		),
+		-- Robux pads on the pool side of the row, each near what it boosts.
+		finishNow = makePad("FinishNowPad", UPGRADE_X + 4, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
+		cashPass = makePad("CashPassPad", COLLECT_CASH_X + 10, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
+		autoCollect = makePad("AutoCollectPad", PROCESSOR_X + 10, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
+		doubleAura = makePad("DoubleAuraPad", DEPOSIT_X + 12, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
 		processorLabel = processorLabel,
 	}
 

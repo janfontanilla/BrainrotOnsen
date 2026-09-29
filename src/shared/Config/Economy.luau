@@ -56,6 +56,9 @@ Economy.PROCESSOR_COST_GROWTH = 1.45
 Economy.FRIEND_BOOST_PER_FRIEND = 0.10 -- applies to processor Cash output
 Economy.FRIEND_BOOST_MAX = 0.50
 Economy.PREMIUM_AURA_BOOST = 0.10 -- applies to Aura from drops
+-- Studio-only: a game pass / dev product whose ID is still 0 is granted directly when its
+-- Robux pad or button is used (session only, no receipt), so purchases can be tested for free.
+Economy.STUDIO_SIMULATE_PURCHASES = true
 
 -- Lucky blocks
 Economy.LUCKY_BLOCK_SPAWN_INTERVAL = 180 -- seconds of production per block

@@ -14,6 +14,7 @@ local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
 local MarketService = require(script.Parent.MarketService)
+local MonetizationService = require(script.Parent.MonetizationService)
 
 type Plot = Plots.Plot
 
@@ -127,7 +128,21 @@ local function process(plot: Plot, dt: number)
 	end
 	local amount = math.min(data.processorQueue, Economy.processorRate(data.processorLevel) * dt)
 	data.processorQueue -= amount
-	data.pendingCash += amount
+	data.pendingCash += amount * MonetizationService.cashMultiplier(owner)
+	ProcessorService.refresh(plot)
+end
+
+-- Finish Now (Robux): the whole queue becomes Cash right away, with the same
+-- Cash multipliers as normal processing.
+function ProcessorService.finishNow(player: Player)
+	local data = DataService.get(player)
+	local plot = Plots.get(player)
+	if not data or not plot then
+		return
+	end
+	local amount = data.processorQueue
+	data.processorQueue = 0
+	data.pendingCash += amount * MonetizationService.cashMultiplier(player)
 	ProcessorService.refresh(plot)
 end
 
@@ -136,6 +151,7 @@ function ProcessorService:Init()
 end
 
 function ProcessorService:Start()
+	MonetizationService.setFinishNowHandler(ProcessorService.finishNow)
 	for _, plot in Plots.all() do
 		local stations = plot.stations
 		Plots.onStep(plot, stations.deposit, function(player)

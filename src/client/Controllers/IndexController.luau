@@ -1,13 +1,14 @@
 --!strict
 -- The Index: an "Index" button at the top center (right of Home) opens a grid
--- of all tiers. Discovered tiers show their color, name and Aura per drop;
--- undiscovered ones are dark silhouettes with "???". Reads the Discovered
+-- of all tiers. Discovered tiers show the brainrot's model, name and Aura per
+-- drop; undiscovered ones are its dark silhouette with "???". Reads the Discovered
 -- attribute the server sets ("0101...", one char per tier).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
+local Models = require(Shared.Models)
 local Format = require(Shared.Format)
 local Visuals = require(Shared.Visuals)
 
@@ -18,6 +19,50 @@ local CELL = Vector2.new(150, 150)
 local SILHOUETTE = Color3.fromRGB(25, 25, 30)
 
 local IndexController = {}
+
+-- A picture of the tier's brainrot in a ViewportFrame; a flat dark silhouette
+-- when it has not been discovered yet.
+local function makeIcon(parent: Instance, tier: number, known: boolean): ViewportFrame
+	local view = Instance.new("ViewportFrame")
+	view.AnchorPoint = Vector2.new(0.5, 0.5)
+	view.Position = UDim2.new(0.5, 0, 0.5, -4)
+	view.Size = UDim2.fromOffset(112, 104)
+	view.BackgroundTransparency = 1
+	view.Parent = parent
+
+	local model = Models.makeBrainrot(tier)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("ParticleEmitter") or descendant:IsA("Light") then
+			descendant:Destroy()
+		elseif not known then
+			if descendant:IsA("SurfaceAppearance") then
+				descendant:Destroy()
+			elseif descendant:IsA("BasePart") then
+				descendant.Color = SILHOUETTE
+				descendant.Material = Enum.Material.SmoothPlastic
+				if descendant:IsA("MeshPart") then
+					descendant.TextureID = ""
+				end
+			end
+		end
+	end
+	local label = model:FindFirstChild("Label")
+	if label then
+		label:Destroy()
+	end
+	local size = model:GetExtentsSize()
+	local biggest = math.max(size.Y, size.X, size.Z)
+	-- Three-quarter view: turn the model a little and look at its middle.
+	model:PivotTo(CFrame.Angles(0, math.rad(-25), 0))
+	model.Parent = view
+
+	local camera = Instance.new("Camera")
+	camera.FieldOfView = 35
+	camera.CFrame = CFrame.lookAt(Vector3.new(0, size.Y * 0.55 + 0.5, -biggest * 1.9), Vector3.new(0, size.Y * 0.5, 0))
+	camera.Parent = view
+	view.CurrentCamera = camera
+	return view
+end
 
 local function label(parent: Instance, value: string, color: Color3, size: UDim2, position: UDim2): TextLabel
 	local l = Instance.new("TextLabel")
@@ -127,15 +172,7 @@ function IndexController:Start()
 			cellCorner.CornerRadius = UDim.new(0, 8)
 			cellCorner.Parent = cell
 
-			local swatch = Instance.new("Frame")
-			swatch.AnchorPoint = Vector2.new(0.5, 0.5)
-			swatch.Position = UDim2.fromScale(0.5, 0.5)
-			swatch.Size = UDim2.fromOffset(64, 64)
-			swatch.BackgroundColor3 = if known then Visuals.tierColor(def.tier) else SILHOUETTE
-			swatch.Parent = cell
-			local swatchCorner = Instance.new("UICorner")
-			swatchCorner.CornerRadius = UDim.new(0, 6)
-			swatchCorner.Parent = swatch
+			makeIcon(cell, def.tier, known)
 
 			label(
 				cell,

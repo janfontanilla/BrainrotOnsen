@@ -7,6 +7,7 @@ local Config = Shared:WaitForChild("Config")
 local Tiers = require(Config.Tiers)
 local Economy = require(Config.Economy)
 local LuckyBlocks = require(Config.LuckyBlocks)
+local Products = require(Config.Products)
 local Format = require(Shared.Format)
 
 local ConfigCheck = {}
@@ -25,6 +26,17 @@ function ConfigCheck.run()
 				`Tier {i} is only {ratio}x tier {i - 1}; must be > {Economy.MERGE_COUNT}x`
 			)
 		end
+	end
+
+	local lastMultiplier = math.huge
+	for _, name in Products.CASH_MULTIPLIER_PASSES do
+		local pass = Products.GamePasses[name]
+		assert(pass and pass.multiplier, `Cash pass {name} is missing from GamePasses or has no multiplier`)
+		assert(pass.multiplier < lastMultiplier, "CASH_MULTIPLIER_PASSES must go from highest to lowest multiplier")
+		lastMultiplier = pass.multiplier
+	end
+	for name, product in Products.DevProducts do
+		assert(name == "FinishNow" or product.size, `Dev product {name} needs a pack size`)
 	end
 
 	assert(Economy.MAX_SPOTS == 80, `Expected 80 spots, got {Economy.MAX_SPOTS}`)

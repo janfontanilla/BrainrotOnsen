@@ -8,7 +8,7 @@
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
-local Visuals = require(Shared.Visuals)
+local Models = require(Shared.Models)
 local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
 
@@ -19,32 +19,25 @@ local PoolService = {}
 
 -- plot index -> tier in each used spot, in spot order
 local spotTiers: { [number]: { number } } = {}
--- plot index -> spot index -> placeholder block
-local spotParts: { [number]: { [number]: BasePart } } = {}
+-- plot index -> spot index -> the brainrot model
+local spotParts: { [number]: { [number]: Model } } = {}
 -- plot index -> spot index -> os.clock() when that spot's brainrot was placed
 local spotSince: { [number]: { [number]: number } } = {}
 
-local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): BasePart
+local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): Model
 	local def = Tiers.get(tier)
-	local size = 3 + tier * 0.1
-	local block = Instance.new("Part")
-	block.Name = def.name
-	block.Anchored = true
-	block.CanCollide = false
-	block.CanTouch = false
-	block.Size = Vector3.new(size, size, size)
-	-- Sit in the raised bath's shallow water.
-	block.CFrame = spot * CFrame.new(0, size / 2 - 0.4, 0)
-	block.Color = Visuals.tierColor(tier)
-	block.Material = Enum.Material.SmoothPlastic
-	block:SetAttribute("Tier", tier)
-	block:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
+	local model = Models.makeBrainrot(tier)
+	-- Sit in the raised bath's shallow water (the model's origin is its bottom centre).
+	model:PivotTo(spot * CFrame.new(0, -0.4, 0))
+	model:SetAttribute("Tier", tier)
+	model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
 
+	local anchor = model:FindFirstChild("Label")
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(160, 46)
-	gui.StudsOffset = Vector3.new(0, size / 2 + 1.6, 0)
+	gui.StudsOffset = Vector3.new(0, 0.6, 0)
 	gui.MaxDistance = 70
-	gui.Parent = block
+	gui.Parent = anchor
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
@@ -56,8 +49,8 @@ local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): BaseP
 	label.Text = `{def.name}\n<font color="#ffd966">Tier {tier}</font>`
 	label.Parent = gui
 
-	block.Parent = parent
-	return block
+	model.Parent = parent
+	return model
 end
 
 function PoolService.render(plot: Plot, data: Data)

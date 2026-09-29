@@ -8,6 +8,12 @@
       },
       "Packages": {
         "$path": { "optional": "Packages" }
+      },
+      "Assets": {
+        "$className": "Folder",
+        "Brainrots": {
+          "$path": "assets/Brainrots.rbxmx"
+        }
       }
     },
     "ServerStorage": {

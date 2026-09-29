@@ -164,6 +164,7 @@ local function unlock(player: Player)
 	end
 	local tier = LuckyBlocks.roll(block, random)
 	data.counts[tier] += 1
+	data.totalBrainrots += 1
 	ShopService.mergeIfFull(data)
 	local discovered = DataService.markOwned(data)
 	DataService.sync(player)

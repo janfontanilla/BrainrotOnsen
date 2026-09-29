@@ -171,7 +171,7 @@ function DropController:Start()
 		local root = rootPart()
 		local mine = myDropFolder(plots)
 		for part, info in tracked do
-			local lucky = part:IsA("Model")
+			local lucky = part:GetAttribute("Lucky") == true
 			local position = DropPath.at(info.path, info.flowAt, serverNow)
 			part:PivotTo(
 				CFrame.new(position)

@@ -3,6 +3,9 @@
 -- the Creator Dashboard (Phase 5). robux = intended price, for reference only;
 -- the real price is whatever is set on the dashboard.
 
+export type Pass = { id: number, robux: number, multiplier: number? }
+export type Product = { id: number, robux: number, size: ("S" | "M" | "L")? }
+
 local Products = {}
 
 Products.GamePasses = {
@@ -11,7 +14,7 @@ Products.GamePasses = {
 	Cash2x = { id = 0, robux = 40, multiplier = 2 },
 	Cash4x = { id = 0, robux = 80, multiplier = 4 },
 	Cash7x = { id = 0, robux = 140, multiplier = 7 },
-}
+} :: { [string]: Pass }
 
 -- Only the highest owned Cash multiplier applies; they do not stack.
 Products.CASH_MULTIPLIER_PASSES = { "Cash7x", "Cash4x", "Cash2x" }
@@ -21,6 +24,6 @@ Products.DevProducts = {
 	CashPackS = { id = 0, robux = 29, size = "S" },
 	CashPackM = { id = 0, robux = 149, size = "M" },
 	CashPackL = { id = 0, robux = 499, size = "L" },
-}
+} :: { [string]: Product }
 
 return Products

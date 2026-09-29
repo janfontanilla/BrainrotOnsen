@@ -4,7 +4,7 @@
 -- mutate it and call DataService.sync so balances reach the client.
 --
 -- Balances replicate to the owning client as read-only player attributes
--- (Aura, Cash, Brainrots, Discovered = "0101..." one char per tier). Attributes a client sets never reach the server.
+-- (Aura, Cash, Brainrots, TotalBrainrots, HighestTier, Discovered = "0101..." one char per tier). Attributes a client sets never reach the server.
 --
 -- In Studio, saving only persists when the place is published and "Enable
 -- Studio Access to API Services" is on; otherwise ProfileStore runs in mock
@@ -32,6 +32,8 @@ export type Data = {
 	lastOnline: number, -- os.time() while online, for offline earnings
 	luckyBlock: string, -- name of the lucky block waiting or held ("" = none)
 	luckyProgress: number, -- seconds of production toward the next lucky block
+	totalBrainrots: number, -- lifetime brainrots obtained (bought or unlocked; leaderboard)
+	receipts: { [string]: boolean }, -- processed dev product PurchaseIds
 }
 
 local STORE_NAME = "PlayerData_v1"
@@ -51,6 +53,8 @@ local TEMPLATE: Data = {
 	lastOnline = 0,
 	luckyBlock = "",
 	luckyProgress = 0,
+	totalBrainrots = 0,
+	receipts = {},
 }
 
 local DataService = {}
@@ -111,6 +115,14 @@ function DataService.release(player: Player)
 	loaded[player] = nil
 	if profile then
 		profile:EndSession()
+	end
+end
+
+-- Saves the profile now (used after granting a purchase).
+function DataService.save(player: Player)
+	local profile = profiles[player]
+	if profile then
+		profile:Save()
 	end
 end
 
@@ -179,6 +191,8 @@ function DataService.sync(player: Player)
 		end
 	end
 	player:SetAttribute("Discovered", table.concat(discovered))
+	player:SetAttribute("TotalBrainrots", data.totalBrainrots)
+	player:SetAttribute("HighestTier", data.highestTier)
 end
 
 function DataService.addAura(player: Player, amount: number)

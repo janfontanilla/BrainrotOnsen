@@ -131,6 +131,7 @@ local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: numbe
 		return
 	end
 	data.boughtAtBuyTier += amount
+	data.totalBrainrots += amount
 	data.counts = after
 	afterChange(player, plot, data)
 	notify:FireClient(player, `Bought {amount} {Tiers.get(data.buyTier).name}!`, "good")
@@ -162,6 +163,7 @@ local function buy(player: Player, plot: Plot, amount: number)
 	end
 	data.boughtAtBuyTier += count
 	data.counts[data.buyTier] += count
+	data.totalBrainrots += count
 	ShopService.mergeIfFull(data)
 	afterChange(player, plot, data)
 	if count < amount then
