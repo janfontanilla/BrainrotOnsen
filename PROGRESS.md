@@ -1,7 +1,32 @@
 # Progress
 
-Current phase: **Phase 4 (lucky blocks and Index)**
+Current phase: **Phase 4 (lucky blocks and Index): lucky blocks confirmed, Index check pending. Next: Phase 5.**
 Last updated: 2026-09-28
+
+## Handoff (start here)
+
+- **Where the code is:** branch `claude/priceless-cori-962788` in the worktree
+  `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`. Phases 1-4 are committed
+  there; `main` (`C:\dev\BrainrotOnsen`) is still at Phase 0 (278349a). Merge the branch into
+  `main` when the user asks.
+- **How the user tests:** `rojo serve` from the worktree folder (not `C:\dev\BrainrotOnsen`
+  until the branch is merged), Connect in the Rojo plugin, Play in Studio. Claude can start
+  `rojo serve` in the background; only one server can hold port 34872.
+- **`ServerPackages/` is gitignored:** a fresh worktree needs `wally install` or a copy of
+  `C:\dev\BrainrotOnsen\ServerPackages` (ProfileStore). Restart `rojo serve` after adding it.
+- **Before finishing any change:** `stylua src`, `selene src` (0 errors, 0 warnings),
+  `rojo build -o <tmp>.rbxl`; update this file (the Stop hook enforces it). Commit only when
+  the user asks.
+- **Studio-only test knobs** in `Config/Economy` (ignored in live servers):
+  `STUDIO_DROP_INTERVAL` (0 = off), `STUDIO_STARTING_CASH` (500K for new profiles),
+  `STUDIO_LUCKY_BLOCK_INTERVAL` (0 = off; the user sets 10 to test blocks).
+- **Visual references:** `reference/*.webp|png` are Capybara Onsen screenshots the user gave;
+  the user wants layout and UI to match them closely. When the user shares a new screenshot,
+  save it to `reference/` and add it to the design doc.
+- **Next up:** confirm the Index in Studio, tick Phase 4, then Phase 5 (monetization and social).
+  Product IDs in `Config/Products` are 0 until created on the Creator Dashboard.
+- **Open decisions for the user:** drop cap stays 50 even though a full onsen (80 brainrots)
+  fills it in ~5 s (raised with the user, no answer yet; kept at 50); Robux prices marked "suggested" in the doc.
 
 ## Phase checklist
 
@@ -58,11 +83,11 @@ Last updated: 2026-09-28
 - [x] Home button
 
 ### Phase 4: Lucky blocks and Index
-Coded 2026-09-28 (lint + build clean), waiting on the Studio play test.
-- [ ] Block spawning every 3 minutes, block type by highest tier
-- [ ] Pick up and hold a block, odds panel, Unlock / Discard
-- [ ] Rolls with 60 / 30 / 9 / 1 odds, no auto-merge
-- [ ] Index grid with silhouettes and "New brainrot!" popup
+- [x] Block every 3 minutes of production, type by highest tier (arrives as a drop and floats into the pool; `LuckyBlockService`)
+- [x] Pick up and hold a block (tool pose, chest in the right hand), odds panel, Unlock / Discard (`LuckyBlockController`)
+- [x] Rolls with 60 / 30 / 9 / 1 odds; only merges if the onsen is full; on-screen open-up reveal
+- [ ] Index grid with silhouettes and "New brainrot!" popup (`IndexController`; coded, not yet confirmed in Studio)
+- Done when: you can open every block type and each result shows up correctly in the Index
 
 ### Phase 5: Monetization and social
 - [ ] Game passes: 2x Aura, Auto Collect, x2 / x4 / x7 Cash
@@ -88,14 +113,16 @@ Coded 2026-09-28 (lint + build clean), waiting on the Studio play test.
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- Phases 1 and 2 live on branch `claude/priceless-cori-962788` (worktree `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`), committed (latest 0fc8e9f) but not merged into `main`. Run `rojo serve` from that folder, or ask Claude to commit and merge so `C:\dev\BrainrotOnsen` works again.
-- Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence).
-- Deferred: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
+- Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence) and every join is a new player.
+- Deferred by the user: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
+- Confirm the Index (open it after getting a few tiers; undiscovered = "???").
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
-- Some Capybara Onsen screenshots (HUD, Index, lucky box panel) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
-- Data is in memory only until Phase 3 (ProfileStore); every join starts with 1,000 Cash.
+- A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-28: Handoff docs: PROGRESS "Handoff (start here)" section, Phase 4 lucky block items ticked (user confirmed), stale blockers removed; CLAUDE.md gained a module map, conventions and workflow notes.
+- 2026-09-28: User confirmed the tool-hold arm pose. Held chest now sits in front of the hand at hand height, gripped like a tool (bigger, 3.6), per `reference/lucky-block-held-tool-pose.png`.
+- 2026-09-28: Held lucky block arm pose now uses Roblox's default tool-hold animation (R15 507768375 / R6 182393478) played by the holder; editing shoulder Motor6D C0 had no effect on the user's rig.
 - 2026-09-28: Phase 4 work committed on branch `claude/priceless-cori-962788` (0fc8e9f). Not merged into `main` yet.
 - 2026-09-28: Unlock reveal moved to the screen: the chest leaves the hand, a big chest drops into the middle of the owner's screen, shakes, then pops open into the brainrot (name + tier), holds, shrinks away.
 - 2026-09-28: Held lucky block: right arm held straight out (tool pose), chest rests on the end of the right hand; left arm stays down.

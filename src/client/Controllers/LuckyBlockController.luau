@@ -1,8 +1,9 @@
 --!strict
 -- Lucky blocks on the client:
---   * Held block: every player whose LuckyBlock attribute is set sticks their
---     right arm out in front (like holding a tool) with the chest resting on the
---     end of the hand (drawn locally, so it's smooth).
+--   * Held block: every player whose LuckyBlock attribute is set gets a chest
+--     resting on the end of their right hand (drawn locally, so it's smooth).
+--     The holder's own client plays Roblox's tool-hold animation (right arm
+--     straight out), which Roblox replicates to everyone else.
 --   * Panel (owner only, right side): block picture, "<Name> / Lucky Box", odds
 --     with each tier's name and number, the Cash cost, Unlock! and Discard.
 --     Odds and price come from the shared Config/LuckyBlocks; the server rolls.
@@ -23,11 +24,12 @@ local Visuals = require(Shared.Visuals)
 
 local player = Players.LocalPlayer
 
-local HELD_SIZE = 3
+local HELD_SIZE = 3.6
 local HELD_FALLBACK = CFrame.new(1.5, 1, -2.5) -- from the root part when the hand can't be found
--- Right shoulder rotation that points the arm straight forward (R15: about X, R6: about Z).
-local ARM_OUT_R15 = CFrame.Angles(math.pi / 2, 0, 0)
-local ARM_OUT_R6 = CFrame.Angles(0, 0, math.pi / 2)
+-- Roblox's default "holding a tool" animations (right arm straight out). The
+-- local player plays it on their own character; Roblox replicates it to others.
+local HOLD_ANIMATION_R15 = "rbxassetid://507768375"
+local HOLD_ANIMATION_R6 = "rbxassetid://182393478"
 local DROP_TIME = 0.5 -- chest drops into the middle of the screen
 local SHAKE_TIME = 1 -- then shakes
 local REVEAL_HOLD = 1.8 -- the brainrot stays on screen this long
@@ -37,8 +39,8 @@ local LuckyBlockController = {}
 
 -- Player -> chest held in their right hand
 local held: { [Player]: Model } = {}
--- Shoulder motor -> its original C0, while the arm is held out
-local raisedShoulders: { [Motor6D]: CFrame } = {}
+-- The local player's hold animation while they carry a block
+local holdTrack: AnimationTrack? = nil
 
 local function findBlock(name: unknown): LuckyBlocks.Block?
 	if typeof(name) ~= "string" or name == "" then
@@ -61,40 +63,45 @@ local function rootOf(target: Player): BasePart?
 	return nil
 end
 
--- The right shoulder motor and the rotation that holds the arm out.
-local function rightShoulder(character: Model): (Motor6D?, CFrame)
-	local r15 = character:FindFirstChild("RightShoulder", true)
-	if r15 and r15:IsA("Motor6D") then
-		return r15, ARM_OUT_R15
-	end
-	local r6 = character:FindFirstChild("Right Shoulder", true)
-	if r6 and r6:IsA("Motor6D") then
-		return r6, ARM_OUT_R6
-	end
-	return nil, CFrame.new()
-end
-
--- Holds the target's right arm out in front, or lowers it again (local only).
+-- Holds the right arm out in front, or lowers it again. Only the local player's
+-- own character is animated here; other players' poses arrive through
+-- Roblox's animation replication.
 local function setArmsUp(target: Player, up: boolean)
-	local character = target.Character
-	if not character then
+	if target ~= player then
 		return
 	end
-	local motor, out = rightShoulder(character)
-	if not motor then
+	if not up then
+		if holdTrack then
+			holdTrack:Stop(0.15)
+			holdTrack = nil
+		end
 		return
 	end
-	local original = raisedShoulders[motor]
-	if up and not original then
-		raisedShoulders[motor] = motor.C0
-		motor.C0 = motor.C0 * out
-	elseif not up and original then
-		motor.C0 = original
-		raisedShoulders[motor] = nil
+	if holdTrack and holdTrack.IsPlaying then
+		return
 	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then
+		return
+	end
+	local animation = Instance.new("Animation")
+	animation.AnimationId = if humanoid.RigType == Enum.HumanoidRigType.R15
+		then HOLD_ANIMATION_R15
+		else HOLD_ANIMATION_R6
+	local track = animator:LoadAnimation(animation)
+	track.Priority = Enum.AnimationPriority.Action
+	track.Looped = true
+	track:Play(0.15)
+	holdTrack = track
 end
 
--- Where the held chest sits: resting on the end of the outstretched right hand.
+-- Where the held chest sits: gripped by the outstretched right hand, like a
+-- tool: in front of the hand at hand height (reference/lucky-block-held-tool-pose.png).
 local function aboveHead(target: Player): CFrame?
 	local root = rootOf(target)
 	if not root then
@@ -105,9 +112,12 @@ local function aboveHead(target: Player): CFrame?
 	if not hand or not hand:IsA("BasePart") then
 		return root.CFrame * HELD_FALLBACK
 	end
-	-- With the arm pointing forward, the hand's -Y end is its fingertips.
-	local tip = (hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, 0)).Position
-	return CFrame.new(tip + Vector3.new(0, HELD_SIZE / 2 + hand.Size.Z / 2, 0)) * root.CFrame.Rotation
+	-- The hand's -Y end is its fingertips; the box starts there and extends the
+	-- way the arm points, raised a little so the hand holds its lower half.
+	local armDirection = -hand.CFrame.UpVector
+	local tip = hand.Position + armDirection * (hand.Size.Y / 2)
+	local center = tip + armDirection * (HELD_SIZE / 2 - 0.3) + Vector3.new(0, HELD_SIZE * 0.2, 0)
+	return CFrame.new(center) * root.CFrame.Rotation
 end
 
 local function dropHeld(target: Player)

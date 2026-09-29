@@ -9,7 +9,7 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 ## Core loop
 
 1. Cash buys brainrots from the buy pads (Buy 1 / 5 / 25 / 100 of the player's current buy tier).
-2. Each brainrot drops its own themed item every 7s (Tung Tung Tung Sahur drops sticks, etc.). Drops float down the lanes and the center channel into the collection pool at the front of the plot.
+2. Each brainrot drops its own themed item every 7s on its own timer (Tung Tung Tung Sahur drops sticks, etc.). Drops slide out of the bath, float down the river and the center channel, and gather in the collection pool.
 3. Walking over a drop (anywhere on its way or in the pool) turns it into Aura instantly. No inventory, no carry cap.
 4. Deposit stand: all Aura goes into the processor queue as Aura x market multiplier (server-wide, random 0.50x to 1.50x, rerolled every 30s).
 5. Processor turns queued Aura into Cash 1:1 at a rate per second. Cash waits on the Collect Cash pad.
@@ -25,31 +25,59 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 - Tier value is roughly 4x the tier below (must always be more than 3x so merging pays).
 - Upgrade Buy Tier permanently raises the tier the buy pads sell and resets price scaling.
 - Offline: brainrots earn at 100% forever, straight into the Aura counter (ignores the drop cap). Processor keeps processing.
-- Lucky blocks: type depends on highest tier ever owned; contains unlock tier -1 to +2 at 60/30/9/1 odds; paid with Cash only (never Robux directly); very expensive.
+- Lucky blocks: after every 3 minutes of production the next drop is a lucky block instead of Aura (floats into the pool like a drop, one at a time). Type depends on highest tier ever owned (Wood unlocks at tier 3); contains unlock tier -1 to +2 at 60/30/9/1 odds; paid with Cash only (never Robux directly); very expensive.
 - Cash multiplier game passes: x2 / x4 / x7 at 40 / 80 / 140 Robux (multiplier x 20). Highest owned applies, no stacking between them.
 - Auto Collect game pass collects Aura drops, not Cash.
 - Finish Now dev product instantly processes the processor queue.
 - No pedestals. The Index is the collection.
 - 6 players per server, one plot each.
+- New players start with 1,000 Cash (`Economy.STARTING_CASH`).
 
 ## Architecture
 
 Rojo project. The server owns every number; the client only renders and sends intents ("stepped on Merge!"). Never trust amounts from the client.
 
 ```
-src/shared/   -> ReplicatedStorage.Shared   (Config/, Format, Remotes)
-src/server/   -> ServerScriptService.Server (Services/)
+src/shared/   -> ReplicatedStorage.Shared   (Config/, Format, Remotes, DropPath, Visuals)
+src/server/   -> ServerScriptService.Server (ConfigCheck, Plots, Services/)
 src/client/   -> StarterPlayerScripts.Client (Controllers/)
 Packages/       -> ReplicatedStorage.Packages (Wally shared deps, gitignored)
 ServerPackages/ -> ServerStorage.ServerPackages (Wally server deps like ProfileStore, gitignored)
+reference/    Capybara Onsen screenshots: the visual reference for layout and UI
 ```
 
-- `src/server/init.server.luau` runs `ConfigCheck` (asserts config invariants), then loads every module in `Services/`: `:Init()` on all, then `:Start()` on all. The client does the same with `Controllers/`.
-- Add a new system as a new module in `Services/` or `Controllers/`; no registration needed.
+- `src/server/init.server.luau` runs `ConfigCheck` (asserts config invariants), then loads every module in `Services/`: `:Init()` on all, then `:Start()` on all (Start runs in its own thread). The client does the same with `Controllers/`.
+- Add a new system as a new module in `Services/` or `Controllers/`; no registration needed. Build shared geometry/state in `:Init()`, connect and loop in `:Start()`. Services require each other directly; avoid require cycles.
 
-- All tunable numbers live in `src/shared/Config/` (`Tiers`, `Economy`, `LuckyBlocks`, `Products`). Never hard-code a balance number in a service.
-- Brainrots are stored as counts per tier, not as instances.
-- Saving: ProfileStore with session locking. Dev product receipts are logged in the profile.
+Module map:
+
+| Module | Job |
+| --- | --- |
+| `server/Plots` | Builds the 6 plots in code (baths, rivers, slides, channel, pool, pads, station row, signs), owner assignment, `Plots.onStep` (once-per-step pad touches + `Pressed` attribute), drop paths, pool points |
+| `Services/DataService` | ProfileStore profiles (`PlayerData_v1`, key `Player_<UserId>`), the `Data` shape, offline earnings, player attributes |
+| `Services/PlotService` | Join/leave lifecycle: load data, assign plot, send home, Home button |
+| `Services/PoolService` | Lays brainrots out in spots (diff render, `SpawnedAt` for the rise animation) |
+| `Services/ShopService` | Buy 1/5/25/100, Merge!, Upgrade Buy Tier, merge logic (`mergeCounts`, `makeRoom`, `mergeIfFull`) |
+| `Services/DropService` | Per-brainrot 7s drop timers, drop cap, `CollectDrop` validation, `replaceNextDrop` hook |
+| `Services/MarketService` | Server-wide multiplier (`ReplicatedStorage.Market` attributes) |
+| `Services/ProcessorService` | Deposit, processor queue, Collect Cash, processor upgrades, station labels |
+| `Services/LuckyBlockService` | Lucky block timer, block-as-drop, pickup, Unlock / Discard |
+| `Controllers/HudController` | Home button, Aura / Cash, toasts and big popups (`Notify` kinds) |
+| `Controllers/DropController` | Animates drops and lucky blocks along their path, asks to collect, "+X" gain |
+| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath and pad-press animations |
+| `Controllers/MarketBoardController` | Draws the market boards |
+| `Controllers/LuckyBlockController` | Held chest + tool-hold animation, odds panel, on-screen unlock reveal |
+| `Controllers/IndexController` | Index button and grid |
+
+Conventions:
+
+- All tunable numbers live in `src/shared/Config/` (`Tiers`, `Economy`, `LuckyBlocks`, `Products`). Never hard-code a balance number in a service. Visual-only layout numbers (studs, colors) live at the top of the module that uses them.
+- Studio-only test knobs are `Economy.STUDIO_*` (0 = off), always gated by `RunService:IsStudio()`.
+- Brainrots are stored as counts per tier (`data.counts`, dense array), not as instances.
+- Saving: ProfileStore with session locking. New `Data` fields go in `DataService`'s `TEMPLATE`; `Reconcile` fills them into old profiles. Dev product receipts are logged in the profile.
+- Server -> client state: player attributes (`Aura`, `Cash`, `Brainrots`, `Discovered`, `LuckyBlock`, `PlotIndex`) and part attributes; events through `Shared.Remotes` (the list and payloads are in its header).
+- Messages: `Notify(message, kind?)`: nil = red toast, "good" = green toast, "deposit" / "cash" / "away" / "lucky" / "newBrainrot" = big popup.
+- Placeholder art until Phase 6: colored parts from `Shared.Visuals` (`tierColor`, `blockColor`, `makeLuckyBlock`).
 - Luau with `--!strict` at the top of every module.
 - Number display always goes through `Shared.Format`.
 
@@ -76,12 +104,19 @@ Current phase: see `PROGRESS.md`.
 6. Art, polish, launch (placeholder models until here)
 7. Post-launch: group reward pad, tutorial, music, more tiers
 
+## Working with the user
+
+- The user play-tests in Studio and reports back with screenshots. End each change with exact play-test steps.
+- Match Capybara Onsen's look and feel closely; the screenshots in `reference/` are the target. Save new screenshots the user shares into `reference/` and add them to the design doc.
+- When a user request changes a rule, update the design doc, this file and `Config` together.
+- Commit only when asked. Work happens on a branch/worktree; merge into `main` only when asked.
+
 ## Tooling
 
 - Toolchain versions are pinned in `rokit.toml` (rojo, wally, stylua, selene). The exes live in `~/.rokit/bin`. On this machine Avast's HTTPS scanning breaks Rokit's own downloads, so tools are updated by downloading release zips with `curl` into `~/.rokit/bin`.
 - `rojo build -o <file>.rbxl` is the quickest check that the project tree is valid.
 - `rojo serve` then connect from the Rojo plugin in Studio.
 - `wally install` to fetch packages.
-- `stylua src` and `selene src` before committing.
-- `reference/` holds Capybara Onsen screenshots used as the visual reference for layout and UI.
+- `stylua src` and `selene src` (0 errors, 0 warnings) and `rojo build` before finishing any change.
+- Patch scripts: stylua rewraps long lines, so an exact-string replacement written against pre-format code can miss. Assert every match (and that it's unique) before writing, and never replace an empty string.
 - Keep this project outside OneDrive; sync fights Rojo's file watcher.
