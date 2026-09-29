@@ -7,6 +7,7 @@ Paste everything below the line into a fresh Claude Code session, ideally in pla
 You are planning the visual polish of the map in **Brainrot Onsen**, a Roblox merge tycoon built with Rojo in `C:\dev\BrainrotOnsen` (or its current worktree). The user's verdict on the first pass was: "the bare minimum, not really visually appealing, I wouldn't continue playing a game like this." The target is the level of detail in the Capybara Onsen screenshots.
 
 ## Read first
+0. `docs/prompts/map-design-brief.md`: the full context (what exists, decisions already made, tools, what the plan must settle). Start here.
 1. `CLAUDE.md` (rules, architecture, module map, conventions).
 2. `PROGRESS.md` ("Handoff (start here)", Phase 6).
 3. `docs/map-polish.md` (gap analysis: why it looks bare, the reference inventory, ranked levers, risks, open questions).
