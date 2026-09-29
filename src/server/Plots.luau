@@ -31,6 +31,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
 local Decor = require(script.Parent.Decor)
+local Skin = require(script.Parent.Skin)
 
 export type Pad = {
 	amount: number, -- buy amount for buy pads, 0 for station pads
@@ -224,17 +225,22 @@ local function buildPlot(root: Instance, index: number): Plot
 	geometry.Name = "Geometry"
 	geometry.Parent = folder
 
-	makePart(geometry, "Floor", Vector3.new(WIDTH, 1, DEPTH), at(0, FLOOR_TOP - 0.5, DEPTH / 2), FLOOR_COLOR)
+	local floor =
+		makePart(geometry, "Floor", Vector3.new(WIDTH, 1, DEPTH), at(0, FLOOR_TOP - 0.5, DEPTH / 2), FLOOR_COLOR)
+	Skin.tile(floor, "grass")
 	Decor.build(geometry, { at = at, width = WIDTH, depth = DEPTH, floorTop = FLOOR_TOP, seed = index })
 
-	local function water(name: string, size: Vector3, cframe: CFrame)
+	local function water(name: string, size: Vector3, cframe: CFrame): Part
 		local part = makePart(geometry, name, size, cframe, LANE_COLOR)
 		part.Transparency = 0.2
 		part.Material = Enum.Material.Glass
+		Skin.tile(part, "water")
+		return part
 	end
 	local function stone(name: string, size: Vector3, cframe: CFrame)
 		local part = makePart(geometry, name, size, cframe, STONE_COLOR)
 		part.Material = Enum.Material.Slate
+		Skin.tile(part, "stone", Skin.ALL_SIDES)
 	end
 
 	-- Rows, front to back: a low river, then a raised bath behind it that drains
@@ -268,10 +274,12 @@ local function buildPlot(root: Instance, index: number): Plot
 				Vector3.new(bathLength, baseHeight, LANE_WIDTH),
 				at(side * bathCenterX, FLOOR_TOP + baseHeight / 2, z)
 			)
-			water(
-				"BathWater",
-				Vector3.new(bathInnerLength, 0.4, LANE_WIDTH - 2 * BATH_RIM),
-				at(side * bathCenterX, BATH_WATER_TOP - 0.2, z)
+			Decor.steam(
+				water(
+					"BathWater",
+					Vector3.new(bathInnerLength, 0.4, LANE_WIDTH - 2 * BATH_RIM),
+					at(side * bathCenterX, BATH_WATER_TOP - 0.2, z)
+				)
 			)
 			for _, dz in { -1, 1 } do
 				stone(
@@ -540,6 +548,7 @@ function Plots.build()
 	local groundSize = Vector3.new(3 * WIDTH + 2 * COLUMN_GAP + 60, 1, 2 * DEPTH + ROAD_WIDTH + 60)
 	local ground = makePart(root, "Ground", groundSize, CFrame.new(0, 0, 0), Color3.fromRGB(110, 170, 90))
 	ground.Material = Enum.Material.Grass
+	Skin.tile(ground, "grass")
 
 	for index = 1, Economy.PLAYERS_PER_SERVER do
 		table.insert(plots, buildPlot(root, index))
