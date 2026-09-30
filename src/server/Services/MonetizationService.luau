@@ -1,7 +1,7 @@
 --!strict
 -- Game passes, dev products and boosts.
 --
--- Passes (Config/Products): 2x Aura, Auto Collect, and Cash x2 / x4 / x7 (only
+-- Passes (Config/Products): 2x Aura, Auto Collect, and Cash x2 / x4 / x7 / x12 (only
 -- the highest Cash pass applies). Ownership is read from Roblox at join and
 -- updated when a purchase finishes. Dev products (Finish Now, Cash packs) go
 -- through ProcessReceipt with a receipt log in the profile, so a purchase is
@@ -29,6 +29,7 @@ local Products = require(Shared.Config.Products)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
+local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
 
 type Plot = Plots.Plot
@@ -36,7 +37,7 @@ type Plot = Plots.Plot
 local MonetizationService = {}
 
 local BUY_PRODUCT_COOLDOWN = 1 -- seconds between BuyProduct intents per player
-local CASH_PASS_ORDER = { "Cash2x", "Cash4x", "Cash7x" } -- ascending
+local CASH_PASS_ORDER = { "Cash2x", "Cash4x", "Cash7x", "Cash12x" } -- ascending
 local PRODUCT_INTENTS: { [string]: boolean } =
 	{ FinishNow = true, CashPackS = true, CashPackM = true, CashPackL = true }
 
@@ -119,8 +120,8 @@ function MonetizationService.refreshPads(plot: Plot)
 	local owner = plot.owner
 	local function set(pad: Plots.Pad, title: string, price: number, isOwned: boolean)
 		pad.label.Text = if isOwned
-			then `{title}\n<font color="#7dff8a">Owned</font>`
-			else `{title}\n<font color="#ffd966">R$ {price}</font>`
+			then `{title}\n{Billboard.color("Owned", Billboard.CASH)}`
+			else `{title}\n` .. Billboard.color(`R$ {price}`, Billboard.ROBUX)
 	end
 	local auto = Products.GamePasses.AutoCollect
 	local aura = Products.GamePasses.DoubleAura
@@ -132,7 +133,7 @@ function MonetizationService.refreshPads(plot: Plot)
 		local pass = Products.GamePasses[nextPass]
 		set(stations.cashPass, `x{pass.multiplier or 1} Cash`, pass.robux, false)
 	else
-		set(stations.cashPass, "x7 Cash", 0, true)
+		set(stations.cashPass, "x12 Cash", 0, true)
 	end
 end
 
@@ -182,6 +183,7 @@ local function grantProduct(player: Player, name: string): boolean
 	end
 	local amount = Economy.cashPackAmount(math.max(1, data.highestTier), size)
 	data.cash += amount
+	data.totalCashEarned += amount
 	DataService.sync(player)
 	notify:FireClient(player, `Received {Format.short(amount)} Cash!`, "cash")
 	return true
@@ -319,7 +321,8 @@ local function onPlayerRemoving(player: Player)
 end
 
 local function onBuyProduct(player: Player, name: unknown)
-	if typeof(name) ~= "string" or not PRODUCT_INTENTS[name] then
+	-- "CashPass" (the HUD promo) offers the next Cash multiplier pass up.
+	if typeof(name) ~= "string" or not (PRODUCT_INTENTS[name] or name == "CashPass") then
 		return
 	end
 	local now = os.clock()
@@ -327,7 +330,11 @@ local function onBuyProduct(player: Player, name: unknown)
 		return
 	end
 	lastBuy[player] = now
-	promptProduct(player, name)
+	if name == "CashPass" then
+		promptCashPass(player)
+	else
+		promptProduct(player, name)
+	end
 end
 
 function MonetizationService:Init()

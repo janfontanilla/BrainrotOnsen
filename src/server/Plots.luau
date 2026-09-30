@@ -30,7 +30,13 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
+local Textures = require(Shared.Config.Textures)
+local Sounds = require(Shared.Config.Sounds)
+local Models = require(Shared.Models)
+local Props = require(Shared.Props)
+local Billboard = require(script.Parent.Billboard)
 local Decor = require(script.Parent.Decor)
+local Plaza = require(script.Parent.Plaza)
 local Skin = require(script.Parent.Skin)
 
 export type Pad = {
@@ -50,6 +56,7 @@ export type Stations = {
 	autoCollect: Pad,
 	doubleAura: Pad,
 	cashPass: Pad,
+	groupReward: Pad, -- step-on pad in front of the group sign (GroupRewardService)
 	processorLabel: TextLabel, -- the processor info board's text
 }
 
@@ -71,71 +78,126 @@ export type Plot = {
 -- Layout (studs). Visual geometry only; balance numbers live in Config/Economy.
 local WIDTH = 130
 local DEPTH = 220
-local ROAD_WIDTH = 30
+-- The middle area between the two rows holds the flowing lake (server/Plaza).
+local ROAD_WIDTH = 140
 local COLUMN_GAP = 12
-local FLOOR_TOP = 1
-local WATER_TOP = FLOOR_TOP + 0.4
+-- The plot floor is a thick slab on the map ground so the bath field can be sunk
+-- into it (Capybara Onsen style): the rivers, channel and pool are one sunken water
+-- sheet below the grass, framed by a stone lip, and the baths are stone pedestals
+-- standing up out of it.
+local MAP_GROUND_TOP = 0.5 -- top of the map-wide Ground part
+local FLOOR_TOP = 3
+local BASIN_BOTTOM = MAP_GROUND_TOP + 0.3 -- the dark bed seen through the sunken water
+local WATER_TOP = FLOOR_TOP - 1.4 -- the sunken water sheet
+local BASIN_LIP = 1.5 -- stone lip around the sunken basin
+local LIP_TOP = FLOOR_TOP + 0.4
+local STEP_COUNT = 3 -- steps up from the map ground at the plot's front edge
 local DROP_FLOAT = 1.2 -- drop height above the water
 local LANE_WIDTH = 7 -- baths run along x; this is their size in z, rims included
 local RIVER_WIDTH = 8 -- low river in front of each bath, flowing to the channel
 local BATH_RIM = 1
-local BATH_WATER_TOP = FLOOR_TOP + 3 -- baths are raised well above the rivers
-local BATH_RIM_TOP = BATH_WATER_TOP + 0.6
+-- Baths are thin stone rings standing in the sunken water (Capybara Onsen): their
+-- water sits just below the grass and the rim tops just above it, so no tall box.
+local BATH_WATER_TOP = FLOOR_TOP - 0.3
+local BATH_RIM_TOP = FLOOR_TOP + 0.5
 local SPOT_SPACING = 9 -- along the bath (x)
 local SLIDE_OFFSET = SPOT_SPACING / 2 -- slides sit between brainrots
 local LANES_FRONT_Z = 90
 local CHANNEL_WIDTH = 8
 -- Narrow pool right in front of the lanes; the open ground in front of it is
 -- room for the Phase 2+ stations (deposit, processor, market).
-local POOL_FRONT_Z = 60
-local POOL_BACK_Z = LANES_FRONT_Z - 2
+local POOL_FRONT_Z = 64
+local POOL_BACK_Z = LANES_FRONT_Z
 local POOL_WIDTH = 14
-local RIM_HEIGHT = 0.8
-local RIM_THICKNESS = 1.5
-local PAD_Z = 72
 local PAD_SIZE = 8
-local SPAWN_Z = 52
--- Phase 2 station row, in front of the pool and facing it (+z). Seen from the
--- pool looking at the road it reads, left to right: processor info board, processor
--- tank, deposit stand, market board. Pads sit on the pool side of the row.
+local BUY_PAD_SIZE = 6 -- the buy pads are smaller than the station pads
+-- Beside Merge! (never on a pad), facing the baths.
+local SPAWN_X, SPAWN_Z = 11, 46
+-- Station row in front of the pool, facing it (+z), read left to right from the
+-- spawn: market board, deposit stall, signpost, a cherry tree, processor info
+-- board, with their pads on the pool side. The processor barrel stands by the -x
+-- side wall beside the pool, facing into the plot, with Collect Cash in front.
 local STATION_Z = 26 -- where the row's structures stand
 local STATION_PAD_Z = 38 -- where their pads sit
-local INFO_BOARD_X = -52
-local UPGRADE_X = -56
-local COLLECT_CASH_X = -44
-local PROCESSOR_X = -30
-local DEPOSIT_X = -10
+local INFO_BOARD_X = -48 -- processor info board at the -x end of the station row
+local UPGRADE_X = INFO_BOARD_X -- processor upgrade pad, in front of the board
+-- Robux pads sit in line beside the free pad they boost, on the "right" side of the
+-- plot (-x, where Upgrade Buy Tier is). x2 Cash is the exception: the barrel is on
+-- that side of Collect Cash, so it sits beside it toward the road instead.
+local ROBUX_GAP = 9.5 -- centre to centre
+local BARREL_X, BARREL_Z = -55, 66 -- the processor barrel by the -x wall
+local COLLECT_CASH_X, COLLECT_CASH_Z = -41, BARREL_Z
+local DEPOSIT_X = -12 -- left of the barrel, next to the entrance path
+local STALL_SCALE = 1.25 -- the deposit stall is built bigger than the forge design
+local SIGNPOST_X, SIGNPOST_Z = -60, 54 -- tall signpost by the -x wall, beside the barrel
+
 local DEPOSIT_PAD_SIZE = 11
 local ROBUX_PAD_SIZE = 6
 local MARKET_X = 12
--- Buy pads (amount -> plot-local x), on the player's left of the pool
--- (+x, seen from the spawn facing the baths).
-local PAD_LAYOUT: { { amount: number, x: number } } = {
-	{ amount = 1, x = 38 },
-	{ amount = 5, x = 28 },
-	{ amount = 25, x = 18 },
-	{ amount = 100, x = 50 },
-}
--- Merge! and Upgrade Buy Tier, in front of the buy pads beside the pool.
-local MERGE_X, MERGE_Z = 18, 58
+local STALL_KEEPER_TIER = 13 -- Tung Tung Tung Sahur behind the deposit counter
+local STALL_KEEPER_SCALE = 1
+local STALL_KEEPER_STEP = 5.2 -- stands up at counter-top height so all of him shows
+-- The barrel's chimney top relative to its base centre, in the barrel's own frame
+-- (tools/voxel_forge.py processor_barrel).
+local CHIMNEY_OFFSET = Vector3.new(2.5, 26.5, 3)
+-- Merge! centred right in front of the pool. A row of pads runs along the front of
+-- the first bath row, read left to right from the spawn (+x is the player's left):
+-- Buy 1, Buy 5, Auto Collect left of the pool; Buy 25, Buy 100 and Upgrade Buy Tier
+-- right of it.
+local MERGE_X, MERGE_Z = 0, 56.5
 local MERGE_PAD_SIZE = 10
-local UPGRADE_BUY_TIER_X, UPGRADE_BUY_TIER_Z = 36, 58
-local UPGRADE_BUY_TIER_PAD_SIZE = 10
+local BUY_ROW_Z = 84 -- just in front of the first river (LANES_FRONT_Z)
+local PAD_LAYOUT: { { amount: number, x: number, z: number } } = {
+	{ amount = 1, x = 36, z = BUY_ROW_Z },
+	{ amount = 5, x = 25, z = BUY_ROW_Z },
+	{ amount = 25, x = -14.5, z = BUY_ROW_Z },
+	{ amount = 100, x = -25.5, z = BUY_ROW_Z },
+}
+local AUTO_COLLECT_X, AUTO_COLLECT_Z = 14, BUY_ROW_Z
+local UPGRADE_BUY_TIER_X, UPGRADE_BUY_TIER_Z = -37.5, BUY_ROW_Z
+local UPGRADE_BUY_TIER_PAD_SIZE = 7.5
+-- The step-on group reward pad in front of the group sign on the curved wall.
+local GROUP_PAD_X, GROUP_PAD_Z = 31, 27
 
 local FLOOR_COLOR = Color3.fromRGB(112, 190, 74)
-local LANE_COLOR = Color3.fromRGB(96, 190, 220)
-local PAD_COLOR = Color3.fromRGB(80, 200, 110)
-local BUY_100_COLOR = Color3.fromRGB(255, 120, 40)
+local LANE_COLOR = Color3.fromRGB(70, 205, 240)
+-- Pad colours from the reference: yellow Buy 1 / 5, lime Buy 25, orange Buy 100.
+local BUY_COLORS: { [number]: Color3 } = {
+	[1] = Color3.fromRGB(250, 222, 70),
+	[5] = Color3.fromRGB(250, 222, 70),
+	[25] = Color3.fromRGB(170, 228, 60),
+	[100] = Color3.fromRGB(255, 120, 40),
+}
 local MERGE_COLOR = Color3.fromRGB(150, 150, 160)
 local UPGRADE_BUY_TIER_COLOR = Color3.fromRGB(60, 210, 255)
 local DEPOSIT_COLOR = Color3.fromRGB(255, 220, 90)
 local COLLECT_COLOR = Color3.fromRGB(60, 220, 90)
 local UPGRADE_COLOR = Color3.fromRGB(70, 170, 255)
-local PROCESSOR_COLOR = Color3.fromRGB(230, 150, 50)
 local ROBUX_COLOR = Color3.fromRGB(255, 180, 40)
+local GROUP_COLOR = Color3.fromRGB(255, 120, 190)
 local SIGN_COLOR = Color3.fromRGB(120, 80, 50)
 local STONE_COLOR = Color3.fromRGB(140, 140, 150)
+local BASIN_BED_COLOR = Color3.fromRGB(30, 110, 140) -- dark water depth under the sunken sheet
 local WOOD_COLOR = Color3.fromRGB(150, 100, 60)
+local BRIDGE_RED = Color3.fromRGB(196, 58, 48)
+local FLOW_TAG = "FlowWater" -- Controllers/WaterController scrolls these textures
+local WATER_FLOW_SPEED = 6 -- studs per second the river and channel textures drift
+-- Tints for textured parts (Skin multiplies the tile by these; white = the tile as drawn).
+local RIM_TINT = Color3.fromRGB(200, 204, 216) -- rims a shade darker than the bath body
+local PAD_TRAY_COLOR = Color3.fromRGB(78, 80, 92)
+local PAD_TRAY = 0.7 -- the dark studded tray shows this far around each pad
+-- Floor arrows along the loop (x, z, direction x, direction z): pool > Deposit,
+-- Deposit > Collect Cash, Collect Cash > the buy row.
+local ARROWS: { { number } } = {
+	{ -9, 58, 0, -1 },
+	{ -9, 54, 0, -1 },
+	{ -9, 50, 0, -1 },
+	{ -9, 46, 0, -1 },
+	{ -22.5, 44, -0.7, 0.7 },
+	{ -27, 48.5, -0.7, 0.7 },
+	{ -31.5, 53, -0.7, 0.7 },
+	{ -38, 74.5, 0.3, 1 },
+}
 
 local Plots = {}
 
@@ -164,7 +226,7 @@ end
 local function makeSignLabel(board: BasePart, face: Enum.NormalId): TextLabel
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = face
-	gui.CanvasSize = Vector2.new(680, 100)
+	gui.CanvasSize = Vector2.new(440, 100)
 	gui.Parent = board
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
@@ -177,23 +239,11 @@ local function makeSignLabel(board: BasePart, face: Enum.NormalId): TextLabel
 	return label
 end
 
-local function makePadLabel(pad: BasePart): TextLabel
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(170, 80)
-	gui.StudsOffset = Vector3.new(0, 4, 0)
-	gui.MaxDistance = 90
-	gui.Parent = pad
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.RichText = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.3
-	label.Parent = gui
-	return label
-end
+-- Pad label sizes in studs (width, height) by the number of lines they show.
+local LABEL_ONE_LINE = Vector2.new(9, 2.2)
+local LABEL_TWO_LINES = Vector2.new(8, 3.2)
+local LABEL_THREE_LINES = Vector2.new(10, 4.4)
+local LABEL_ROBUX = Vector2.new(6.5, 2.8)
 
 function Plots.setSign(plot: Plot, text: string)
 	for _, label in plot.signLabels do
@@ -225,22 +275,64 @@ local function buildPlot(root: Instance, index: number): Plot
 	geometry.Name = "Geometry"
 	geometry.Parent = folder
 
-	local floor =
-		makePart(geometry, "Floor", Vector3.new(WIDTH, 1, DEPTH), at(0, FLOOR_TOP - 0.5, DEPTH / 2), FLOOR_COLOR)
-	Skin.tile(floor, "grass")
+	-- Floor: a slab from the map ground to FLOOR_TOP with the basin (the pool in
+	-- front, the bath field behind it) cut out, plus steps up at the front edge.
+	local fieldHalf = CHANNEL_WIDTH / 2 + 1 + Economy.SPOTS_PER_LANE * SPOT_SPACING + 2 + 2 * BATH_RIM
+	local lanesBack = LANES_FRONT_Z + Economy.ROWS * (RIVER_WIDTH + LANE_WIDTH)
+	local poolHalf = POOL_WIDTH / 2
+	local L = BASIN_LIP
+	local slab = FLOOR_TOP - MAP_GROUND_TOP
+	local function floorPiece(x1: number, z1: number, x2: number, z2: number)
+		local piece = makePart(
+			geometry,
+			"Floor",
+			Vector3.new(x2 - x1, slab, z2 - z1),
+			at((x1 + x2) / 2, MAP_GROUND_TOP + slab / 2, (z1 + z2) / 2),
+			FLOOR_COLOR
+		)
+		Skin.apply(piece, "grass")
+	end
+	floorPiece(-WIDTH / 2, 0, WIDTH / 2, POOL_FRONT_Z - L)
+	floorPiece(-WIDTH / 2, lanesBack + L, WIDTH / 2, DEPTH)
+	for _, side in { -1, 1 } do
+		local function mirrored(x1: number, z1: number, x2: number, z2: number)
+			floorPiece(math.min(side * x1, side * x2), z1, math.max(side * x1, side * x2), z2)
+		end
+		mirrored(poolHalf + L, POOL_FRONT_Z - L, WIDTH / 2, LANES_FRONT_Z - L)
+		mirrored(fieldHalf + L, LANES_FRONT_Z - L, WIDTH / 2, lanesBack + L)
+	end
+	for i = 1, STEP_COUNT do
+		local height = slab * i / STEP_COUNT
+		local stepZ = -(STEP_COUNT - i + 0.5)
+		local step = makePart(
+			geometry,
+			"FrontStep",
+			Vector3.new(WIDTH, height, 1),
+			at(0, MAP_GROUND_TOP + height / 2, stepZ),
+			STONE_COLOR
+		)
+		Skin.apply(step, "stone", RIM_TINT)
+	end
 	Decor.build(geometry, { at = at, width = WIDTH, depth = DEPTH, floorTop = FLOOR_TOP, seed = index })
 
 	local function water(name: string, size: Vector3, cframe: CFrame): Part
 		local part = makePart(geometry, name, size, cframe, LANE_COLOR)
 		part.Transparency = 0.2
 		part.Material = Enum.Material.Glass
+		part.CastShadow = false
 		Skin.tile(part, "water")
 		return part
 	end
+	-- Marks water whose texture scrolls along plot-local (dx, dz); visual only, no current.
+	local function flows(part: BasePart, dx: number, dz: number)
+		part:SetAttribute("FlowX", dx)
+		part:SetAttribute("FlowZ", dz)
+		part:SetAttribute("FlowSpeed", WATER_FLOW_SPEED)
+		CollectionService:AddTag(part, FLOW_TAG)
+	end
 	local function stone(name: string, size: Vector3, cframe: CFrame)
 		local part = makePart(geometry, name, size, cframe, STONE_COLOR)
-		part.Material = Enum.Material.Slate
-		Skin.tile(part, "stone", Skin.ALL_SIDES)
+		Skin.apply(part, "stone", if name == "Bath" then nil else RIM_TINT)
 	end
 
 	-- Rows, front to back: a low river, then a raised bath behind it that drains
@@ -250,8 +342,7 @@ local function buildPlot(root: Instance, index: number): Plot
 	local bathLength = bathInnerLength + 2 * BATH_RIM
 	local bathNearX = CHANNEL_WIDTH / 2 + 1 -- bath edge nearest the channel
 	local bathCenterX = bathNearX + bathLength / 2
-	local riverLength = bathNearX + bathLength - CHANNEL_WIDTH / 2
-	local baseHeight = BATH_WATER_TOP - 0.4 - FLOOR_TOP
+	local baseHeight = BATH_WATER_TOP - 0.4 - BASIN_BOTTOM
 	local rimHeight = BATH_RIM_TOP - (BATH_WATER_TOP - 0.4)
 	local rimY = BATH_WATER_TOP - 0.4 + rimHeight / 2
 
@@ -262,17 +353,33 @@ local function buildPlot(root: Instance, index: number): Plot
 		local z = rowFront + RIVER_WIDTH + LANE_WIDTH / 2
 		for side = -1, 1, 2 do
 			table.insert(lanes, { side = side, z = z, riverZ = riverZ })
-			water(
+			local river = water(
 				"River",
-				Vector3.new(riverLength, 0.4, RIVER_WIDTH),
-				at(side * (CHANNEL_WIDTH / 2 + riverLength / 2), WATER_TOP - 0.2, riverZ)
+				Vector3.new(bathLength, 0.4, RIVER_WIDTH),
+				at(side * bathCenterX, WATER_TOP - 0.2, riverZ)
 			)
+			flows(river, -side, 0) -- toward the channel
+
+			-- Foam where the slides land (they end a stud past the river's middle).
+			local foam = makePart(
+				geometry,
+				"SlideFoam",
+				Vector3.new(bathLength - 2, 0.2, 2),
+				at(side * bathCenterX, WATER_TOP + 0.1, riverZ + 1.5),
+				Color3.new(1, 1, 1)
+			)
+			foam.Transparency = 1
+			foam.CanCollide = false
+			foam.CanQuery = false
+			foam.CanTouch = false
+			foam.CastShadow = false
+			Decor.foam(foam)
 
 			-- Raised bath: stone base, shallow water on top, rim around it.
 			stone(
 				"Bath",
 				Vector3.new(bathLength, baseHeight, LANE_WIDTH),
-				at(side * bathCenterX, FLOOR_TOP + baseHeight / 2, z)
+				at(side * bathCenterX, BASIN_BOTTOM + baseHeight / 2, z)
 			)
 			Decor.steam(
 				water(
@@ -296,44 +403,92 @@ local function buildPlot(root: Instance, index: number): Plot
 				)
 			end
 
-			-- Lantern on the rim at the channel end of each bath.
-			local lantern = makePart(
-				geometry,
-				"Lantern",
-				Vector3.new(1.4, 1.6, 1.4),
-				at(side * (bathNearX + 0.7), BATH_RIM_TOP + 0.8, z),
-				Color3.fromRGB(255, 214, 140)
+			-- A step down at the channel end of the rim.
+			stone(
+				"BathStep",
+				Vector3.new(1, BATH_WATER_TOP - BASIN_BOTTOM, LANE_WIDTH),
+				at(side * (bathNearX - 0.5), (BATH_WATER_TOP + BASIN_BOTTOM) / 2, z)
 			)
-			lantern.Material = Enum.Material.Neon
+
+			-- Lantern on the rim at the channel end of each bath.
+			Props.place("RimLantern", at(side * (bathNearX + 0.7), BATH_RIM_TOP, z), geometry)
+		end
+	end
+
+	-- A little red bridge over the channel joining the two front baths' rims.
+	local bridgeZ = LANES_FRONT_Z + RIVER_WIDTH + LANE_WIDTH / 2
+	local bridgeSpan = 2 * bathNearX + 2
+	local deck = makePart(
+		geometry,
+		"ChannelBridge",
+		Vector3.new(bridgeSpan, 0.4, 4),
+		at(0, BATH_RIM_TOP + 0.2, bridgeZ),
+		WOOD_COLOR
+	)
+	Skin.apply(deck, "planks")
+	for _, dz in { -1.8, 1.8 } do
+		makePart(
+			geometry,
+			"ChannelBridgeRail",
+			Vector3.new(bridgeSpan, 0.35, 0.35),
+			at(0, BATH_RIM_TOP + 1.6, bridgeZ + dz),
+			BRIDGE_RED
+		)
+		for _, dx in { -bridgeSpan / 2 + 0.3, 0, bridgeSpan / 2 - 0.3 } do
+			makePart(
+				geometry,
+				"ChannelBridgePost",
+				Vector3.new(0.4, 1.4, 0.4),
+				at(dx, BATH_RIM_TOP + 1.1, bridgeZ + dz),
+				BRIDGE_RED
+			)
 		end
 	end
 	local lanesBackZ = LANES_FRONT_Z + Economy.ROWS * rowDepth
 
 	-- Center channel from the back row down to the pool.
-	water(
+	-- (The channel water also fills the strip between it and the baths' near ends.)
+	local channel = water(
 		"Channel",
-		Vector3.new(CHANNEL_WIDTH, 0.4, lanesBackZ - POOL_BACK_Z),
+		Vector3.new(2 * bathNearX, 0.4, lanesBackZ - POOL_BACK_Z),
 		at(0, WATER_TOP - 0.2, (POOL_BACK_Z + lanesBackZ) / 2)
 	)
-	-- Collection pool with a low stone rim, open at the back where the channel enters.
+	flows(channel, 0, -1) -- toward the pool
+	-- Collection pool: the front of the sunken water, jutting out toward the spawn.
 	local poolDepth = POOL_BACK_Z - POOL_FRONT_Z
 	local poolCenterZ = (POOL_FRONT_Z + POOL_BACK_Z) / 2
-	water("Pool", Vector3.new(POOL_WIDTH, 0.4, poolDepth), at(0, WATER_TOP - 0.2, poolCenterZ))
-	local poolRimY = FLOOR_TOP + RIM_HEIGHT / 2
-	local outer = POOL_WIDTH + 2 * RIM_THICKNESS
-	stone("PoolRim", Vector3.new(outer, RIM_HEIGHT, RIM_THICKNESS), at(0, poolRimY, POOL_FRONT_Z - RIM_THICKNESS / 2))
-	for side = -1, 1, 2 do
-		stone(
-			"PoolRim",
-			Vector3.new(RIM_THICKNESS, RIM_HEIGHT, poolDepth),
-			at(side * (POOL_WIDTH + RIM_THICKNESS) / 2, poolRimY, poolCenterZ)
+	local pool = water("Pool", Vector3.new(POOL_WIDTH, 0.4, poolDepth), at(0, WATER_TOP - 0.2, poolCenterZ))
+	Decor.steam(pool)
+	Decor.ambient(pool, Sounds.STREAM, Sounds.STREAM_VOLUME, 60)
+
+	-- The basin: a dark bed under the water and a stone lip all round, from the map
+	-- ground up to just above the grass.
+	local function bed(x: number, z: number, sizeX: number, sizeZ: number)
+		local p = makePart(
+			geometry,
+			"BasinBed",
+			Vector3.new(sizeX, BASIN_BOTTOM - MAP_GROUND_TOP, sizeZ),
+			at(x, (BASIN_BOTTOM + MAP_GROUND_TOP) / 2, z),
+			BASIN_BED_COLOR
 		)
-		local backWidth = (outer - CHANNEL_WIDTH) / 2
+		p.CastShadow = false
+	end
+	bed(0, poolCenterZ, POOL_WIDTH, poolDepth)
+	bed(0, (LANES_FRONT_Z + lanesBackZ) / 2, 2 * fieldHalf, lanesBackZ - LANES_FRONT_Z)
+	local lipHeight = LIP_TOP - MAP_GROUND_TOP
+	local function lip(x1: number, z1: number, x2: number, z2: number)
 		stone(
-			"PoolRim",
-			Vector3.new(backWidth, RIM_HEIGHT, RIM_THICKNESS),
-			at(side * (CHANNEL_WIDTH + backWidth) / 2, poolRimY, POOL_BACK_Z + RIM_THICKNESS / 2)
+			"BasinLip",
+			Vector3.new(math.abs(x2 - x1), lipHeight, math.abs(z2 - z1)),
+			at((x1 + x2) / 2, MAP_GROUND_TOP + lipHeight / 2, (z1 + z2) / 2)
 		)
+	end
+	lip(-(poolHalf + L), POOL_FRONT_Z - L, poolHalf + L, POOL_FRONT_Z)
+	lip(-(fieldHalf + L), lanesBackZ, fieldHalf + L, lanesBackZ + L)
+	for _, side in { -1, 1 } do
+		lip(side * poolHalf, POOL_FRONT_Z, side * (poolHalf + L), LANES_FRONT_Z)
+		lip(side * (poolHalf + L), LANES_FRONT_Z - L, side * (fieldHalf + L), LANES_FRONT_Z)
+		lip(side * fieldHalf, LANES_FRONT_Z, side * (fieldHalf + L), lanesBackZ)
 	end
 
 	-- Spots in fill order: the front row first, left to right as seen from the
@@ -369,23 +524,48 @@ local function buildPlot(root: Instance, index: number): Plot
 			CFrame.lookAt((top + bottom) / 2, bottom),
 			WOOD_COLOR
 		)
-		slide.Material = Enum.Material.WoodPlanks
+		Skin.apply(slide, "planks")
 		slide.CanCollide = false
+		slide.CastShadow = false
 	end
 
-	local function makePad(name: string, x: number, z: number, color: Color3, amount: number, size: number?): Pad
+	-- A thick studded pad in a dark studded tray (reference: capybara-onsen-plot-layout.webp),
+	-- with a label floating just above it. Pressing sinks it level with the tray.
+	local function makePad(
+		name: string,
+		x: number,
+		z: number,
+		color: Color3,
+		amount: number,
+		size: number?,
+		labelSize: Vector2?
+	): Pad
 		local width = size or PAD_SIZE
-		local part = makePart(geometry, name, Vector3.new(width, 0.4, width), at(x, FLOOR_TOP + 0.2, z), color)
-		part.Material = Enum.Material.Neon
+		local tray = makePart(
+			geometry,
+			`{name}Tray`,
+			Vector3.new(width + 2 * PAD_TRAY, 0.6, width + 2 * PAD_TRAY),
+			at(x, FLOOR_TOP + 0.3, z),
+			PAD_TRAY_COLOR
+		)
+		tray.Material = Enum.Material.Plastic
+		tray.TopSurface = Enum.SurfaceType.Studs
+		tray.CastShadow = false
+		local part = makePart(geometry, name, Vector3.new(width, 0.6, width), at(x, FLOOR_TOP + 0.55, z), color)
+		part.Material = Enum.Material.Plastic
+		part.TopSurface = Enum.SurfaceType.Studs
+		part.CastShadow = false
 		CollectionService:AddTag(part, Plots.PAD_TAG)
-		return { amount = amount, part = part, label = makePadLabel(part) }
+		local labelDims = labelSize or LABEL_TWO_LINES
+		local label = Billboard.new(part, { width = labelDims.X, height = labelDims.Y, offsetY = 1.2 })
+		return { amount = amount, part = part, label = label }
 	end
 
 	-- Buy pads.
 	local pads: { Pad } = {}
 	for _, def in PAD_LAYOUT do
-		local color = if def.amount == Economy.AUTO_MERGE_BUY_AMOUNT then BUY_100_COLOR else PAD_COLOR
-		table.insert(pads, makePad(`Buy{def.amount}Pad`, def.x, PAD_Z, color, def.amount))
+		local color = BUY_COLORS[def.amount] or BUY_COLORS[1]
+		table.insert(pads, makePad(`Buy{def.amount}Pad`, def.x, def.z, color, def.amount, BUY_PAD_SIZE))
 	end
 
 	-- Everything in the station row faces the pool: rotate by pi so a part's
@@ -394,17 +574,15 @@ local function buildPlot(root: Instance, index: number): Plot
 		return at(x, y, z) * CFrame.Angles(0, math.pi, 0)
 	end
 
-	-- Processor info board: framed wooden sign showing the queue and the rate.
-	for _, dx in { -7.5, 7.5 } do
-		makePart(
-			geometry,
-			"InfoPost",
-			Vector3.new(1, 14, 1),
-			at(INFO_BOARD_X + dx, FLOOR_TOP + 7, STATION_Z),
-			SIGN_COLOR
-		)
+	-- Station props (voxel forge, tools/voxel_forge.py) face the pool. The boards,
+	-- labels and pads that the services drive stay separate parts inside them.
+	local function stationProp(name: string, x: number, scale: number?): Model
+		return Props.place(name, facingPool(x, FLOOR_TOP, STATION_Z), geometry, scale)
 	end
-	makePart(geometry, "InfoRoof", Vector3.new(18, 1, 3), at(INFO_BOARD_X, FLOOR_TOP + 14.5, STATION_Z), SIGN_COLOR)
+
+	-- Processor info board: framed sign under a curved roof beside the barrel,
+	-- showing the queue and the rate.
+	stationProp("InfoBoardFrame", INFO_BOARD_X)
 	local infoBoard = makePart(
 		geometry,
 		"ProcessorInfo",
@@ -428,53 +606,37 @@ local function buildPlot(root: Instance, index: number): Plot
 	processorLabel.Text = "Processor"
 	processorLabel.Parent = infoGui
 
-	-- Processor tank.
-	local processor = makePart(
+	-- Processor: the orange barrel by the -x wall, facing into the plot (+x), with
+	-- smoke from its chimney.
+	local barrelCf = at(BARREL_X, FLOOR_TOP, BARREL_Z) * CFrame.Angles(0, -math.pi / 2, 0)
+	Props.place("ProcessorBarrel", barrelCf, geometry)
+	local chimney = makePart(
 		geometry,
-		"Processor",
-		Vector3.new(18, 14, 14),
-		at(PROCESSOR_X, FLOOR_TOP + 9, STATION_Z) * CFrame.Angles(0, 0, math.pi / 2),
-		PROCESSOR_COLOR
+		"ChimneySmoke",
+		Vector3.new(2, 0.5, 2),
+		barrelCf * CFrame.new(CHIMNEY_OFFSET),
+		Color3.new(1, 1, 1)
 	)
-	processor.Shape = Enum.PartType.Cylinder
-	local cap = makePart(
-		geometry,
-		"ProcessorCap",
-		Vector3.new(2, 10, 10),
-		at(PROCESSOR_X, FLOOR_TOP + 19, STATION_Z) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(90, 90, 100)
-	)
-	cap.Shape = Enum.PartType.Cylinder
+	chimney.Transparency = 1
+	chimney.CanCollide = false
+	chimney.CanQuery = false
+	chimney.CanTouch = false
+	Decor.smoke(chimney)
 
-	-- Deposit stand: counter, posts and a red awning, pad in front on the pool side.
-	makePart(geometry, "DepositCounter", Vector3.new(12, 3, 3), at(DEPOSIT_X, FLOOR_TOP + 1.5, STATION_Z), SIGN_COLOR)
-	for _, dx in { -5.5, 5.5 } do
-		makePart(
-			geometry,
-			"DepositPost",
-			Vector3.new(0.8, 9, 0.8),
-			at(DEPOSIT_X + dx, FLOOR_TOP + 4.5, STATION_Z - 1),
-			SIGN_COLOR
-		)
-	end
-	makePart(
-		geometry,
-		"DepositAwning",
-		Vector3.new(13, 0.6, 5),
-		at(DEPOSIT_X, FLOOR_TOP + 9.3, STATION_Z),
-		Color3.fromRGB(220, 60, 60)
-	)
+	-- Deposit stall with Tung Tung Tung Sahur (tier 13) keeping it, behind the counter.
+	stationProp("DepositStall", DEPOSIT_X, STALL_SCALE)
+	local keeper = Models.makeBrainrot(STALL_KEEPER_TIER)
+	keeper.Name = "StallKeeper"
+	-- Bigger than in a bath and standing on a step, so it shows above the counter.
+	keeper:ScaleTo(keeper:GetScale() * STALL_KEEPER_SCALE)
+	keeper:PivotTo(facingPool(DEPOSIT_X, FLOOR_TOP + STALL_KEEPER_STEP, STATION_Z - 3.5))
+	keeper.Parent = geometry
 
-	-- Market board on posts.
-	for _, dx in { -6, 6 } do
-		makePart(
-			geometry,
-			"MarketPost",
-			Vector3.new(0.8, 12, 0.8),
-			at(MARKET_X + dx, FLOOR_TOP + 6, STATION_Z - 0.6),
-			SIGN_COLOR
-		)
-	end
+	-- Market board in a wooden frame.
+	stationProp("MarketBoardFrame", MARKET_X)
+
+	-- Tall signpost with "ONSEN" down it, between the stall and the barrel.
+	Decor.signpost(geometry, at(SIGNPOST_X, FLOOR_TOP, SIGNPOST_Z) * CFrame.Angles(0, math.pi / 2, 0), "ONSEN")
 	local marketBoard = makePart(
 		geometry,
 		"MarketBoard",
@@ -485,32 +647,125 @@ local function buildPlot(root: Instance, index: number): Plot
 	CollectionService:AddTag(marketBoard, Plots.MARKET_BOARD_TAG)
 
 	local stations: Stations = {
-		deposit = makePad("DepositPad", DEPOSIT_X, STATION_PAD_Z, DEPOSIT_COLOR, 0, DEPOSIT_PAD_SIZE),
-		collectCash = makePad("CollectCashPad", COLLECT_CASH_X, STATION_PAD_Z, COLLECT_COLOR, 0),
-		upgradeProcessor = makePad("UpgradeProcessorPad", UPGRADE_X, STATION_PAD_Z - 4, UPGRADE_COLOR, 0),
-		merge = makePad("MergePad", MERGE_X, MERGE_Z, MERGE_COLOR, 0, MERGE_PAD_SIZE),
+		deposit = makePad(
+			"DepositPad",
+			DEPOSIT_X,
+			STATION_PAD_Z,
+			DEPOSIT_COLOR,
+			0,
+			DEPOSIT_PAD_SIZE,
+			Vector2.new(14, 3)
+		),
+		collectCash = makePad("CollectCashPad", COLLECT_CASH_X, COLLECT_CASH_Z, COLLECT_COLOR, 0),
+		groupReward = makePad("GroupRewardPad", GROUP_PAD_X, GROUP_PAD_Z, GROUP_COLOR, 0),
+		upgradeProcessor = makePad(
+			"UpgradeProcessorPad",
+			UPGRADE_X,
+			STATION_PAD_Z,
+			UPGRADE_COLOR,
+			0,
+			nil,
+			LABEL_THREE_LINES
+		),
+		merge = makePad("MergePad", MERGE_X, MERGE_Z, MERGE_COLOR, 0, MERGE_PAD_SIZE, LABEL_ONE_LINE),
 		upgradeBuyTier = makePad(
 			"UpgradeBuyTierPad",
 			UPGRADE_BUY_TIER_X,
 			UPGRADE_BUY_TIER_Z,
 			UPGRADE_BUY_TIER_COLOR,
 			0,
-			UPGRADE_BUY_TIER_PAD_SIZE
+			UPGRADE_BUY_TIER_PAD_SIZE,
+			LABEL_THREE_LINES
 		),
 		-- Robux pads on the pool side of the row, each near what it boosts.
-		finishNow = makePad("FinishNowPad", UPGRADE_X + 4, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
-		cashPass = makePad("CashPassPad", COLLECT_CASH_X + 10, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
-		autoCollect = makePad("AutoCollectPad", PROCESSOR_X + 10, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
-		doubleAura = makePad("DoubleAuraPad", DEPOSIT_X + 12, STATION_PAD_Z + 8, ROBUX_COLOR, 0, ROBUX_PAD_SIZE),
+		finishNow = makePad(
+			"FinishNowPad",
+			UPGRADE_X - ROBUX_GAP,
+			STATION_PAD_Z,
+			ROBUX_COLOR,
+			0,
+			ROBUX_PAD_SIZE,
+			LABEL_ROBUX
+		),
+		cashPass = makePad(
+			"CashPassPad",
+			COLLECT_CASH_X,
+			COLLECT_CASH_Z - ROBUX_GAP - 0.5,
+			ROBUX_COLOR,
+			0,
+			ROBUX_PAD_SIZE,
+			LABEL_ROBUX
+		),
+		autoCollect = makePad(
+			"AutoCollectPad",
+			AUTO_COLLECT_X,
+			AUTO_COLLECT_Z,
+			ROBUX_COLOR,
+			0,
+			ROBUX_PAD_SIZE,
+			LABEL_ROBUX
+		),
+		doubleAura = makePad(
+			"DoubleAuraPad",
+			DEPOSIT_X - ROBUX_GAP - 2,
+			STATION_PAD_Z,
+			ROBUX_COLOR,
+			0,
+			ROBUX_PAD_SIZE,
+			LABEL_ROBUX
+		),
 		processorLabel = processorLabel,
 	}
 
-	-- "<Name>'s Onsen" sign over the entrance, readable from the road and the plot.
-	for _, x in { -18, 18 } do
-		makePart(geometry, "SignPost", Vector3.new(1, 14, 1), at(x, FLOOR_TOP + 7, 2), SIGN_COLOR)
+	-- The Merge! pad has the hot-spring mark engraved on it (a dark decal).
+	if Textures.onsen.id ~= 0 then
+		local mark = Instance.new("Decal")
+		mark.Name = "Engraving"
+		mark.Texture = `rbxassetid://{Textures.onsen.id}`
+		mark.Face = Enum.NormalId.Top
+		mark.Color3 = Color3.fromRGB(70, 70, 82)
+		mark.Transparency = 0.35
+		mark.Parent = stations.merge.part
 	end
-	local board = makePart(geometry, "Sign", Vector3.new(36, 5, 1), at(0, FLOOR_TOP + 12, 2), SIGN_COLOR)
-	local signLabels = { makeSignLabel(board, Enum.NormalId.Front), makeSignLabel(board, Enum.NormalId.Back) }
+
+	-- Floor arrows along the loop (reference/capybara-onsen-plot-overview.webp). The
+	-- arrow image points along +z at no rotation.
+	if Textures.arrow.id ~= 0 then
+		for _, def in ARROWS do
+			local arrow = makePart(
+				geometry,
+				"FloorArrow",
+				Vector3.new(3.4, 0.05, 3.4),
+				at(def[1], FLOOR_TOP + 0.03, def[2]) * CFrame.Angles(0, math.atan2(def[3], def[4]), 0),
+				Color3.new(1, 1, 1)
+			)
+			arrow.Transparency = 1
+			arrow.CanCollide = false
+			arrow.CanQuery = false
+			arrow.CanTouch = false
+			arrow.CastShadow = false
+			local decal = Instance.new("Decal")
+			decal.Texture = `rbxassetid://{Textures.arrow.id}`
+			decal.Face = Enum.NormalId.Top
+			decal.Parent = arrow
+		end
+	end
+
+	-- "<Name>'s Onsen": a plaque in the entrance torii (both faces), and the name
+	-- floating high over the entrance like the reference's plot names.
+	local board = makePart(
+		geometry,
+		"Sign",
+		Vector3.new(Decor.PLAQUE_WIDTH, 2.6, 2.8),
+		at(0, FLOOR_TOP + Decor.PLAQUE_Y, Decor.ENTRANCE_Z),
+		SIGN_COLOR
+	)
+	board.Material = Enum.Material.WoodPlanks
+	local signLabels = {
+		makeSignLabel(board, Enum.NormalId.Front),
+		makeSignLabel(board, Enum.NormalId.Back),
+		Billboard.new(board, { width = 34, height = 5, offsetY = 12, maxDistance = 400, outline = 3 }),
+	}
 
 	local brainrotFolder = Instance.new("Folder")
 	brainrotFolder.Name = "Brainrots"
@@ -524,7 +779,7 @@ local function buildPlot(root: Instance, index: number): Plot
 		index = index,
 		folder = folder,
 		origin = origin,
-		spawn = at(0, FLOOR_TOP + 3, SPAWN_Z) * CFrame.Angles(0, math.pi, 0),
+		spawn = at(SPAWN_X, FLOOR_TOP + 3, SPAWN_Z) * CFrame.Angles(0, math.pi, 0),
 		spots = spots,
 		spotRiverZ = spotRiverZ,
 		pads = pads,
@@ -548,7 +803,10 @@ function Plots.build()
 	local groundSize = Vector3.new(3 * WIDTH + 2 * COLUMN_GAP + 60, 1, 2 * DEPTH + ROAD_WIDTH + 60)
 	local ground = makePart(root, "Ground", groundSize, CFrame.new(0, 0, 0), Color3.fromRGB(110, 170, 90))
 	ground.Material = Enum.Material.Grass
-	Skin.tile(ground, "grass")
+	Skin.apply(ground, "grass")
+
+	Plaza.build(root)
+	Decor.horizon(root)
 
 	for index = 1, Economy.PLAYERS_PER_SERVER do
 		table.insert(plots, buildPlot(root, index))
@@ -629,7 +887,7 @@ end
 -- (clients animate it).
 function Plots.onStep(plot: Plot, pad: Pad, onStep: (Player) -> ())
 	local occupied = false
-	local limit = PAD_SIZE / 2 + 1.5
+	local limit = pad.part.Size.X / 2 + 1.5
 	pad.part.Touched:Connect(function(hit: BasePart)
 		local player = Plots.playerFromHit(hit)
 		if occupied or not player or player ~= plot.owner then

@@ -7,7 +7,9 @@
         "$path": "src/shared"
       },
       "Packages": {
-        "$path": { "optional": "Packages" }
+        "$path": {
+          "optional": "Packages"
+        }
       },
       "Assets": {
         "$className": "Folder",
@@ -18,7 +20,9 @@
     },
     "ServerStorage": {
       "ServerPackages": {
-        "$path": { "optional": "ServerPackages" }
+        "$path": {
+          "optional": "ServerPackages"
+        }
       }
     },
     "ServerScriptService": {
@@ -31,6 +35,61 @@
         "Client": {
           "$path": "src/client"
         }
+      }
+    },
+    "MaterialService": {
+      "$className": "MaterialService",
+      "Onsen_grass": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "Grass",
+          "ColorMap": "rbxassetid://75242265066226",
+          "StudsPerTile": 8
+        }
+      },
+      "Onsen_stone": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "Slate",
+          "ColorMap": "rbxassetid://87193335822641",
+          "StudsPerTile": 8
+        }
+      },
+      "Onsen_pegboard": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "WoodPlanks",
+          "ColorMap": "rbxassetid://117506550117439",
+          "StudsPerTile": 8
+        }
+      },
+      "Onsen_cliff": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "Rock",
+          "ColorMap": "rbxassetid://96525064219749",
+          "StudsPerTile": 16
+        }
+      },
+      "Onsen_planks": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "Wood",
+          "ColorMap": "rbxassetid://118670792677489",
+          "StudsPerTile": 4
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 128,
+        "StreamingTargetRadius": 512
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "ShadowMap"
       }
     }
   }

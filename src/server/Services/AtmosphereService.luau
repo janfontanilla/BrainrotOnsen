@@ -2,7 +2,9 @@
 -- Lighting and atmosphere for the whole map: a bright sunny sky, soft haze, warm
 -- sunlight and gentle post-processing (bloom, colour correction, sun rays) so the
 -- flat colours read as a lit, cheerful place instead of bare plastic. All values
--- here are visual only and safe to tune by eye.
+-- here are visual only and safe to tune by eye. Haze is kept light so the cliffs
+-- read pale grey-blue (not navy), and the bloom threshold high so only the lantern
+-- cores glow (reference/capybara-onsen-plot-overview.webp has no glare).
 
 local Lighting = game:GetService("Lighting")
 
@@ -37,17 +39,17 @@ function AtmosphereService:Init()
 	sky.StarCount = 0
 
 	local atmosphere = ensure("Atmosphere") :: Atmosphere
-	atmosphere.Density = 0.28
+	atmosphere.Density = 0.22
 	atmosphere.Offset = 0.2
 	atmosphere.Color = Color3.fromRGB(200, 222, 255)
 	atmosphere.Decay = Color3.fromRGB(150, 190, 235)
 	atmosphere.Glare = 0.25
-	atmosphere.Haze = 0.9
+	atmosphere.Haze = 0.45
 
 	local bloom = ensure("BloomEffect") :: BloomEffect
-	bloom.Intensity = 0.35
+	bloom.Intensity = 0.25
 	bloom.Size = 32
-	bloom.Threshold = 1.05
+	bloom.Threshold = 1.2
 
 	local correction = ensure("ColorCorrectionEffect") :: ColorCorrectionEffect
 	correction.Saturation = 0.2

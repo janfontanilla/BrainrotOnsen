@@ -16,6 +16,7 @@ local Economy = require(Shared.Config.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
+local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
 local PoolService = require(script.Parent.PoolService)
 
@@ -83,27 +84,31 @@ function ShopService.refreshPads(plot: Plot)
 	for _, pad in plot.pads do
 		if data then
 			local price = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, pad.amount)
-			pad.label.Text = `Buy {pad.amount}\n{Tiers.get(data.buyTier).name}\n`
-				.. `<font color="#7dff8a">{Format.short(price)} Cash</font>`
+			pad.label.Text = `Buy {pad.amount} {Tiers.get(data.buyTier).name}\n`
+				.. Billboard.color(`{Format.short(price)} Cash`, Billboard.CASH)
 		else
 			pad.label.Text = `Buy {pad.amount}`
 		end
 	end
 
 	local mergePad = plot.stations.merge
-	mergePad.label.Text = `<font color="#ffd966">Merge!</font>`
+	mergePad.label.Text = Billboard.color("Merge!", Billboard.GOLD)
 	mergePad.part.Color = if data and canMerge(data.counts) then MERGE_READY_COLOR else MERGE_IDLE_COLOR
 	local upgradeLabel = plot.stations.upgradeBuyTier.label
 	if not data then
-		upgradeLabel.Text = "Upgrade Buy Tier"
+		upgradeLabel.Text = Billboard.color("Upgrade Buy Tier", Billboard.CYAN)
 		return
 	end
 	local cost = Economy.buyTierUpgradeCost(data.buyTier)
 	if cost then
-		upgradeLabel.Text = `Upgrade Buy Tier\n{Tiers.get(data.buyTier).name} &gt;&gt; {Tiers.get(data.buyTier + 1).name}\n`
-			.. `<font color="#7dff8a">{Format.short(cost)} Cash</font>`
+		upgradeLabel.Text = `{Billboard.color("Upgrade Buy Tier", Billboard.CYAN)}\n`
+			.. `{Tiers.get(data.buyTier).name} {Billboard.color("&gt;&gt;", Billboard.CASH)} {Tiers.get(
+				data.buyTier + 1
+			).name}\n`
+			.. Billboard.color(`{Format.short(cost)} Cash`, Billboard.CASH)
 	else
-		upgradeLabel.Text = `Upgrade Buy Tier\n{Tiers.get(data.buyTier).name}\n<font color="#ffd966">Max tier</font>`
+		upgradeLabel.Text = `{Billboard.color("Upgrade Buy Tier", Billboard.CYAN)}\n{Tiers.get(data.buyTier).name}\n`
+			.. Billboard.color("Max tier", Billboard.GOLD)
 	end
 end
 

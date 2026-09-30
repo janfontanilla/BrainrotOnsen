@@ -34,6 +34,9 @@ export type Data = {
 	luckyProgress: number, -- seconds of production toward the next lucky block
 	totalBrainrots: number, -- lifetime brainrots obtained (bought or unlocked; leaderboard)
 	receipts: { [string]: boolean }, -- processed dev product PurchaseIds
+	groupRewardAt: number, -- os.time() of the last group reward claim
+	totalCashEarned: number, -- lifetime Cash earned (the Net Worth board)
+	playtime: number, -- seconds played (the Playtime board)
 }
 
 local STORE_NAME = "PlayerData_v1"
@@ -55,6 +58,9 @@ local TEMPLATE: Data = {
 	luckyProgress = 0,
 	totalBrainrots = 0,
 	receipts = {},
+	groupRewardAt = 0,
+	totalCashEarned = 0,
+	playtime = 0,
 }
 
 local DataService = {}

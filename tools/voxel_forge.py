@@ -164,11 +164,8 @@ def cherry_tree():
     # trunk: flared base, tall stem, then stair-stepped branches to the clumps
     v.box(-2, 0, -2, 2, 2, 2, TRUNK)
     v.box(-1, 2, -1, 1, 11, 1, TRUNK)
-    for y in range(2, 11, 3):
-        v.box(-1, y, -1, 0, y + 1, 0, TRUNK_D)
     for i in range(4):  # right branch
         v.box(1 + i, 9 + i, -1, 2 + i, 10 + i, 1, TRUNK)
-        v.box(1 + i, 8 + i, -1, 2 + i, 9 + i, 0, TRUNK_D)
     for i in range(3):  # left branch
         v.box(-2 - i, 10 + i, -1, -1 - i, 11 + i, 1, TRUNK)
     for i in range(3):  # back branch
@@ -179,12 +176,12 @@ def cherry_tree():
         x0, z0 = cx - w // 2, cz - w // 2
         v.box(x0 + 1, cy, z0, x0 + w - 1, cy + h, z0 + w, colour)
         v.box(x0, cy, z0 + 1, x0 + w, cy + h, z0 + w - 1, colour)
-        v.box(x0 + 1, cy + h, z0 + 1, x0 + w - 1, cy + h + 1, z0 + w - 1, lighter(colour, 16))
-        for _ in range(3):  # nubs
+        v.box(x0 + 1, cy + h, z0 + 1, x0 + w - 1, cy + h + 1, z0 + w - 1, colour)
+        for _ in range(1):  # nub
             nx = rng.randint(x0 + 1, x0 + w - 3)
             nz = rng.randint(z0 + 1, z0 + w - 3)
             v.box(nx, cy + h + 1, nz, nx + 2, cy + h + 2, nz + 2, lighter(colour, 22))
-        for _ in range(3):  # hanging blossoms
+        for _ in range(2):  # hanging blossoms
             hx = rng.randint(x0 + 1, x0 + w - 2)
             hz = rng.choice([z0 - 0, z0 + w - 1])
             v.box(hx, cy - 2, hz, hx + 1, cy, hz + 1, PINK_C)
@@ -198,7 +195,7 @@ def cherry_tree():
 
 
 STONE, STONE_D, STONE_L = rgb(150, 150, 158), rgb(118, 118, 128), rgb(176, 176, 184)
-LAMP_GLOW, LAMP_FRAME = rgb(255, 224, 150), rgb(96, 68, 44)
+LAMP_GLOW, LAMP_FRAME = rgb(255, 176, 80), rgb(96, 68, 44)  # warm orange: pale glows bloom to white
 
 
 def stone_lantern():
@@ -250,12 +247,150 @@ def bamboo():
         h = rng.randint(13, 20)
         v.box(x, 0, z, x + 1, h, z + 1, BAMBOO)
         # only two ring bands per stalk keeps the box count low
-        v.set(x, h // 3, z, BAMBOO_D)
-        v.set(x, 2 * h // 3, z, BAMBOO_D)
-        v.set(x, h - 2, z, BAMBOO_L)
+        v.set(x, h // 2, z, BAMBOO_D)
         # leaf tuft
         v.box(x - 1, h - 1, z, x + 2, h, z + 1, LEAF)
         v.box(x, h - 1, z - 1, x + 1, h, z + 2, LEAF)
+    return v
+
+
+# -------------------------------------------------------- station row props
+
+ORANGE, ORANGE_D, CREAM = rgb(240, 150, 40), rgb(200, 108, 30), rgb(255, 238, 200)
+IRON, IRON_D, PORT_GLOW = rgb(120, 124, 136), rgb(78, 80, 92), rgb(255, 214, 110)
+WOOD, WOOD_D, WOOD_L = rgb(150, 100, 60), rgb(96, 64, 40), rgb(184, 132, 84)
+AWNING_RED, AWNING_WHITE = rgb(222, 56, 52), rgb(250, 246, 240)
+AURA, AURA_L = rgb(170, 90, 240), rgb(214, 160, 255)
+
+
+def processor_barrel():
+    """The big orange processor barrel (reference/capybara-onsen-stations.webp): cream
+    bands, a stone base ring, a porthole facing front (-z), a side pipe and a chimney."""
+    v = Vox(unit=1.0, solid=True, glow={PORT_GLOW})
+    v.cylinder(0, 0, 0, 2, 7.6, STONE)                  # stone base ring
+    v.cylinder(0, 0, 2, 18, 7, ORANGE)                  # body
+    v.cylinder(0, 0, 2, 3, 7, ORANGE_D)                 # dark foot band
+    for y in (6, 11, 16):                               # cream bands
+        v.cylinder(0, 0, y, y + 1, 7.2, CREAM)
+    v.cylinder(0, 0, 18, 19, 7.4, ORANGE_D)             # top rim
+    v.cylinder(0, 0, 19, 20, 6, IRON_D)                 # lid
+    v.box(2, 20, 1, 5, 25, 4, IRON)                     # chimney
+    v.box(1, 25, 0, 6, 26, 5, IRON_D)
+    v.box(-3, 8, -8, 3, 15, -7, WOOD_D)                 # porthole frame
+    v.box(-2, 9, -9, 2, 14, -8, PORT_GLOW)              # porthole glass
+    v.box(7, 3, -1, 8, 17, 1, IRON)                     # side pipe
+    v.box(7, 16, -1, 9, 17, 1, IRON_D)
+    v.box(7, 3, -1, 9, 4, 1, IRON_D)
+    return v
+
+
+def deposit_stall():
+    """Wooden stall with a red and white striped awning and an Aura sign; the counter
+    faces front (-z). The keeper brainrot is added in code behind the counter."""
+    v = Vox(unit=1.0, solid=True, glow={AURA_L})
+    v.box(-6, 0, -2, 6, 3, 1, WOOD)                     # counter
+    v.box(-7, 3, -3, 7, 4, 1, WOOD_L)                   # counter top
+    for x in (-7, 6):                                   # posts
+        v.box(x, 0, 1, x + 1, 11, 2, WOOD_D)
+        v.box(x, 4, -3, x + 1, 10, -2, WOOD_D)
+    for i, x in enumerate(range(-8, 8, 2)):             # striped awning, stepped slope
+        c = AWNING_RED if i % 2 == 0 else AWNING_WHITE
+        v.box(x, 10, -4, x + 2, 11, 0, c)
+        v.box(x, 11, -1, x + 2, 12, 3, c)
+        v.box(x, 9, -4, x + 2, 10, -3, c)               # front lip
+    v.box(-3, 12, 0, 3, 16, 1, WOOD_D)                  # sign board
+    v.box(-2, 13, -1, 2, 15, 0, CREAM)
+    v.box(-1, 13, -2, 1, 15, -1, AURA)                  # aura gem on the sign
+    v.box(-5, 4, -2, -3, 5, 0, AURA)                    # aura crystals on the counter
+    v.box(3, 4, -2, 5, 6, 0, AURA_L)
+    return v
+
+
+def _board_frame(v, roof):
+    """Posts and a frame around a 14 x 9 board (y 4..13) that code places at z 0."""
+    for x in (-9, 7):
+        v.box(x, 0, -1, x + 2, 15 if roof else 14, 1, WOOD_D)
+    v.box(-9, 3, -1, 9, 4, 1, WOOD_D)
+    v.box(-9, 13, -1, 9, 14, 1, WOOD_D)
+    if roof:                                            # curved torii-style roof
+        v.box(-11, 14, -2, 11, 15, 2, WOOD)
+        v.box(-10, 15, -2, 10, 16, 2, WOOD_D)
+        v.box(-13, 15, -2, -10, 16, 2, WOOD_D)
+        v.box(10, 15, -2, 13, 16, 2, WOOD_D)
+        v.box(-14, 16, -2, -12, 17, 2, WOOD_D)
+        v.box(12, 16, -2, 14, 17, 2, WOOD_D)
+        v.box(-2, 16, -1, 2, 17, 1, WOOD)
+    else:
+        v.box(-10, 14, -1, 10, 15, 1, WOOD)
+
+
+def rim_lantern():
+    """Small wooden lantern with a glowing core for the bath rims (about 2 x 3 studs)."""
+    v = Vox(unit=0.25, glow={LAMP_GLOW})
+    v.box(-1, 0, -1, 1, 3, 1, WOOD_D)                   # stem
+    v.box(-3, 3, -3, 3, 4, 3, WOOD_D)                   # base plate
+    v.box(-3, 4, -3, 3, 9, 3, LAMP_GLOW)                # glowing core
+    for x, z in [(-3, -3), (2, -3), (-3, 2), (2, 2)]:   # corner frame
+        v.box(x, 4, z, x + 1, 9, z + 1, WOOD_D)
+    v.box(-4, 9, -4, 4, 10, 4, BLACK)                   # roof
+    v.box(-2, 10, -2, 2, 11, 2, BLACK)
+    return v
+
+
+LEAF_A, LEAF_B = rgb(84, 168, 60), rgb(110, 194, 78)
+FLOWER_W, FLOWER_P = rgb(250, 250, 255), rgb(255, 170, 205)
+
+
+def bush():
+    """A rounded toy-brick bush with a couple of flowers (about 6 x 5 studs)."""
+    v = Vox(unit=1.0)
+    v.box(-3, 0, -2, 3, 3, 2, LEAF_A)
+    v.box(-2, 0, -3, 2, 3, 3, LEAF_A)
+    v.box(-2, 3, -2, 2, 4, 2, LEAF_B)
+    v.box(-1, 4, -1, 1, 5, 1, LEAF_B)
+    v.set(1, 4, 0, FLOWER_W)
+    v.set(-2, 3, 1, FLOWER_P)
+    v.set(2, 2, -3, FLOWER_W)
+    return v
+
+
+def entrance_gate():
+    """Dark wooden entrance gate (like Capybara Onsen's): two posts, a lintel the noren
+    curtains hang from (code adds them and the name board above it) and a roof with
+    upturned ends. Inner opening 12 studs."""
+    v = Vox(unit=1.0, solid=True)
+    for x in (-8, 6):
+        v.box(x, 0, -1, x + 2, 15, 1, WOOD_D)           # posts
+        v.box(x - 1, 0, -2, x + 3, 1, 2, STONE_D)       # stone footings
+    v.box(-9, 11, -1, 9, 12, 1, WOOD_D)                 # lintel
+    v.box(-11, 15, -2, 11, 16, 2, WOOD)                 # roof
+    v.box(-10, 16, -2, 10, 17, 2, WOOD_D)
+    v.box(-13, 16, -2, -10, 17, 2, WOOD_D)              # upturned ends
+    v.box(10, 16, -2, 13, 17, 2, WOOD_D)
+    v.box(-14, 17, -2, -12, 18, 2, WOOD_D)
+    v.box(12, 17, -2, 14, 18, 2, WOOD_D)
+    v.box(-3, 17, -1, 3, 18, 1, WOOD)                   # ridge
+    return v
+
+
+def sprig():
+    """A small low clump of leaves (Capybara Onsen's ground cover), about 2 studs."""
+    v = Vox(unit=0.5)
+    v.box(-2, 0, -1, 0, 2, 1, LEAF_A)
+    v.box(0, 0, -2, 2, 3, 0, LEAF_B)
+    v.box(0, 0, 1, 2, 2, 3, LEAF_A)
+    return v
+
+
+def info_board_frame():
+    v = Vox(unit=1.0, solid=True)
+    _board_frame(v, True)
+    return v
+
+
+def market_board_frame():
+    v = Vox(unit=1.0, solid=True)
+    _board_frame(v, False)
     return v
 
 
@@ -264,6 +399,14 @@ PROPS = {
     "StoneLantern": stone_lantern,
     "Torii": torii,
     "Bamboo": bamboo,
+    "ProcessorBarrel": processor_barrel,
+    "DepositStall": deposit_stall,
+    "InfoBoardFrame": info_board_frame,
+    "RimLantern": rim_lantern,
+    "Bush": bush,
+    "EntranceGate": entrance_gate,
+    "Sprig": sprig,
+    "MarketBoardFrame": market_board_frame,
 }
 
 

@@ -9,11 +9,15 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
 local Models = require(Shared.Models)
+local Visuals = require(Shared.Visuals)
 local Plots = require(script.Parent.Parent.Plots)
+local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
 
 type Plot = Plots.Plot
 type Data = DataService.Data
+
+local SIT_HEIGHT = 0.8 -- studs above the water surface the models stand (pack models reach a bit below their pivot)
 
 local PoolService = {}
 
@@ -27,27 +31,16 @@ local spotSince: { [number]: { [number]: number } } = {}
 local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): Model
 	local def = Tiers.get(tier)
 	local model = Models.makeBrainrot(tier)
-	-- Sit in the raised bath's shallow water (the model's origin is its bottom centre).
-	model:PivotTo(spot * CFrame.new(0, -0.4, 0))
+	-- Sit up on the bath's water, above the rims (the model's origin is its bottom centre).
+	model:PivotTo(spot * CFrame.new(0, SIT_HEIGHT, 0))
 	model:SetAttribute("Tier", tier)
 	model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
 
 	local anchor = model:FindFirstChild("Label")
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(160, 46)
-	gui.StudsOffset = Vector3.new(0, 0.6, 0)
-	gui.MaxDistance = 70
-	gui.Parent = anchor
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.RichText = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.3
-	label.Text = `{def.name}\n<font color="#ffd966">Tier {tier}</font>`
-	label.Parent = gui
+	if anchor and anchor:IsA("BasePart") then
+		local label = Billboard.new(anchor, { width = 9, height = 2.8, offsetY = 0, maxDistance = 90 })
+		label.Text = `{Billboard.color(def.name, "#" .. Visuals.tierColor(tier):ToHex())}\nTier {tier}`
+	end
 
 	model.Parent = parent
 	return model

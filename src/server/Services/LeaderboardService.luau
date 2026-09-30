@@ -1,12 +1,15 @@
 --!strict
--- Total Brainrots: lifetime brainrots obtained (bought or unlocked from lucky
--- blocks; merging does not count).
---   * In-server leaderstat "Total Brainrots" (the Roblox player list).
---   * A global board in the middle of the map (the road between the plot rows)
---     showing the top players, from an OrderedDataStore refreshed every minute.
+-- Leaderboards: three roofed pavilions on the island in the middle of the map
+-- (like Capybara Onsen's Total / Net Worth / Playtime boards), each showing the
+-- top players from its own OrderedDataStore, refreshed every minute:
+--   * Top Brainrots: lifetime brainrots obtained (bought or unlocked; merges don't count)
+--   * Net Worth: lifetime Cash earned
+--   * Playtime: time played
+-- Plus the in-server leaderstat "Total Brainrots" (the Roblox player list).
 --
--- Global data needs a published place with "Enable Studio Access to API
--- Services" on; without it the board says so in Studio and stays empty.
+-- OrderedDataStores hold integers, so Net Worth is stored as log10 x 1e6 (Cash can
+-- pass 2^63) and decoded for display. Global data needs a published place with
+-- "Enable Studio Access to API Services" on; without it the boards say so in Studio.
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -14,24 +17,95 @@ local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Format = require(Shared.Format)
 local DataService = require(script.Parent.DataService)
+local Plaza = require(script.Parent.Parent.Plaza)
+
+type Data = DataService.Data
+
+type BoardDef = {
+	title: string,
+	storeName: string,
+	roof: Color3,
+	x: number, -- along the island (world x)
+	score: (Data) -> number, -- integer stored in the DataStore
+	show: (number) -> string, -- stored integer -> display text
+}
+
+type Board = {
+	def: BoardDef,
+	store: OrderedDataStore,
+	rows: { TextLabel },
+	status: TextLabel,
+}
 
 local LeaderboardService = {}
 
-local STORE_NAME = "TotalBrainrots_v1"
 local TOP_COUNT = 10
-local LEADERSTAT_INTERVAL = 5 -- seconds between leaderstat updates
+local LEADERSTAT_INTERVAL = 5 -- seconds between leaderstat / playtime updates
 local BOARD_INTERVAL = 60 -- seconds between DataStore saves / board refreshes
+local NET_WORTH_SCALE = 1e6 -- stored = floor(log10(cash + 1) x this)
 
-local BOARD_SIZE = Vector3.new(30, 20, 1)
-local BOARD_POSITION = Vector3.new(0, 12, 0) -- middle of the map (the road between the plot rows)
-local ROW_HEIGHT = 0.075 -- fraction of the board per row
+local BOARD_SIZE = Vector3.new(16, 14, 0.8)
+local BOARD_LIFT = 3 -- studs from the island to the bottom of a board
+local WOOD = Color3.fromRGB(110, 74, 46)
 
-local store = DataStoreService:GetOrderedDataStore(STORE_NAME)
+local function playtimeText(seconds: number): string
+	local hours = seconds // 3600
+	local minutes = (seconds % 3600) // 60
+	return if hours > 0 then `{hours}h {minutes}m` else `{minutes}m`
+end
+
+local DEFS: { BoardDef } = {
+	{
+		title = "Top Brainrots",
+		storeName = "TotalBrainrots_v1",
+		roof = Color3.fromRGB(240, 150, 40),
+		x = -34,
+		score = function(data)
+			return math.floor(data.totalBrainrots)
+		end,
+		show = Format.commas,
+	},
+	{
+		title = "Net Worth",
+		storeName = "NetWorth_v1",
+		roof = Color3.fromRGB(96, 196, 70),
+		x = 0,
+		score = function(data)
+			return math.floor(math.log10(data.totalCashEarned + 1) * NET_WORTH_SCALE)
+		end,
+		show = function(stored)
+			return `{Format.short(10 ^ (stored / NET_WORTH_SCALE) - 1)} Cash`
+		end,
+	},
+	{
+		title = "Playtime",
+		storeName = "Playtime_v1",
+		roof = Color3.fromRGB(150, 96, 220),
+		x = 34,
+		score = function(data)
+			return math.floor(data.playtime)
+		end,
+		show = playtimeText,
+	},
+}
+
+local boards: { Board } = {}
 local stats: { [Player]: IntValue } = {}
 local nameCache: { [number]: string } = {}
-local rows: { TextLabel } = {}
-local status: TextLabel
 local warned = false
+
+local function part(parent: Instance, name: string, size: Vector3, position: Vector3, color: Color3): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.Size = size
+	p.Position = position
+	p.Color = color
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
 
 local function label(parent: Instance, size: UDim2, position: UDim2, align: Enum.TextXAlignment): TextLabel
 	local l = Instance.new("TextLabel")
@@ -46,53 +120,75 @@ local function label(parent: Instance, size: UDim2, position: UDim2, align: Enum
 	return l
 end
 
-local function buildBoard()
+-- A pavilion: stone plinth, two posts, the board (readable from both sides) and a
+-- stepped roof in the board's colour.
+local function buildBoard(folder: Folder, def: BoardDef): Board
+	local base = Plaza.ISLAND_TOP
+	local x = def.x
 	local model = Instance.new("Model")
-	model.Name = "Leaderboard"
-
-	for _, dx in { -13, 13 } do
-		local post = Instance.new("Part")
-		post.Name = "Post"
-		post.Anchored = true
-		post.Size = Vector3.new(1.2, 14, 1.2)
-		post.Position = Vector3.new(dx, 7, 0)
-		post.Color = Color3.fromRGB(120, 80, 50)
-		post.Parent = model
+	model.Name = def.title
+	model.Parent = folder
+	part(model, "Plinth", Vector3.new(19, 1, 4), Vector3.new(x, base + 0.5, 0), Color3.fromRGB(150, 155, 168))
+	local postHeight = BOARD_LIFT + BOARD_SIZE.Y + 1.5
+	for _, dx in { -1, 1 } do
+		part(
+			model,
+			"Post",
+			Vector3.new(1.4, postHeight, 1.4),
+			Vector3.new(x + dx * (BOARD_SIZE.X / 2 + 0.7), base + 1 + postHeight / 2, 0),
+			WOOD
+		)
 	end
-
-	local board = Instance.new("Part")
-	board.Name = "Board"
-	board.Anchored = true
-	board.Size = BOARD_SIZE
-	board.Position = BOARD_POSITION
-	board.Color = Color3.fromRGB(35, 30, 40)
-	board.Parent = model
-
-	-- The same list on both faces, so it reads from either side of the road.
+	local roofY = base + 1 + postHeight
+	part(model, "Roof", Vector3.new(22, 1, 6), Vector3.new(x, roofY + 0.5, 0), def.roof)
+	part(model, "Roof", Vector3.new(18, 1, 4.6), Vector3.new(x, roofY + 1.5, 0), def.roof)
+	part(model, "RoofRidge", Vector3.new(8, 1, 2.4), Vector3.new(x, roofY + 2.5, 0), def.roof)
+	local board = part(
+		model,
+		"Board",
+		BOARD_SIZE,
+		Vector3.new(x, base + 1 + BOARD_LIFT + BOARD_SIZE.Y / 2, 0),
+		Color3.fromRGB(250, 238, 205)
+	)
+	local rows: { TextLabel } = {}
+	local status: TextLabel? = nil
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = face
-		gui.CanvasSize = Vector2.new(900, 600)
-		gui.LightInfluence = 0
+		gui.CanvasSize = Vector2.new(500, 440)
+		gui.LightInfluence = 0.2
 		gui.Parent = board
-		label(gui, UDim2.fromScale(1, 0.12), UDim2.fromScale(0, 0.01), Enum.TextXAlignment.Center).Text =
-			"Top Brainrot Collectors"
+		local title = label(gui, UDim2.fromScale(0.9, 0.13), UDim2.fromScale(0.05, 0.02), Enum.TextXAlignment.Center)
+		title.Text = def.title
+		title.TextColor3 = def.roof
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(60, 40, 25)
+		stroke.Thickness = 2
+		stroke.Parent = title
 		for i = 1, TOP_COUNT do
 			local row = label(
 				gui,
-				UDim2.fromScale(0.9, ROW_HEIGHT),
-				UDim2.fromScale(0.05, 0.14 + (i - 1) * 0.082),
+				UDim2.fromScale(0.9, 0.07),
+				UDim2.fromScale(0.05, 0.17 + (i - 1) * 0.074),
 				Enum.TextXAlignment.Left
 			)
 			row.RichText = true
+			row.TextColor3 = Color3.fromRGB(70, 48, 30)
 			table.insert(rows, row)
 		end
 		if face == Enum.NormalId.Front then
-			status = label(gui, UDim2.fromScale(0.9, 0.06), UDim2.fromScale(0.05, 0.94), Enum.TextXAlignment.Center)
-			status.TextColor3 = Color3.fromRGB(180, 180, 200)
+			local s = label(gui, UDim2.fromScale(0.9, 0.05), UDim2.fromScale(0.05, 0.93), Enum.TextXAlignment.Center)
+			s.TextColor3 = Color3.fromRGB(140, 120, 100)
+			status = s
 		end
 	end
-	model.Parent = workspace
+	assert(status, "board has a status label")
+	return {
+		def = def,
+		store = DataStoreService:GetOrderedDataStore(def.storeName),
+		rows = rows,
+		status = status,
+	}
 end
 
 local function displayName(userId: number): string
@@ -108,56 +204,61 @@ local function displayName(userId: number): string
 	return result
 end
 
-local function setRows(entries: { { key: string, value: number } })
-	for i, row in rows do
+local function setRows(board: Board, entries: { { key: string, value: number } })
+	for i, row in board.rows do
 		-- The rows list holds each face's rows in order: front rows, then back rows.
 		local rank = (i - 1) % TOP_COUNT + 1
 		local entry = entries[rank]
 		if entry then
 			local userId = tonumber(entry.key) or 0
-			row.Text = `{rank}. {displayName(userId)}  <font color="#ffd966">{Format.commas(entry.value)}</font>`
+			row.Text = `{rank}. {displayName(userId)}  <font color="#2a8f3a">{board.def.show(entry.value)}</font>`
 		else
 			row.Text = ""
 		end
 	end
 end
 
-local function fail(message: string)
+local function fail(board: Board, message: string)
 	if not warned then
 		warned = true
 		if RunService:IsStudio() then
-			warn(`[Leaderboard] {message}. Publish the place and enable Studio API access to use the global board.`)
+			warn(`[Leaderboard] {message}. Publish the place and enable Studio API access to use the global boards.`)
 		end
 	end
-	status.Text = if RunService:IsStudio() then "Global data unavailable" else ""
+	board.status.Text = if RunService:IsStudio() then "Global data unavailable" else ""
 end
 
-local function saveTotal(player: Player, total: number)
-	local ok, err = pcall(function()
-		store:SetAsync(tostring(player.UserId), total)
-	end)
-	if not ok then
-		fail(tostring(err))
+local function save(player: Player, data: Data)
+	for _, board in boards do
+		local ok, err = pcall(function()
+			board.store:SetAsync(tostring(player.UserId), board.def.score(data))
+		end)
+		if not ok then
+			fail(board, tostring(err))
+			return
+		end
 	end
 end
 
-local function refreshBoard()
+local function refreshBoards()
 	for player in stats do
 		local data = DataService.get(player)
 		if data then
-			saveTotal(player, math.floor(data.totalBrainrots))
+			save(player, data)
 		end
 	end
-	local ok, result = pcall(function()
-		local pages = store:GetSortedAsync(false, TOP_COUNT)
-		return pages:GetCurrentPage()
-	end)
-	if not ok then
-		fail(tostring(result))
-		return
+	for _, board in boards do
+		local ok, result = pcall(function()
+			local pages = board.store:GetSortedAsync(false, TOP_COUNT)
+			return pages:GetCurrentPage()
+		end)
+		if ok then
+			board.status.Text = ""
+			setRows(board, result :: { { key: string, value: number } })
+		else
+			fail(board, tostring(result))
+		end
 	end
-	status.Text = ""
-	setRows(result :: { { key: string, value: number } })
 end
 
 local function onPlayerAdded(player: Player)
@@ -175,12 +276,17 @@ local function onPlayerRemoving(player: Player)
 	local data = DataService.get(player)
 	stats[player] = nil
 	if data then
-		saveTotal(player, math.floor(data.totalBrainrots))
+		save(player, data)
 	end
 end
 
 function LeaderboardService:Init()
-	buildBoard()
+	local folder = Instance.new("Folder")
+	folder.Name = "Leaderboards"
+	folder.Parent = workspace
+	for _, def in DEFS do
+		table.insert(boards, buildBoard(folder, def))
+	end
 end
 
 function LeaderboardService:Start()
@@ -197,6 +303,7 @@ function LeaderboardService:Start()
 				local data = DataService.get(player)
 				if data then
 					stat.Value = math.floor(data.totalBrainrots)
+					data.playtime += LEADERSTAT_INTERVAL
 				end
 			end
 		end
@@ -204,7 +311,7 @@ function LeaderboardService:Start()
 
 	while true do
 		task.wait(5) -- first refresh shortly after start, then every BOARD_INTERVAL
-		refreshBoard()
+		refreshBoards()
 		task.wait(BOARD_INTERVAL - 5)
 	end
 end

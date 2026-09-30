@@ -269,8 +269,8 @@ end
 
 -- A brainrot from the pack in ReplicatedStorage.Assets.Brainrots, scaled to fit a
 -- bath, standing on the origin. nil if the pack model is not there.
-local PACK_MAX_FOOTPRINT = 4.6 -- studs: widest horizontal size that fits a bath
-local PACK_MAX_HEIGHT = 6.5
+local PACK_MAX_FOOTPRINT = 6 -- studs: widest horizontal size (they overhang the bath rims, like Capybara Onsen's)
+local PACK_MAX_HEIGHT = 8
 
 local function fromPack(tier: number): Model?
 	local assets = ReplicatedStorage:FindFirstChild("Assets")

@@ -12,6 +12,7 @@ local Economy = require(Shared.Config.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
+local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
 local MarketService = require(script.Parent.MarketService)
 local MonetizationService = require(script.Parent.MonetizationService)
@@ -52,12 +53,13 @@ function ProcessorService.refresh(plot: Plot)
 	setText(stations.deposit.label, "Deposit Aura")
 	setText(
 		stations.collectCash.label,
-		`Collect Cash\n<font color="#7dff8a">{Format.short(data.pendingCash)} Cash</font>`
+		"Collect Cash\n" .. Billboard.color(`{Format.short(data.pendingCash)} Cash`, Billboard.CASH)
 	)
 	setText(
 		stations.upgradeProcessor.label,
-		`Processor Lv {data.processorLevel}\n+{Format.short(nextRate - rate)} per second\n`
-			.. `<font color="#7dff8a">{Format.short(cost)} Cash</font>`
+		Billboard.color(`Processor Lv {data.processorLevel}`, Billboard.CYAN)
+			.. `\n+{Format.short(nextRate - rate)} per second\n`
+			.. Billboard.color(`{Format.short(cost)} Cash`, Billboard.CASH)
 	)
 end
 
@@ -96,6 +98,7 @@ local function collectCash(player: Player, plot: Plot)
 	local amount = data.pendingCash
 	data.pendingCash = 0
 	data.cash += amount
+	data.totalCashEarned += amount
 	DataService.sync(player)
 	ProcessorService.refresh(plot)
 	notify:FireClient(player, `Collected {Format.short(amount)} Cash!`, "cash")

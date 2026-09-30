@@ -14,6 +14,7 @@ local Economy = require(Shared.Config.Economy)
 local Products = require(Shared.Config.Products)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
+local Style = require(script.Parent.Parent.Style)
 
 local player = Players.LocalPlayer
 
@@ -36,26 +37,12 @@ local PACKS: { { name: string, size: "S" | "M" | "L" } } = {
 
 local HudController = {}
 
-local function makeLabel(parent: Instance, name: string, order: number, color: Color3): TextLabel
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.LayoutOrder = order
-	label.Size = UDim2.fromOffset(190, 44)
-	label.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-	label.BackgroundTransparency = 0.25
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = color
-	label.Parent = parent
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = label
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 6)
-	padding.PaddingBottom = UDim.new(0, 6)
-	padding.Parent = label
-	return label
-end
+-- Colours, from Capybara Onsen's HUD.
+local GREEN, GREEN_DARK = Color3.fromRGB(128, 214, 58), Color3.fromRGB(28, 86, 18)
+local LIME = Color3.fromRGB(222, 255, 96)
+local CASH_GREEN = Color3.fromRGB(120, 250, 70)
+local GOLD, GOLD_DARK = Color3.fromRGB(255, 196, 84), Color3.fromRGB(96, 52, 10)
+local OUTLINE = Color3.fromRGB(24, 24, 30)
 
 function HudController:Start()
 	local gui = Instance.new("ScreenGui")
@@ -63,110 +50,122 @@ function HudController:Start()
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = false
 
-	local aura = makeLabel(gui, "Aura", 1, Color3.fromRGB(200, 150, 255))
-	aura.AnchorPoint = Vector2.new(0.5, 1)
-	aura.Position = UDim2.new(0.5, 0, 1, -16)
-	aura.Size = UDim2.fromOffset(240, 52)
-	local cash = makeLabel(gui, "Cash", 2, Color3.fromRGB(125, 255, 138))
+	-- Bottom centre: the Aura gem and a big white number.
+	local auraBox = Instance.new("Frame")
+	auraBox.Name = "AuraBox"
+	auraBox.AnchorPoint = Vector2.new(0.5, 1)
+	auraBox.Position = UDim2.new(0.5, 0, 1, -8)
+	auraBox.Size = UDim2.fromOffset(340, 76)
+	auraBox.BackgroundTransparency = 1
+	auraBox.Parent = gui
+	local gem = Instance.new("ImageLabel")
+	gem.Name = "Icon"
+	gem.BackgroundTransparency = 1
+	gem.Image = Style.AURA_ICON
+	gem.Size = UDim2.fromOffset(68, 68)
+	gem.Position = UDim2.fromOffset(0, 4)
+	gem.Parent = auraBox
+	local aura = Style.outlined(auraBox, "Aura", Color3.new(1, 1, 1), OUTLINE, 4)
+	aura.Size = UDim2.new(1, -76, 1, 0)
+	aura.Position = UDim2.fromOffset(76, 0)
+	aura.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Bottom left: big green Cash, the Cash multiplier beside it.
+	local cash = Style.outlined(gui, "Cash", CASH_GREEN, GREEN_DARK, 4)
 	cash.AnchorPoint = Vector2.new(0, 1)
-	cash.Position = UDim2.new(0, 16, 1, -16)
-	cash.Size = UDim2.fromOffset(240, 52)
-
-	-- Active boosts, above Cash (bottom left): "x4 Cash", friend boost.
-	local boosts = makeLabel(gui, "Boosts", 3, Color3.fromRGB(255, 226, 90))
+	cash.Position = UDim2.new(0, 14, 1, -8)
+	cash.Size = UDim2.fromOffset(300, 72)
+	cash.TextXAlignment = Enum.TextXAlignment.Left
+	local boosts = Style.outlined(gui, "Boosts", Color3.fromRGB(60, 170, 40), Color3.fromRGB(12, 44, 6), 3)
 	boosts.AnchorPoint = Vector2.new(0, 1)
-	boosts.Position = UDim2.new(0, 16, 1, -74)
-	boosts.Size = UDim2.fromOffset(240, 36)
+	boosts.Position = UDim2.new(0, 320, 1, -16)
+	boosts.Size = UDim2.fromOffset(170, 46)
+	boosts.TextXAlignment = Enum.TextXAlignment.Left
 
-	local total = makeLabel(gui, "TotalBrainrots", 4, Color3.fromRGB(255, 226, 150))
+	-- Bottom right: Total Brainrots in gold.
+	local total = Style.outlined(gui, "TotalBrainrots", GOLD, GOLD_DARK, 3)
 	total.AnchorPoint = Vector2.new(1, 1)
-	total.Position = UDim2.new(1, -16, 1, -16)
-	total.Size = UDim2.fromOffset(340, 44)
+	total.Position = UDim2.new(1, -14, 1, -12)
+	total.Size = UDim2.fromOffset(440, 50)
+	total.TextXAlignment = Enum.TextXAlignment.Right
 
-	-- Left side: Cash pack buttons, then Premium and friend boost.
+	-- Left side: the next Cash pass ("PERMANENT! 12X Money"), then the Cash packs.
 	local buyProduct = Remotes.event("BuyProduct")
-	local packButtons: { [string]: TextButton } = {}
+	local left = Instance.new("Frame")
+	left.Name = "Left"
+	left.AnchorPoint = Vector2.new(0, 0.5)
+	left.Position = UDim2.new(0, 14, 0.5, -10)
+	left.Size = UDim2.fromOffset(240, 330)
+	left.BackgroundTransparency = 1
+	left.Parent = gui
+
+	local promo, promoLabel = Style.button(left, "CashPassPromo", GREEN, GREEN_DARK)
+	promo.Size = UDim2.fromOffset(236, 70)
+	promo.Position = UDim2.fromOffset(0, 22)
+	promoLabel.TextColor3 = LIME
+	promo.Activated:Connect(function()
+		buyProduct:FireServer("CashPass")
+	end)
+	local permanent = Style.outlined(left, "Permanent", Color3.fromRGB(255, 96, 40), Color3.fromRGB(80, 10, 0), 3)
+	permanent.Text = "PERMANENT!"
+	permanent.Size = UDim2.fromOffset(170, 30)
+	permanent.Position = UDim2.fromOffset(-4, 0)
+	permanent.Rotation = -6
+	permanent.ZIndex = 3
+	local promoPrice = Style.outlined(left, "PromoPrice", Color3.new(1, 1, 1), OUTLINE, 3)
+	promoPrice.Size = UDim2.fromOffset(120, 32)
+	promoPrice.Position = UDim2.fromOffset(58, 96)
+
+	local packButtons: { [string]: { button: TextButton, amount: TextLabel } } = {}
 	for i, pack in PACKS do
-		local button = Instance.new("TextButton")
-		button.Name = pack.name
-		button.AnchorPoint = Vector2.new(0, 0.5)
-		button.Position = UDim2.new(0, 16, 0.5, -84 + (i - 1) * 56)
-		button.Size = UDim2.fromOffset(200, 48)
-		button.BackgroundColor3 = Color3.fromRGB(110, 210, 50)
-		button.Font = Enum.Font.FredokaOne
-		button.TextScaled = true
-		button.TextColor3 = Color3.new(1, 1, 1)
-		button.Parent = gui
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 10)
-		corner.Parent = button
-		local border = Instance.new("UIStroke")
-		border.Thickness = 3
-		border.Color = Color3.fromRGB(30, 70, 15)
-		border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		border.Parent = button
-		local padding = Instance.new("UIPadding")
-		padding.PaddingTop = UDim.new(0, 7)
-		padding.PaddingBottom = UDim.new(0, 7)
-		padding.Parent = button
+		local button, amount = Style.button(left, pack.name, GREEN, GREEN_DARK)
+		button.Size = UDim2.fromOffset(236, 54)
+		button.Position = UDim2.fromOffset(0, 138 + (i - 1) * 64)
+		amount.TextColor3 = LIME
+		amount.Size = UDim2.new(1, -84, 1, -14)
+		amount.TextXAlignment = Enum.TextXAlignment.Left
+		local price = Style.outlined(button, "Price", Color3.new(1, 1, 1), GREEN_DARK, 2)
+		price.AnchorPoint = Vector2.new(1, 0.5)
+		price.Position = UDim2.new(1, -8, 0.5, 0)
+		price.Size = UDim2.fromOffset(64, 22)
+		price.ZIndex = 2
+		price.Text = `R$ {Products.DevProducts[pack.name].robux}`
 		button.Activated:Connect(function()
 			buyProduct:FireServer(pack.name)
 		end)
-		packButtons[pack.name] = button
+		packButtons[pack.name] = { button = button, amount = amount }
 	end
-	local premium = makeLabel(gui, "Premium", 5, Color3.fromRGB(255, 226, 150))
-	premium.AnchorPoint = Vector2.new(0, 0.5)
-	premium.Position = UDim2.new(0, 16, 0.5, 92)
-	premium.Size = UDim2.fromOffset(200, 36)
-	local friends = makeLabel(gui, "Friends", 6, Color3.fromRGB(255, 226, 150))
-	friends.AnchorPoint = Vector2.new(0, 0.5)
-	friends.Position = UDim2.new(0, 16, 0.5, 134)
-	friends.Size = UDim2.fromOffset(200, 36)
 
-	local home = Instance.new("TextButton")
-	home.Name = "Home"
-	-- Home sits left of center; IndexController puts Index right of center.
+	-- Premium and friend boost, small, above Cash.
+	local premium = Style.outlined(gui, "Premium", Color3.new(1, 1, 1), OUTLINE, 2)
+	premium.AnchorPoint = Vector2.new(0, 1)
+	premium.Position = UDim2.new(0, 14, 1, -84)
+	premium.Size = UDim2.fromOffset(150, 28)
+	premium.TextXAlignment = Enum.TextXAlignment.Left
+	local friends = Style.outlined(gui, "Friends", Color3.fromRGB(255, 222, 90), OUTLINE, 2)
+	friends.AnchorPoint = Vector2.new(0, 1)
+	friends.Position = UDim2.new(0, 170, 1, -84)
+	friends.Size = UDim2.fromOffset(120, 28)
+	friends.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Top centre: Home (cyan); IndexController puts Index (tan) right of it.
+	local home, homeLabel = Style.button(gui, "Home", Color3.fromRGB(64, 196, 236), Color3.fromRGB(18, 66, 104))
 	home.AnchorPoint = Vector2.new(1, 0)
-	home.Position = UDim2.new(0.5, -6, 0, 8)
-	home.Size = UDim2.fromOffset(160, 48)
-	home.BackgroundColor3 = Color3.fromRGB(60, 190, 230)
-	home.Font = Enum.Font.FredokaOne
-	home.TextScaled = true
-	home.TextColor3 = Color3.new(1, 1, 1)
-	home.Text = "Home"
-	home.Parent = gui
-	local homeCorner = Instance.new("UICorner")
-	homeCorner.CornerRadius = UDim.new(0, 10)
-	homeCorner.Parent = home
-	local homeStroke = Instance.new("UIStroke")
-	homeStroke.Thickness = 3
-	homeStroke.Color = Color3.fromRGB(20, 60, 90)
-	homeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	homeStroke.Parent = home
-	local homePadding = Instance.new("UIPadding")
-	homePadding.PaddingTop = UDim.new(0, 6)
-	homePadding.PaddingBottom = UDim.new(0, 6)
-	homePadding.Parent = home
+	home.Position = UDim2.new(0.5, -8, 0, 8)
+	home.Size = UDim2.fromOffset(180, 58)
+	homeLabel.Text = "Home"
 	local goHome = Remotes.event("GoHome")
 	home.Activated:Connect(function()
 		goHome:FireServer()
 	end)
 
-	local toast = Instance.new("TextLabel")
-	toast.Name = "Toast"
-	toast.AnchorPoint = Vector2.new(0.5, 0)
-	toast.Position = UDim2.new(0.5, 0, 0, 66)
-	toast.Size = UDim2.fromOffset(420, 36)
-	toast.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-	toast.BackgroundTransparency = 0.15
-	toast.Font = Enum.Font.FredokaOne
-	toast.TextScaled = true
-	toast.TextColor3 = Color3.new(1, 1, 1)
+	-- Toasts: big outlined text in the middle of the screen, red for "no", green for "yes".
+	local toast = Style.outlined(gui, "Toast", Color3.fromRGB(255, 84, 64), Color3.fromRGB(80, 8, 0), 3)
+	toast.AnchorPoint = Vector2.new(0.5, 0.5)
+	toast.Position = UDim2.fromScale(0.5, 0.6)
+	toast.Size = UDim2.fromOffset(640, 44)
 	toast.Visible = false
-	toast.Parent = gui
-	local toastCorner = Instance.new("UICorner")
-	toastCorner.CornerRadius = UDim.new(0, 10)
-	toastCorner.Parent = toast
+	local toastStroke = toast:FindFirstChildOfClass("UIStroke") :: UIStroke
 
 	-- Popup: big outlined text in the lower middle of the screen that pops in,
 	-- holds, then floats up and fades.
@@ -224,34 +223,42 @@ function HudController:Start()
 	end
 
 	local function refresh()
-		aura.Text = `Aura {Format.short(number("Aura"))}`
-		cash.Text = `Cash {Format.short(number("Cash"))}`
+		aura.Text = Format.short(number("Aura"))
+		cash.Text = "$" .. Format.short(number("Cash"))
 		total.Text = `Total Brainrots: {Format.commas(number("TotalBrainrots"))}`
 
-		local parts: { string } = {}
 		local pass = number("CashPass")
-		if pass > 1 then
-			table.insert(parts, `x{pass} Cash`)
-		end
 		local friendBoost = number("FriendBoost")
-		if friendBoost > 0 then
-			table.insert(parts, `Friends +{math.round(friendBoost * 100)}%`)
+		boosts.Text = if pass > 1 then `{pass}x Cash` else ""
+		boosts.Visible = pass > 1
+
+		-- The promo offers the next Cash pass up; hidden once the best is owned.
+		local nextPass: Products.Pass? = nil
+		for i = #Products.CASH_MULTIPLIER_PASSES, 1, -1 do
+			local candidate = Products.GamePasses[Products.CASH_MULTIPLIER_PASSES[i]]
+			if (candidate.multiplier or 1) > pass then
+				nextPass = candidate
+				break
+			end
 		end
-		boosts.Text = table.concat(parts, "  ")
-		boosts.Visible = #parts > 0
+		promo.Visible = nextPass ~= nil
+		permanent.Visible = nextPass ~= nil
+		promoPrice.Visible = nextPass ~= nil
+		if nextPass then
+			promoLabel.Text = `{nextPass.multiplier or 1}X Money`
+			promoPrice.Text = `R$ {nextPass.robux}`
+		end
 
 		local highest = math.max(1, number("HighestTier"))
 		for _, pack in PACKS do
-			local button = packButtons[pack.name]
-			local amount = Economy.cashPackAmount(highest, pack.size)
-			local robux = Products.DevProducts[pack.name].robux
-			button.Text = `+{Format.short(amount)}  R$ {robux}`
+			local entry = packButtons[pack.name]
+			entry.amount.Text = "+$" .. Format.short(Economy.cashPackAmount(highest, pack.size))
 		end
 		local isPremium = player:GetAttribute("Premium") == true
 		premium.Text = if isPremium
-			then `Premium +{math.round(Economy.PREMIUM_AURA_BOOST * 100)}% Aura`
+			then `Premium +{math.round(Economy.PREMIUM_AURA_BOOST * 100)}%`
 			else "Premium: Inactive"
-		friends.Text = `Friends +{math.round(friendBoost * 100)}%`
+		friends.Text = `Friends {math.round(friendBoost * 100)}%`
 	end
 	for _, name in { "Aura", "Cash", "TotalBrainrots", "CashPass", "FriendBoost", "Premium", "HighestTier" } do
 		player:GetAttributeChangedSignal(name):Connect(refresh)
@@ -268,7 +275,9 @@ function HudController:Start()
 			showPopup(message, style)
 			return
 		end
-		toast.BackgroundColor3 = if kind == "good" then Color3.fromRGB(50, 160, 80) else Color3.fromRGB(200, 60, 60)
+		local good = kind == "good"
+		toast.TextColor3 = if good then Color3.fromRGB(120, 250, 80) else Color3.fromRGB(255, 84, 64)
+		toastStroke.Color = if good then Color3.fromRGB(16, 70, 10) else Color3.fromRGB(80, 8, 0)
 		toastSerial += 1
 		local serial = toastSerial
 		toast.Text = message

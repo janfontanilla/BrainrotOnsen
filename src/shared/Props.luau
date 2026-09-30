@@ -7,6 +7,8 @@ local PropData = require(script.Parent.PropData)
 
 local Props = {}
 
+local SHADOW_MIN_SIZE = 3 -- studs: boxes smaller than this in every direction cast no shadow
+
 local templates: { [string]: Model } = {}
 
 local function build(name: string): Model
@@ -25,7 +27,7 @@ local function build(name: string): Model
 		part.CanCollide = data.solid
 		part.CanQuery = data.solid
 		part.CanTouch = false
-		part.CastShadow = true
+		part.CastShadow = math.max(box[4], box[5], box[6]) >= SHADOW_MIN_SIZE -- small boxes: no shadow (cheaper)
 		part.TopSurface = Enum.SurfaceType.Smooth
 		part.BottomSurface = Enum.SurfaceType.Smooth
 		part.Size = Vector3.new(box[4], box[5], box[6])

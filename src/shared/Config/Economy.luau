@@ -70,6 +70,13 @@ Economy.STUDIO_LUCKY_BLOCK_INTERVAL = 0
 -- Cash packs (dev products): amount = base price of highest tier x multiplier
 Economy.CASH_PACK_MULTIPLIERS = { S = 50, M = 2_500, L = 125_000 }
 
+-- Group reward (the pad in front of the "Join the group + Like" sign): members can
+-- claim Cash every GROUP_REWARD_INTERVAL seconds. A helper, not income: the amount
+-- starts at GROUP_REWARD_MIN and grows with the buy tier (base price x multiplier).
+Economy.GROUP_REWARD_INTERVAL = 300
+Economy.GROUP_REWARD_MIN = 10_000
+Economy.GROUP_REWARD_MULTIPLIER = 25
+
 -- Offline
 Economy.OFFLINE_RATE = 1.0 -- 100%, no time cap, straight into Aura
 Economy.OFFLINE_POPUP_MIN_SECONDS = 60 -- show "While you were away" only after this long offline

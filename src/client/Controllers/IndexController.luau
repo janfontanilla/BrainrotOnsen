@@ -11,6 +11,7 @@ local Tiers = require(Shared.Config.Tiers)
 local Models = require(Shared.Models)
 local Format = require(Shared.Format)
 local Visuals = require(Shared.Visuals)
+local Style = require(script.Parent.Parent.Style)
 
 local player = Players.LocalPlayer
 
@@ -85,29 +86,12 @@ function IndexController:Start()
 	gui.Name = "Index"
 	gui.ResetOnSpawn = false
 
-	local open = Instance.new("TextButton")
-	open.Name = "IndexButton"
+	-- The Index button: tan and studded, right of Home (HudController).
+	local open, openLabel = Style.button(gui, "IndexButton", Color3.fromRGB(216, 152, 98), Color3.fromRGB(96, 54, 22))
 	open.AnchorPoint = Vector2.new(0, 0)
-	open.Position = UDim2.new(0.5, 6, 0, 8)
-	open.Size = UDim2.fromOffset(160, 48)
-	open.BackgroundColor3 = Color3.fromRGB(215, 150, 90)
-	open.Font = Enum.Font.FredokaOne
-	open.TextScaled = true
-	open.TextColor3 = Color3.new(1, 1, 1)
-	open.Text = "Index"
-	open.Parent = gui
-	local openCorner = Instance.new("UICorner")
-	openCorner.CornerRadius = UDim.new(0, 10)
-	openCorner.Parent = open
-	local openStroke = Instance.new("UIStroke")
-	openStroke.Thickness = 3
-	openStroke.Color = Color3.fromRGB(90, 50, 20)
-	openStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	openStroke.Parent = open
-	local openPadding = Instance.new("UIPadding")
-	openPadding.PaddingTop = UDim.new(0, 6)
-	openPadding.PaddingBottom = UDim.new(0, 6)
-	openPadding.Parent = open
+	open.Position = UDim2.new(0.5, 8, 0, 8)
+	open.Size = UDim2.fromOffset(180, 58)
+	openLabel.Text = "Index"
 
 	local window = Instance.new("Frame")
 	window.AnchorPoint = Vector2.new(0.5, 0.5)
