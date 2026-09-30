@@ -1,8 +1,10 @@
 # Launch checklist and store copy (draft 2026-09-30)
 
+Icon, thumbnail and listing brief with the Codex prompts: `docs/store-assets.md` (its description supersedes the draft below).
+
 ## Store page
 
-**Title:** Brainrot Onsen ♨
+**Title:** Brainrot Bathhouse ♨ Merge (renamed 2026-09-30; see `docs/store-assets.md`)
 
 **Description:**
 
@@ -23,13 +25,13 @@
 
 ## Before publishing
 
-- [ ] Studio API access on; saving, offline earnings and leaderboards tested
+- [x] Studio API access on; saving, offline earnings and leaderboards tested
 - [ ] Balance target chosen and tuned (first merge < 1 min, first Upgrade Buy Tier target)
-- [ ] 6 game passes and 4 dev products created; IDs in `src/shared/Config/Products.luau`
-- [ ] Group created; ID in `Products.GROUP_ID`
-- [ ] Stray free-model `Workspace.Leaderboard` deleted from the place
+- [x] 6 game passes and 4 dev products created; IDs in `src/shared/Config/Products.luau`
+- [x] Group: PCC. Studios, ID in `Products.GROUP_ID`
+- [x] Stray free-model `Workspace.Leaderboard` deleted from the place
 - [ ] Phone test (frame rate, HUD fits)
-- [ ] Icon (512 x 512) and 3+ thumbnails (1920 x 1080): the plot overview, the station row, a merge / lucky chest moment
+- [ ] Icon (512 x 512) and 3-5 thumbnails (1920 x 1080), generated with Codex from `docs/store-assets.md`
 - [ ] `Economy.STUDIO_*` knobs have no effect live (gated by `RunService:IsStudio()`; check anyway)
 
 ## Credits

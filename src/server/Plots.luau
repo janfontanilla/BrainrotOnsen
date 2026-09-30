@@ -122,8 +122,10 @@ local SPAWN_X, SPAWN_Z = 11, 46
 -- side wall beside the pool, facing into the plot, with Collect Cash in front.
 local STATION_Z = 26 -- where the row's structures stand
 local STATION_PAD_Z = 38 -- where their pads sit
-local INFO_BOARD_X = -48 -- processor info board at the -x end of the station row
-local UPGRADE_X = INFO_BOARD_X -- processor upgrade pad, in front of the board
+-- The processor controls (info board, upgrade pad, Finish Now) stand together on the
+-- +x side wall beside the pool, the board facing into the plot (-x).
+local INFO_BOARD_X, INFO_BOARD_Z = 61, 70
+local UPGRADE_X, UPGRADE_Z = 50, INFO_BOARD_Z -- processor upgrade pad, in front of the board
 -- Robux pads sit in line beside the free pad they boost, on the "right" side of the
 -- plot (-x, where Upgrade Buy Tier is). x2 Cash is the exception: the barrel is on
 -- that side of Collect Cash, so it sits beside it toward the road instead.
@@ -611,14 +613,15 @@ local function buildPlot(root: Instance, index: number): Plot
 		return Props.place(name, facingPool(x, FLOOR_TOP, STATION_Z), geometry, scale)
 	end
 
-	-- Processor info board: framed sign under a curved roof beside the barrel,
-	-- showing the queue and the rate.
-	stationProp("InfoBoardFrame", INFO_BOARD_X)
+	-- Processor info board: framed sign under a curved roof on the +x side wall,
+	-- facing into the plot, showing the queue and the rate.
+	local facingIn = CFrame.Angles(0, math.pi / 2, 0) -- front (-z) turned to face -x
+	Props.place("InfoBoardFrame", at(INFO_BOARD_X, FLOOR_TOP, INFO_BOARD_Z) * facingIn, geometry)
 	local infoBoard = makePart(
 		geometry,
 		"ProcessorInfo",
 		Vector3.new(14, 9, 0.6),
-		facingPool(INFO_BOARD_X, FLOOR_TOP + 8.5, STATION_Z),
+		at(INFO_BOARD_X, FLOOR_TOP + 8.5, INFO_BOARD_Z) * facingIn,
 		Color3.fromRGB(235, 215, 170)
 	)
 	local infoGui = Instance.new("SurfaceGui")
@@ -666,8 +669,8 @@ local function buildPlot(root: Instance, index: number): Plot
 	-- Market board in a wooden frame.
 	stationProp("MarketBoardFrame", MARKET_X)
 
-	-- Tall signpost with "ONSEN" down it, between the stall and the barrel.
-	Decor.signpost(geometry, at(SIGNPOST_X, FLOOR_TOP, SIGNPOST_Z) * CFrame.Angles(0, math.pi / 2, 0), "ONSEN")
+	-- Tall signpost with "BATHS" down it, beside the barrel.
+	Decor.signpost(geometry, at(SIGNPOST_X, FLOOR_TOP, SIGNPOST_Z) * CFrame.Angles(0, math.pi / 2, 0), "BATHS")
 	local marketBoard = makePart(
 		geometry,
 		"MarketBoard",
@@ -692,7 +695,7 @@ local function buildPlot(root: Instance, index: number): Plot
 		upgradeProcessor = makePad(
 			"UpgradeProcessorPad",
 			UPGRADE_X,
-			STATION_PAD_Z,
+			UPGRADE_Z,
 			UPGRADE_COLOR,
 			0,
 			nil,
@@ -711,8 +714,8 @@ local function buildPlot(root: Instance, index: number): Plot
 		-- Robux pads on the pool side of the row, each near what it boosts.
 		finishNow = makePad(
 			"FinishNowPad",
-			UPGRADE_X - ROBUX_GAP,
-			STATION_PAD_Z,
+			UPGRADE_X,
+			UPGRADE_Z - ROBUX_GAP - 1, -- beside the upgrade pad, toward the road
 			ROBUX_COLOR,
 			0,
 			ROBUX_PAD_SIZE,
@@ -782,7 +785,7 @@ local function buildPlot(root: Instance, index: number): Plot
 		end
 	end
 
-	-- "<Name>'s Onsen": a plaque in the entrance torii (both faces), and the name
+	-- "<Name>'s Bathhouse": a plaque in the entrance torii (both faces), and the name
 	-- floating high over the entrance like the reference's plot names.
 	local board = makePart(
 		geometry,
@@ -820,7 +823,7 @@ local function buildPlot(root: Instance, index: number): Plot
 		dropFolder = dropFolder,
 		owner = nil,
 	}
-	Plots.setSign(plot, "Empty Onsen")
+	Plots.setSign(plot, "Empty Bathhouse")
 	return plot
 end
 
@@ -895,7 +898,7 @@ function Plots.assign(player: Player): Plot?
 			byPlayer[player] = plot
 			plot.folder:SetAttribute("OwnerUserId", player.UserId)
 			player:SetAttribute("PlotIndex", plot.index)
-			Plots.setSign(plot, `{player.DisplayName}'s Onsen`)
+			Plots.setSign(plot, `{player.DisplayName}'s Bathhouse`)
 			return plot
 		end
 	end
@@ -910,7 +913,7 @@ function Plots.release(player: Player): Plot?
 	byPlayer[player] = nil
 	plot.owner = nil
 	plot.folder:SetAttribute("OwnerUserId", nil)
-	Plots.setSign(plot, "Empty Onsen")
+	Plots.setSign(plot, "Empty Bathhouse")
 	return plot
 end
 

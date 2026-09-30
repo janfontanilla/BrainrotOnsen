@@ -28,4 +28,4 @@ for _, service in services do
 	end
 end
 
-print("[Server] Brainrot Onsen started")
+print("[Server] Brainrot Bathhouse started")

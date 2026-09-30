@@ -717,8 +717,9 @@ function Decor.build(parent: Instance, o: Options)
 
 	-- Trees and bamboo in the strip between the baths and the side walls.
 	for _, side in { -1, 1 } do
-		if side > 0 then -- the -x one swapped places with the processor barrel
-			cherryTree(folder, o, rng, half - 3, 68, 0.9)
+		if side > 0 then -- (the -x one swapped places with the processor barrel)
+			-- moved back from z 68 to make room for the processor board on the wall
+			cherryTree(folder, o, rng, half - 3, 92, 0.9)
 		end
 		cherryTree(folder, o, rng, side * (half - 3), 148, 1.05)
 		cherryTree(folder, o, rng, side * (half - 3), 206, 0.85)
@@ -726,7 +727,7 @@ function Decor.build(parent: Instance, o: Options)
 		if side < 0 then
 			bambooCluster(folder, o, rng, -(half - 4), 46, 1.2)
 		else
-			bambooCluster(folder, o, rng, 52, 72, 1.2)
+			bambooCluster(folder, o, rng, 58, 52, 1.2) -- at the end of the curved wall
 		end
 		bambooCluster(folder, o, rng, side * (half - 4), 108, 1.3)
 		bambooCluster(folder, o, rng, side * (half - 4), 184, 1.3)

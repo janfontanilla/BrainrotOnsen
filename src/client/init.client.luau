@@ -25,4 +25,4 @@ for _, controller in controllers do
 	end
 end
 
-print("[Client] Brainrot Onsen started")
+print("[Client] Brainrot Bathhouse started")

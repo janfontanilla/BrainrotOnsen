@@ -88,9 +88,11 @@ end
 local function makeBlock(name: string): Model
 	local model = Visuals.makeLuckyBlock(name, BLOCK_SIZE)
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(180, 40)
-	gui.StudsOffset = Vector3.new(0, BLOCK_SIZE / 2 + 1.2, 0)
-	gui.MaxDistance = 80
+	-- Small, and only up close: several chests can float at once and their labels
+	-- would otherwise stack into a wall of text over the pool.
+	gui.Size = UDim2.fromScale(6, 1.1) -- studs, so it shrinks with distance
+	gui.StudsOffset = Vector3.new(0, BLOCK_SIZE / 2 + 0.8, 0)
+	gui.MaxDistance = 25
 	gui.Parent = model.PrimaryPart
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
@@ -167,7 +169,7 @@ local function unlock(player: Player)
 	ShopService.makeRoom(data, 1)
 	if DataService.brainrotCount(data) >= Economy.MAX_SPOTS then
 		data.counts = before
-		notify:FireClient(player, "Your onsen is full and nothing can merge")
+		notify:FireClient(player, "Your bathhouse is full and nothing can merge")
 		return
 	end
 	if not DataService.spendCash(player, block.price) then

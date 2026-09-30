@@ -157,7 +157,10 @@ local function buy(player: Player, plot: Plot, amount: number)
 	local count = math.min(amount, free)
 	if count <= 0 then
 		data.counts = before
-		notify:FireClient(player, `Your onsen is full ({Economy.MAX_SPOTS}/{Economy.MAX_SPOTS}) and nothing can merge`)
+		notify:FireClient(
+			player,
+			`Your bathhouse is full ({Economy.MAX_SPOTS}/{Economy.MAX_SPOTS}) and nothing can merge`
+		)
 		return
 	end
 	local cost = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, count)
