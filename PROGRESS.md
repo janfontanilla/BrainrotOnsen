@@ -85,8 +85,8 @@ Last updated: 2026-09-29
 - [x] Buy 100 with auto-merge
 - [x] Upgrade Buy Tier pad
 - [x] All 20 tiers in config
-- [ ] ProfileStore saving with session locking (coded; persistence test deferred until the place is published with API access)
-- [ ] Offline earnings, 100% rate, straight to Aura (coded; needs the same test)
+- [x] ProfileStore saving with session locking (verified 2026-09-30 in Studio with API access)
+- [x] Offline earnings, 100% rate, straight to Aura (verified 2026-09-30)
 - [x] Home button
 
 ### Phase 4: Lucky blocks and Index
@@ -98,7 +98,7 @@ Last updated: 2026-09-29
 
 ### Phase 5: Monetization and social
 **Game passes and dev products are DEFERRED to the end** (user decision 2026-09-29): do them after Phase 6 art / polish, before publishing. The code exists and is in the game, but treat it as unfinished. Tested by the user so far: the Cash x2 / x4 / x7 pads work (simulated Studio purchases) and Auto Collect works.
-- **Known issue to fix when this resumes:** the Cash multiplier is applied when the processor produces Cash, so Cash already waiting on the Collect Cash pad is not multiplied when a pass is bought (the user saw no multiplication on walking over the pad). Capybara Onsen applies it at collection ("[x4 Cash] Collect Cash" on the pad, `reference/capybara-onsen-stations.webp`). Fix: keep `pendingCash` raw, multiply in `collectCash` and in the pad label (show `[xN Cash]`), stop multiplying in `process` and `finishNow` (`ProcessorService`), and refresh the label every tick so it follows pass / friend changes.
+- **Fixed 2026-09-30 (was a known issue):** the Cash multiplier was applied when the processor produced Cash, so Cash already waiting on the Collect Cash pad is not multiplied when a pass is bought (the user saw no multiplication on walking over the pad). Capybara Onsen applies it at collection ("[x4 Cash] Collect Cash" on the pad, `reference/capybara-onsen-stations.webp`). Fix: keep `pendingCash` raw, multiply in `collectCash` and in the pad label (show `[xN Cash]`), stop multiplying in `process` and `finishNow` (`ProcessorService`), and refresh the label every tick so it follows pass / friend changes.
 - [ ] Game passes: 2x Aura, Auto Collect (credits drops instantly, never fills the cap), x2 / x4 / x7 Cash (`MonetizationService`)
 - [ ] Dev products: Finish Now, Cash packs S / M / L, ProcessReceipt + receipt log (`data.receipts`)
 - [ ] Robux pads next to their stations (Finish Now, Auto Collect, 2x Aura, Cash pass), Cash pack buttons on the HUD
@@ -132,7 +132,6 @@ Last updated: 2026-09-29
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- **Delete the stray leaderboard free model** in your place: `Workspace.Leaderboard` (the one with `LeaderBoard.SurfaceGui.Script`, DataStore `GlobalLeaderboard_Kills`). It is not ours, runs a third-party script, and spams DataStore errors. Ours is built by `LeaderboardService`.
 - Reconnect the Rojo plugin (Disconnect / Connect), then play-test: the sunken bath field, every pad (incl. the pink Group Reward pad), the lake end waterfalls and pavilions, music and sounds.
 - Give the group ID when ready (Products.GROUP_ID).
 - Map textures are uploaded (IDs in `Config/Textures.luau`); still needed: the user's Studio screenshots of the textured map, and review + commit of the uncommitted map work (see the newest Log line). Whoever continues should read `git status` and `git diff` first, since another session edits the same files.
@@ -145,6 +144,14 @@ Last updated: 2026-09-29
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-30: Cash multiplier at collection, balance (upgrade x500, processor 20/s), pack credit, launch doc, saving verified + console fixes, all 10 product IDs and the group ID committed on branch `claude/priceless-cori-962788`. Not merged into `main` yet.
+- 2026-09-30: Group reward wired to the user's group "PCC. Studios" (Products.GROUP_ID = 834891952).
+- 2026-09-30: Dev product IDs in `Config/Products` (Finish Now 3715676418, Cash packs S 3715676473 / M 3715676515 / L 3715676564). Large Cash Pack was listed at 149 on the dashboard (plan 499); asked the user to fix. Group ID still to come.
+- 2026-09-30: Game pass IDs from the Creator Dashboard in `Config/Products` (2x Aura 2002868529, Auto Collect 2003378487, x2 2002022706, x4 1998627814, x7 1998795770, x12 2001602746). Dev product IDs (Finish Now, Cash packs S/M/L) and the group ID still to come.
+- 2026-09-30: Saving verified with Studio API access on (user enabled it): a rejoin kept Cash, all 30 brainrots and processor Lv 2; 75 s offline added 364 Aura and the processor kept making Cash (35 waiting); the three leaderboard pavilions fill from the global OrderedDataStores. Fixed console spam found during the test: stopped loading the pack's idle animations (owned by Agus_Fellini2, refused by Roblox in this experience; brainrots stand still by user decision), and the drop / brainrot watchers now only watch Plot1..Plot6 (Plaza / Horizon caused WaitForChild warnings).
+- 2026-09-30: Removed the two stray "Kills" leaderboard free models (`Workspace.Leaderboard`, third-party script) from the place through the MCP (a Studio undo step; the user must save the place). `docs/launch.md` has the store copy and pre-publish checklist.
+- 2026-09-30: Balance (user picks): BUY_TIER_UPGRADE_MULTIPLIER 2,500 -> 500 and PROCESSOR_BASE_RATE 10 -> 20. Sim: first merge immediate, tier 2 ~12 min, then a new buy tier every ~10-15 min (tier 5 ~45 min, tier 8 ~88 min). Needs a real play-test to confirm the feel.
+- 2026-09-30: Cash multipliers now apply at collection (pendingCash stays raw; Collect Cash pad shows "[2.00x Cash] Collect Cash" with the multiplied amount; Finish Now and offline Cash stay raw until collected); verified in Studio with a simulated x2 pass (pad showed 152 Cash, collecting paid 152). Brainrot pack credit ("Brainrot models by Agus_Fellini2") in the Index window. `docs/launch.md`: store copy draft + pre-publish checklist + credits. Balance sim (scratch, greedy player that saves): first merge immediate, first Upgrade Buy Tier about 29 min at BUY_TIER_UPGRADE_MULTIPLIER 2500 (target < 10); lower values give 15 min (1000), 13 (500), 10 (200); pacing is uneven because the processor rate is the bottleneck. Waiting on the user's pick.
 - 2026-09-30: Art pass, random lucky blocks, front declutter and lower pool committed on branch `claude/priceless-cori-962788`. Not merged into `main` yet.
 - 2026-09-30: User requests, checked in Studio: lucky blocks are now random (user decision): a block spawns after a random 40-100 s of production (Economy.LUCKY_BLOCK_SPAWN_MIN / _MAX), its type is a weighted random roll (Config/LuckyBlocks weight: Wood 30 ... Cosmic 1, no longer tied to highest tier), up to 5 can float at once (LUCKY_BLOCK_MAX_WAITING), you hold one; new save field luckyWaiting. Front decluttered: entrance gate widened (18-stud opening, 4 noren, 17-wide name board), deposit stall to x -24, market board to x 26, group sign moved further into the curved corner with its pad at (50, 40). Pool is now the lowest water: floor raised to y 4.5, pool 1.5 studs below the channel with a pour-over fall and foam; the channel part is turned so its stream streaks run toward the pool. Drop items and chests confirmed in Studio (voxel cheese drops seen in the pool).
 - 2026-09-30: Art pass: the 20 drop items redone as voxel props (Drop1..Drop20, chunky, map style; `Props.has` / `Props.clone`); lucky block chests redone as voxel chests per type (Chest<Name>, studded body, corner trim, gold lock; invisible Body PrimaryPart kept for labels); HUD, Index and lucky block panel scale down on small screens (`Style.autoScale`, design size 1280 x 720, min 0.55). Not yet seen in Studio: Rojo was restarted, the plugin needs Connect.

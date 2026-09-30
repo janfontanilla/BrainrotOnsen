@@ -81,7 +81,7 @@ Module map:
 | `Controllers/SoundController` | Music playlist and cues (`Config/Sounds`); 3D water loops are placed by `Decor.ambient` |
 | `Controllers/HudController` | Home button, Aura / Cash / boosts / Total Brainrots, Cash pack buttons, Premium + friend boost, toasts and big popups (`Notify` kinds) |
 | `Controllers/DropController` | Animates drops and lucky blocks along their path, asks to collect, "+X" gain |
-| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath (whole model) + loops the pack models' `Anims/Idle`; pad-press animation |
+| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath (whole model; brainrots otherwise stand still: the pack's idle animations are owned by its creator and Roblox refuses them here); pad-press animation |
 | `Controllers/MarketBoardController` | Draws the market boards |
 | `Controllers/LuckyBlockController` | Held chest + tool-hold animation, odds panel, on-screen unlock reveal |
 | `Controllers/IndexController` | Index button and grid |

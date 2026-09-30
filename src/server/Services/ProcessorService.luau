@@ -51,9 +51,15 @@ function ProcessorService.refresh(plot: Plot)
 			.. `<font color="#2a7fd4">{Format.short(rate)} per second</font>`
 	)
 	setText(stations.deposit.label, "Deposit Aura")
+	-- Cash multipliers apply when the Cash is collected (like Capybara Onsen's
+	-- "[x4 Cash] Collect Cash"), so the pad shows the multiplied amount.
+	local multiplier = if owner then MonetizationService.cashMultiplier(owner) else 1
+	local tag = if multiplier > 1
+		then Billboard.color(`[{Format.multiplier(multiplier)} Cash] `, Billboard.CYAN)
+		else ""
 	setText(
 		stations.collectCash.label,
-		"Collect Cash\n" .. Billboard.color(`{Format.short(data.pendingCash)} Cash`, Billboard.CASH)
+		tag .. "Collect Cash\n" .. Billboard.color(`{Format.short(data.pendingCash * multiplier)} Cash`, Billboard.CASH)
 	)
 	setText(
 		stations.upgradeProcessor.label,
@@ -95,7 +101,7 @@ local function collectCash(player: Player, plot: Plot)
 	if not data or data.pendingCash <= 0 then
 		return
 	end
-	local amount = data.pendingCash
+	local amount = data.pendingCash * MonetizationService.cashMultiplier(player)
 	data.pendingCash = 0
 	data.cash += amount
 	data.totalCashEarned += amount
@@ -131,12 +137,11 @@ local function process(plot: Plot, dt: number)
 	end
 	local amount = math.min(data.processorQueue, Economy.processorRate(data.processorLevel) * dt)
 	data.processorQueue -= amount
-	data.pendingCash += amount * MonetizationService.cashMultiplier(owner)
-	ProcessorService.refresh(plot)
+	data.pendingCash += amount -- raw: the Cash multiplier applies at collection
 end
 
--- Finish Now (Robux): the whole queue becomes Cash right away, with the same
--- Cash multipliers as normal processing.
+-- Finish Now (Robux): the whole queue becomes Cash right away (waiting on the
+-- Collect Cash pad, where the Cash multipliers apply as usual).
 function ProcessorService.finishNow(player: Player)
 	local data = DataService.get(player)
 	local plot = Plots.get(player)
@@ -145,7 +150,7 @@ function ProcessorService.finishNow(player: Player)
 	end
 	local amount = data.processorQueue
 	data.processorQueue = 0
-	data.pendingCash += amount * MonetizationService.cashMultiplier(player)
+	data.pendingCash += amount
 	ProcessorService.refresh(plot)
 end
 
@@ -177,6 +182,8 @@ function ProcessorService:Start()
 		last = now
 		for _, plot in Plots.all() do
 			process(plot, dt)
+			-- Every tick, so the labels follow the queue and pass / friend changes.
+			ProcessorService.refresh(plot)
 		end
 	end
 end

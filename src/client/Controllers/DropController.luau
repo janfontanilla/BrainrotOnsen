@@ -158,11 +158,19 @@ function DropController:Start()
 	end)
 	local collectDrop = Remotes.event("CollectDrop")
 	local plots = workspace:WaitForChild("Plots")
+	-- Only the player plots (Plot1..Plot6), not the Plaza / Horizon folders.
+	local function isPlot(child: Instance): boolean
+		return string.match(child.Name, "^Plot%d+$") ~= nil
+	end
 	for _, plot in plots:GetChildren() do
-		task.spawn(watchPlot, plot)
+		if isPlot(plot) then
+			task.spawn(watchPlot, plot)
+		end
 	end
 	plots.ChildAdded:Connect(function(plot)
-		watchPlot(plot)
+		if isPlot(plot) then
+			watchPlot(plot)
+		end
 	end)
 
 	RunService.Heartbeat:Connect(function()

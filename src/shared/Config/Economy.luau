@@ -35,7 +35,7 @@ Economy.BUY_AMOUNTS = { 1, 5, 25, 100 }
 Economy.AUTO_MERGE_BUY_AMOUNT = 100 -- only this buy size auto-merges
 Economy.BASE_PRICE_MULTIPLIER = 20 -- base price = aura per drop x this
 Economy.PRICE_GROWTH = 1.005 -- unit price x this per brainrot bought at the current buy tier
-Economy.BUY_TIER_UPGRADE_MULTIPLIER = 2_500 -- upgrade cost = next tier's base price x this
+Economy.BUY_TIER_UPGRADE_MULTIPLIER = 500 -- upgrade cost = next tier's base price x this (2026-09-30: 2,500 -> 500, first upgrade ~12 min)
 
 -- Merging
 Economy.MERGE_COUNT = 3
@@ -47,7 +47,7 @@ Economy.MARKET_INTERVAL = 30 -- seconds between rerolls
 Economy.MARKET_HISTORY = 20 -- rolls shown on the board graph
 
 -- Processor
-Economy.PROCESSOR_BASE_RATE = 10 -- Aura per second at level 1
+Economy.PROCESSOR_BASE_RATE = 20 -- Aura per second at level 1 (2026-09-30: 10 -> 20)
 Economy.PROCESSOR_RATE_GROWTH = 1.35
 Economy.PROCESSOR_UPGRADE_BASE_COST = 100
 Economy.PROCESSOR_COST_GROWTH = 1.45

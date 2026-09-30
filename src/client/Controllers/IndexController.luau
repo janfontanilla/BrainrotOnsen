@@ -123,12 +123,22 @@ function IndexController:Start()
 
 	local grid = Instance.new("ScrollingFrame")
 	grid.Position = UDim2.fromOffset(16, 60)
-	grid.Size = UDim2.new(1, -32, 1, -76)
+	grid.Size = UDim2.new(1, -32, 1, -100)
 	grid.BackgroundColor3 = Color3.fromRGB(50, 35, 20)
 	grid.ScrollBarThickness = 8
 	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	grid.CanvasSize = UDim2.new()
 	grid.Parent = window
+	-- Credit for the brainrot models (free "Brainrot Pack [150+]", Creator Store 137461628889541).
+	local credit = label(
+		window,
+		"Brainrot models by Agus_Fellini2",
+		Color3.fromRGB(255, 240, 210),
+		UDim2.new(1, -32, 0, 20),
+		UDim2.new(0, 16, 1, -32)
+	)
+	credit.TextXAlignment = Enum.TextXAlignment.Right
+
 	local layout = Instance.new("UIGridLayout")
 	layout.CellSize = UDim2.fromOffset(CELL.X, CELL.Y)
 	layout.CellPadding = UDim2.fromOffset(8, 8)
