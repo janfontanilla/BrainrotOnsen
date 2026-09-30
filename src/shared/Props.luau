@@ -41,14 +41,24 @@ local function build(name: string): Model
 	return model
 end
 
--- Places a copy of prop `name` with its bottom centre at `cf`. `scale` multiplies its size.
-function Props.place(name: string, cf: CFrame, parent: Instance, scale: number?): Model
+-- Whether prop `name` exists (tools/voxel_forge.py wrote it).
+function Props.has(name: string): boolean
+	return PropData[name] ~= nil
+end
+
+-- A fresh copy of prop `name`, unparented, bottom centre at the origin.
+function Props.clone(name: string): Model
 	local template = templates[name]
 	if not template then
 		template = build(name)
 		templates[name] = template
 	end
-	local model = template:Clone()
+	return template:Clone()
+end
+
+-- Places a copy of prop `name` with its bottom centre at `cf`. `scale` multiplies its size.
+function Props.place(name: string, cf: CFrame, parent: Instance, scale: number?): Model
+	local model = Props.clone(name)
 	if scale and scale ~= 1 then
 		model:ScaleTo(scale)
 	end

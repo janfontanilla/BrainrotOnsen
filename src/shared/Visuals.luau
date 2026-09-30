@@ -2,6 +2,8 @@
 -- Placeholder colors shared by server-built parts and client UI (the Index,
 -- the lucky block panel). Replaced by real models in Phase 6.
 
+local Props = require(script.Parent.Props)
+
 local Visuals = {}
 
 function Visuals.tierColor(tier: number): Color3
@@ -32,6 +34,37 @@ end
 -- A placeholder chest-style lucky block: body, darker lid band and trim, and a
 -- lock plate on the front (-Z). Anchored, non-colliding. PrimaryPart = Body.
 function Visuals.makeLuckyBlock(name: string, size: number): Model
+	-- The voxel chest from tools/voxel_forge.py (Chest<name>, a 1-stud design), scaled
+	-- to `size` and centred, with an invisible Body part as PrimaryPart (labels hang on it).
+	local voxelName = `Chest{name}`
+	if Props.has(voxelName) then
+		local chest = Props.clone(voxelName)
+		chest.Name = `{name}LuckyBlock`
+		chest:ScaleTo(size)
+		local centre = chest:GetBoundingBox()
+		chest.WorldPivot = CFrame.new(centre.Position)
+		chest:PivotTo(CFrame.new())
+		for _, part in chest:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+				part.CanQuery = false
+				part.CanTouch = false
+			end
+		end
+		local body = Instance.new("Part")
+		body.Name = "Body"
+		body.Anchored = true
+		body.CanCollide = false
+		body.CanQuery = false
+		body.CanTouch = false
+		body.Transparency = 1
+		body.Size = Vector3.new(size, size, size)
+		body.CFrame = CFrame.new()
+		body.Parent = chest
+		chest.PrimaryPart = body
+		return chest
+	end
+
 	local color = Visuals.blockColor(name)
 	local model = Instance.new("Model")
 	model.Name = `{name}LuckyBlock`

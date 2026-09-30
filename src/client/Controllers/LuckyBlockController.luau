@@ -22,6 +22,7 @@ local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Models = require(Shared.Models)
 local Visuals = require(Shared.Visuals)
+local Style = require(script.Parent.Parent.Style)
 
 local player = Players.LocalPlayer
 
@@ -383,6 +384,7 @@ local function buildPanel(): (ScreenGui, () -> ())
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "LuckyBlock"
 	gui.ResetOnSpawn = false
+	Style.autoScale(gui)
 
 	local root = Instance.new("Frame")
 	root.AnchorPoint = Vector2.new(1, 0.5)

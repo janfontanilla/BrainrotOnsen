@@ -62,4 +62,21 @@ function Style.button(parent: Instance, name: string, face: Color3, border: Colo
 	return button, label
 end
 
+-- Scales everything in `gui` with the screen: the HUD is laid out in pixels for a
+-- 1280 x 720 screen, so phones shrink it (never below MIN_SCALE) and it never grows.
+local DESIGN_SIZE = Vector2.new(1280, 720)
+local MIN_SCALE = 0.55
+
+function Style.autoScale(gui: ScreenGui)
+	local scale = Instance.new("UIScale")
+	scale.Parent = gui
+	local camera = workspace.CurrentCamera
+	local function update()
+		local view = camera.ViewportSize
+		scale.Scale = math.clamp(math.min(view.X / DESIGN_SIZE.X, view.Y / DESIGN_SIZE.Y), MIN_SCALE, 1)
+	end
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+	update()
+end
+
 return Style

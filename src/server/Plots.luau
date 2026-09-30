@@ -86,12 +86,15 @@ local COLUMN_GAP = 12
 -- sheet below the grass, framed by a stone lip, and the baths are stone pedestals
 -- standing up out of it.
 local MAP_GROUND_TOP = 0.5 -- top of the map-wide Ground part
-local FLOOR_TOP = 3
-local BASIN_BOTTOM = MAP_GROUND_TOP + 0.3 -- the dark bed seen through the sunken water
-local WATER_TOP = FLOOR_TOP - 1.4 -- the sunken water sheet
+local FLOOR_TOP = 4.5
+local WATER_TOP = FLOOR_TOP - 1.4 -- the sunken water sheet (rivers, channel)
+local BASIN_BOTTOM = WATER_TOP - 0.8 -- the dark bed seen through the sunken water
+-- The pool is the lowest water: the channel pours over a step down into it.
+local POOL_WATER_TOP = WATER_TOP - 1.5
+local POOL_BED_TOP = POOL_WATER_TOP - 0.8
 local BASIN_LIP = 1.5 -- stone lip around the sunken basin
 local LIP_TOP = FLOOR_TOP + 0.4
-local STEP_COUNT = 3 -- steps up from the map ground at the plot's front edge
+local STEP_COUNT = 4 -- steps up from the map ground at the plot's front edge (1 stud each)
 local DROP_FLOAT = 1.2 -- drop height above the water
 local LANE_WIDTH = 7 -- baths run along x; this is their size in z, rims included
 local RIVER_WIDTH = 8 -- low river in front of each bath, flowing to the channel
@@ -127,13 +130,13 @@ local UPGRADE_X = INFO_BOARD_X -- processor upgrade pad, in front of the board
 local ROBUX_GAP = 9.5 -- centre to centre
 local BARREL_X, BARREL_Z = -55, 66 -- the processor barrel by the -x wall
 local COLLECT_CASH_X, COLLECT_CASH_Z = -41, BARREL_Z
-local DEPOSIT_X = -12 -- left of the barrel, next to the entrance path
+local DEPOSIT_X = -24 -- right of the entrance gate (seen from the spawn), room around the gate
 local STALL_SCALE = 1.25 -- the deposit stall is built bigger than the forge design
 local SIGNPOST_X, SIGNPOST_Z = -60, 54 -- tall signpost by the -x wall, beside the barrel
 
 local DEPOSIT_PAD_SIZE = 11
 local ROBUX_PAD_SIZE = 6
-local MARKET_X = 12
+local MARKET_X = 26 -- left of the entrance gate, clear of it
 local STALL_KEEPER_TIER = 13 -- Tung Tung Tung Sahur behind the deposit counter
 local STALL_KEEPER_SCALE = 1
 local STALL_KEEPER_STEP = 5.2 -- stands up at counter-top height so all of him shows
@@ -157,7 +160,7 @@ local AUTO_COLLECT_X, AUTO_COLLECT_Z = 14, BUY_ROW_Z
 local UPGRADE_BUY_TIER_X, UPGRADE_BUY_TIER_Z = -37.5, BUY_ROW_Z
 local UPGRADE_BUY_TIER_PAD_SIZE = 7.5
 -- The step-on group reward pad in front of the group sign on the curved wall.
-local GROUP_PAD_X, GROUP_PAD_Z = 31, 27
+local GROUP_PAD_X, GROUP_PAD_Z = 50, 40 -- in front of the group sign on the curved wall
 
 local FLOOR_COLOR = Color3.fromRGB(112, 190, 74)
 local LANE_COLOR = Color3.fromRGB(70, 205, 240)
@@ -189,13 +192,12 @@ local PAD_TRAY = 0.7 -- the dark studded tray shows this far around each pad
 -- Floor arrows along the loop (x, z, direction x, direction z): pool > Deposit,
 -- Deposit > Collect Cash, Collect Cash > the buy row.
 local ARROWS: { { number } } = {
-	{ -9, 58, 0, -1 },
-	{ -9, 54, 0, -1 },
-	{ -9, 50, 0, -1 },
-	{ -9, 46, 0, -1 },
-	{ -22.5, 44, -0.7, 0.7 },
-	{ -27, 48.5, -0.7, 0.7 },
-	{ -31.5, 53, -0.7, 0.7 },
+	{ -10, 57, -0.6, -0.8 },
+	{ -13.5, 52, -0.6, -0.8 },
+	{ -17, 47, -0.6, -0.8 },
+	{ -27, 45, -0.55, 0.83 },
+	{ -30.5, 50.5, -0.55, 0.83 },
+	{ -34, 56, -0.55, 0.83 },
 	{ -38, 74.5, 0.3, 1 },
 }
 
@@ -226,7 +228,7 @@ end
 local function makeSignLabel(board: BasePart, face: Enum.NormalId): TextLabel
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = face
-	gui.CanvasSize = Vector2.new(440, 100)
+	gui.CanvasSize = Vector2.new(500, 100)
 	gui.Parent = board
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
@@ -448,33 +450,62 @@ local function buildPlot(root: Instance, index: number): Plot
 
 	-- Center channel from the back row down to the pool.
 	-- (The channel water also fills the strip between it and the baths' near ends.)
+	-- The part is turned 90 degrees so the water texture's streaks (drawn along the
+	-- texture's U, the part's x) run down the channel; its +x points at the pool.
 	local channel = water(
 		"Channel",
-		Vector3.new(2 * bathNearX, 0.4, lanesBackZ - POOL_BACK_Z),
-		at(0, WATER_TOP - 0.2, (POOL_BACK_Z + lanesBackZ) / 2)
+		Vector3.new(lanesBackZ - POOL_BACK_Z, 0.4, 2 * bathNearX),
+		at(0, WATER_TOP - 0.2, (POOL_BACK_Z + lanesBackZ) / 2) * CFrame.Angles(0, math.pi / 2, 0)
 	)
-	flows(channel, 0, -1) -- toward the pool
+	flows(channel, 1, 0) -- toward the pool
+
+	-- Where the channel pours over the step into the lower pool: a short sheet of
+	-- falling water with foam at its foot.
+	local pour = makePart(
+		geometry,
+		"PoolFall",
+		Vector3.new(2 * bathNearX, WATER_TOP - POOL_WATER_TOP, 0.4),
+		at(0, (WATER_TOP + POOL_WATER_TOP) / 2, POOL_BACK_Z - 0.2),
+		LANE_COLOR
+	)
+	pour.Material = Enum.Material.Glass
+	pour.Transparency = 0.2
+	pour.CanCollide = false
+	pour.CastShadow = false
+	Skin.tile(pour, "water", { Enum.NormalId.Front })
+	local pourFoam = makePart(
+		geometry,
+		"PoolFallFoam",
+		Vector3.new(2 * bathNearX, 0.2, 2),
+		at(0, POOL_WATER_TOP + 0.1, POOL_BACK_Z - 1.2),
+		Color3.new(1, 1, 1)
+	)
+	pourFoam.Transparency = 1
+	pourFoam.CanCollide = false
+	pourFoam.CanQuery = false
+	pourFoam.CanTouch = false
+	Decor.foam(pourFoam)
 	-- Collection pool: the front of the sunken water, jutting out toward the spawn.
 	local poolDepth = POOL_BACK_Z - POOL_FRONT_Z
 	local poolCenterZ = (POOL_FRONT_Z + POOL_BACK_Z) / 2
-	local pool = water("Pool", Vector3.new(POOL_WIDTH, 0.4, poolDepth), at(0, WATER_TOP - 0.2, poolCenterZ))
+	local pool = water("Pool", Vector3.new(POOL_WIDTH, 0.4, poolDepth), at(0, POOL_WATER_TOP - 0.2, poolCenterZ))
 	Decor.steam(pool)
 	Decor.ambient(pool, Sounds.STREAM, Sounds.STREAM_VOLUME, 60)
 
 	-- The basin: a dark bed under the water and a stone lip all round, from the map
 	-- ground up to just above the grass.
-	local function bed(x: number, z: number, sizeX: number, sizeZ: number)
+	local function bed(x: number, z: number, sizeX: number, sizeZ: number, top: number)
 		local p = makePart(
 			geometry,
 			"BasinBed",
-			Vector3.new(sizeX, BASIN_BOTTOM - MAP_GROUND_TOP, sizeZ),
-			at(x, (BASIN_BOTTOM + MAP_GROUND_TOP) / 2, z),
+			Vector3.new(sizeX, top - MAP_GROUND_TOP, sizeZ),
+			at(x, (top + MAP_GROUND_TOP) / 2, z),
 			BASIN_BED_COLOR
 		)
 		p.CastShadow = false
 	end
-	bed(0, poolCenterZ, POOL_WIDTH, poolDepth)
-	bed(0, (LANES_FRONT_Z + lanesBackZ) / 2, 2 * fieldHalf, lanesBackZ - LANES_FRONT_Z)
+	bed(0, poolCenterZ, POOL_WIDTH, poolDepth, POOL_BED_TOP)
+	bed(0, (LANES_FRONT_Z + lanesBackZ) / 2, 2 * fieldHalf, lanesBackZ - LANES_FRONT_Z, BASIN_BOTTOM)
 	local lipHeight = LIP_TOP - MAP_GROUND_TOP
 	local function lip(x1: number, z1: number, x2: number, z2: number)
 		stone(
@@ -756,7 +787,7 @@ local function buildPlot(root: Instance, index: number): Plot
 	local board = makePart(
 		geometry,
 		"Sign",
-		Vector3.new(Decor.PLAQUE_WIDTH, 2.6, 2.8),
+		Vector3.new(Decor.PLAQUE_WIDTH, 3.4, 2.8),
 		at(0, FLOOR_TOP + Decor.PLAQUE_Y, Decor.ENTRANCE_Z),
 		SIGN_COLOR
 	)
@@ -818,7 +849,7 @@ end
 function Plots.poolPoint(plot: Plot, random: Random): Vector3
 	local x = random:NextNumber(-(POOL_WIDTH / 2 - 2), POOL_WIDTH / 2 - 2)
 	local z = random:NextNumber(POOL_FRONT_Z + 2, POOL_BACK_Z - 2)
-	return plot.origin:PointToWorldSpace(Vector3.new(x, WATER_TOP + DROP_FLOAT, z))
+	return plot.origin:PointToWorldSpace(Vector3.new(x, POOL_WATER_TOP + DROP_FLOAT, z))
 end
 
 -- The path a new drop floats along, in world space: off the brainrot in spot
@@ -840,7 +871,8 @@ function Plots.dropPath(plot: Plot, spotIndex: number, random: Random): { Vector
 		Vector3.new(slideX, floatY, floatZ),
 		Vector3.new(0, floatY, floatZ),
 		Vector3.new(0, floatY, POOL_BACK_Z),
-		Vector3.new(rest.X, floatY, rest.Z),
+		Vector3.new(0, POOL_WATER_TOP + DROP_FLOAT, POOL_BACK_Z - 2), -- over the step into the pool
+		Vector3.new(rest.X, rest.Y, rest.Z),
 	}
 	for i, point in points do
 		points[i] = plot.origin:PointToWorldSpace(point)

@@ -1,6 +1,6 @@
 --!strict
--- Lucky block types. The block a player gets is the best one whose unlockTier
--- is <= the highest tier they have ever owned.
+-- Lucky block types. Which type spawns is a weighted random roll (weight below;
+-- user decision 2026-09-30: rarity is random, not tied to progress).
 -- Contents: unlockTier - 1 .. unlockTier + 2 at 60 / 30 / 9 / 1 percent.
 -- Near the top of the ladder, weight past MAX_TIER folds into the last valid tier
 -- (so Cosmic rolls 18 / 19 / 20 at 60 / 30 / 10).
@@ -13,20 +13,21 @@ export type Roll = { tier: number, weight: number }
 export type Block = {
 	name: string,
 	unlockTier: number,
+	weight: number, -- chance of spawning, relative to the other types
 	price: number,
 	rolls: { Roll },
 }
 
-local BLOCKS: { { name: string, unlockTier: number } } = {
-	{ name = "Wood", unlockTier = 3 },
-	{ name = "Stone", unlockTier = 5 },
-	{ name = "Iron", unlockTier = 7 },
-	{ name = "Gold", unlockTier = 9 },
-	{ name = "Diamond", unlockTier = 11 },
-	{ name = "Emerald", unlockTier = 13 },
-	{ name = "Ruby", unlockTier = 15 },
-	{ name = "Rainbow", unlockTier = 17 },
-	{ name = "Cosmic", unlockTier = 19 },
+local BLOCKS: { { name: string, unlockTier: number, weight: number } } = {
+	{ name = "Wood", unlockTier = 3, weight = 30 },
+	{ name = "Stone", unlockTier = 5, weight = 22 },
+	{ name = "Iron", unlockTier = 7, weight = 16 },
+	{ name = "Gold", unlockTier = 9, weight = 11 },
+	{ name = "Diamond", unlockTier = 11, weight = 8 },
+	{ name = "Emerald", unlockTier = 13, weight = 6 },
+	{ name = "Ruby", unlockTier = 15, weight = 4 },
+	{ name = "Rainbow", unlockTier = 17, weight = 2 },
+	{ name = "Cosmic", unlockTier = 19, weight = 1 },
 }
 
 -- Offset from unlockTier -> percent weight
@@ -56,6 +57,7 @@ for _, def in BLOCKS do
 	table.insert(list, {
 		name = def.name,
 		unlockTier = def.unlockTier,
+		weight = def.weight,
 		price = Tiers.get(def.unlockTier).aura * Economy.LUCKY_BLOCK_PRICE_MULTIPLIER,
 		rolls = buildRolls(def.unlockTier),
 	})
@@ -65,15 +67,21 @@ local LuckyBlocks = {}
 
 LuckyBlocks.list = list
 
--- Best block for a player whose highest tier ever owned is `highestTier`, or nil if none unlocked yet.
-function LuckyBlocks.forHighestTier(highestTier: number): Block?
-	local best: Block? = nil
+-- A random block type, weighted by `weight`. `random` is injectable for tests.
+function LuckyBlocks.randomBlock(random: Random?): Block
+	local rng = random or Random.new()
+	local total = 0
 	for _, block in list do
-		if block.unlockTier <= highestTier then
-			best = block
+		total += block.weight
+	end
+	local pick = rng:NextNumber() * total
+	for _, block in list do
+		pick -= block.weight
+		if pick < 0 then
+			return block
 		end
 	end
-	return best
+	return list[#list]
 end
 
 -- Pick a tier from a block. `random` is injectable for tests.

@@ -49,6 +49,7 @@ function HudController:Start()
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = false
+	Style.autoScale(gui)
 
 	-- Bottom centre: the Aura gem and a big white number.
 	local auraBox = Instance.new("Frame")

@@ -48,8 +48,8 @@ local WOOD_DARK_BENCH = Color3.fromRGB(120, 78, 44)
 Decor.FRONT_Z = 12 -- plot-local z of the canal's outer kerb
 Decor.FRONT_WALL_Z = Decor.FRONT_Z + 5.8 -- the wall on the inner kerb
 Decor.ENTRANCE_Z = 8 -- the torii on the verge, at the foot of the bridge
-Decor.PLAQUE_Y = 13.3 -- the name board's centre above the floor, on the gate's lintel
-Decor.PLAQUE_WIDTH = 11 -- fits between the entrance gate posts
+Decor.PLAQUE_Y = 13.9 -- the name board's centre above the floor, on the gate's lintel
+Decor.PLAQUE_WIDTH = 17 -- fits between the entrance gate posts
 Decor.PATH_END_Z = 32 -- the stone path runs from the bridge to just short of the pads
 local KERB_HEIGHT = 1.4
 local KERB_WIDTH = 1.2
@@ -548,11 +548,11 @@ local function frontage(folder: Folder, o: Options)
 	-- Entrance gate (dark wood, like Capybara Onsen's) hung with three blue noren
 	-- curtains carrying the hot-spring mark; the name board sits on its lintel (Plots).
 	Props.place("EntranceGate", o.at(0, top, Decor.ENTRANCE_Z), folder)
-	for _, dx in { -3.8, 0, 3.8 } do
+	for _, dx in { -6.3, -2.1, 2.1, 6.3 } do
 		local cloth = part(
 			folder,
 			"Noren",
-			Vector3.new(3.4, 4, 0.2),
+			Vector3.new(4, 4, 0.2),
 			o.at(dx, top + 9, Decor.ENTRANCE_Z),
 			Color3.fromRGB(40, 86, 170)
 		)
@@ -569,13 +569,13 @@ local function frontage(folder: Folder, o: Options)
 	Decor.cherryTree(folder, o.at(-33, top, 5.5), 0.8)
 	Decor.cherryTree(folder, o.at(55, top, 5.5), 0.8)
 	for _, side in { -1, 1 } do
-		Props.place("StoneLantern", o.at(side * 12.5, top, Decor.ENTRANCE_Z), folder, 0.8)
+		Props.place("StoneLantern", o.at(side * 15.5, top, Decor.ENTRANCE_Z), folder, 0.8)
 	end
 
-	-- Group sign on the first curved wall segment (the +x front corner), readable
-	-- from the road and from inside.
+	-- Group sign on the third curved wall segment (well into the +x front corner,
+	-- clear of the market board), readable from the road and from inside.
 	local signY = top + KERB_HEIGHT + 6.5
-	local a, b = CURVE[1], CURVE[2]
+	local a, b = CURVE[3], CURVE[4]
 	local along = (b - a).Unit
 	local mid = (a + b) / 2
 	local signCf = o.at(mid.X, signY, mid.Y) * CFrame.lookAt(Vector3.zero, Vector3.new(-along.Y, 0, along.X))
@@ -726,7 +726,7 @@ function Decor.build(parent: Instance, o: Options)
 		if side < 0 then
 			bambooCluster(folder, o, rng, -(half - 4), 46, 1.2)
 		else
-			bambooCluster(folder, o, rng, 57, 50, 1.2)
+			bambooCluster(folder, o, rng, 52, 72, 1.2)
 		end
 		bambooCluster(folder, o, rng, side * (half - 4), 108, 1.3)
 		bambooCluster(folder, o, rng, side * (half - 4), 184, 1.3)

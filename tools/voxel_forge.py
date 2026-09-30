@@ -356,20 +356,20 @@ def bush():
 
 def entrance_gate():
     """Dark wooden entrance gate (like Capybara Onsen's): two posts, a lintel the noren
-    curtains hang from (code adds them and the name board above it) and a roof with
-    upturned ends. Inner opening 12 studs."""
+    curtains hang from (code adds them and the wide name board above it) and a roof
+    with upturned ends. Inner opening 18 studs."""
     v = Vox(unit=1.0, solid=True)
-    for x in (-8, 6):
-        v.box(x, 0, -1, x + 2, 15, 1, WOOD_D)           # posts
+    for x in (-11, 9):
+        v.box(x, 0, -1, x + 2, 16, 1, WOOD_D)           # posts
         v.box(x - 1, 0, -2, x + 3, 1, 2, STONE_D)       # stone footings
-    v.box(-9, 11, -1, 9, 12, 1, WOOD_D)                 # lintel
-    v.box(-11, 15, -2, 11, 16, 2, WOOD)                 # roof
-    v.box(-10, 16, -2, 10, 17, 2, WOOD_D)
-    v.box(-13, 16, -2, -10, 17, 2, WOOD_D)              # upturned ends
-    v.box(10, 16, -2, 13, 17, 2, WOOD_D)
-    v.box(-14, 17, -2, -12, 18, 2, WOOD_D)
-    v.box(12, 17, -2, 14, 18, 2, WOOD_D)
-    v.box(-3, 17, -1, 3, 18, 1, WOOD)                   # ridge
+    v.box(-12, 11, -1, 12, 12, 1, WOOD_D)               # lintel
+    v.box(-14, 16, -2, 14, 17, 2, WOOD)                 # roof
+    v.box(-13, 17, -2, 13, 18, 2, WOOD_D)
+    v.box(-16, 17, -2, -13, 18, 2, WOOD_D)              # upturned ends
+    v.box(13, 17, -2, 16, 18, 2, WOOD_D)
+    v.box(-17, 18, -2, -15, 19, 2, WOOD_D)
+    v.box(15, 18, -2, 17, 19, 2, WOOD_D)
+    v.box(-4, 18, -1, 4, 19, 1, WOOD)                   # ridge
     return v
 
 
@@ -394,6 +394,242 @@ def market_board_frame():
     return v
 
 
+# ------------------------------------------------------------- drop items
+# The 20 tier drop items (Config/Tiers item names), chunky voxels in the map's
+# style: about 2 studs across (unit 0.25, 8 voxels), few colours so they merge to
+# a handful of boxes each (up to 50 float per plot).
+
+DU = 0.25
+YEL, YEL_D = rgb(255, 214, 60), rgb(222, 164, 30)
+ORG, ORG_L = rgb(255, 128, 60), rgb(255, 176, 120)
+BLK, GRY = rgb(44, 44, 52), rgb(150, 150, 160)
+WHT, CYN, CYN_L = rgb(245, 248, 255), rgb(120, 220, 255), rgb(200, 244, 255)
+RED, GRN, GRN_D = rgb(232, 60, 60), rgb(96, 196, 70), rgb(58, 140, 44)
+BRN, BRN_D, BRN_L = rgb(140, 88, 50), rgb(96, 58, 32), rgb(196, 140, 90)
+BLU, GOLD, GOLD_L = rgb(70, 130, 240), rgb(255, 196, 40), rgb(255, 236, 140)
+PNK = rgb(255, 150, 190)
+
+
+def rounded(v, r, y0, h, c):
+    """A chunky rounded cube of half-width r from y0 up h voxels: three crossed boxes
+    (cheap: 3 boxes, where a voxel sphere would split into 20+)."""
+    v.box(-r, y0 + 1, -r + 1, r, y0 + h - 1, r - 1, c)
+    v.box(-r + 1, y0 + 1, -r, r - 1, y0 + h - 1, r, c)
+    v.box(-r + 1, y0, -r + 1, r - 1, y0 + h, r - 1, c)
+
+
+def drop_cheese():
+    v = Vox(DU)
+    v.box(-4, 0, -3, 4, 5, 3, YEL)
+    for x, y in ((-2, 3), (1, 1), (2, 3)):
+        v.set(x, y, -3, YEL_D)          # holes on the front face
+    return v
+
+
+def drop_shrimp():
+    v = Vox(DU)
+    for i, (x, y) in enumerate(((-3, 0), (-1, 1), (1, 2), (2, 4))):
+        v.box(x, y, -2, x + 3, y + 3, 2, ORG if i % 2 == 0 else ORG_L)
+    v.box(-5, 0, -2, -3, 2, 2, ORG_L)   # tail fan
+    return v
+
+
+def drop_tire():
+    v = Vox(DU)
+    v.cylinder(0, 0, 0, 3, 4, BLK)
+    v.cylinder(0, 0, 0, 3, 1.6, GRY)
+    return v
+
+
+def drop_ice():
+    v = Vox(DU)
+    v.box(-3, 0, -3, 3, 6, 3, CYN)
+    v.box(-3, 5, -3, 3, 6, 3, CYN_L)
+    v.box(-3, 0, -3, -2, 6, -2, CYN_L)
+    return v
+
+
+def drop_clock():
+    v = Vox(DU)
+    v.cylinder(0, 0, 0, 2, 4, RED)
+    v.cylinder(0, 0, 2, 3, 3.2, WHT)
+    v.box(0, 3, -2, 1, 4, 1, BLK)       # hands
+    v.box(0, 3, 0, 2, 4, 1, BLK)
+    return v
+
+
+def drop_banana():
+    v = Vox(DU)
+    for x, y in ((-4, 3), (-2, 1), (0, 0), (2, 1), (3, 3)):
+        v.box(x, y, -1, x + 2, y + 2, 1, YEL)
+    v.box(4, 5, -1, 5, 6, 0, BRN_D)
+    return v
+
+
+def drop_leaf():
+    v = Vox(DU)
+    for i, w in enumerate((1, 2, 3, 3, 2, 1)):
+        v.box(-w, 0, -3 + i, w, 1, -2 + i, GRN)
+    v.box(0, 1, -3, 1, 2, 3, GRN_D)     # vein
+    return v
+
+
+def drop_feather():
+    v = Vox(DU)
+    for i, w in enumerate((1, 2, 2, 2, 1)):
+        v.box(-w, i, -1, w, i + 1, 0, WHT if i < 4 else CYN_L)
+    v.box(0, -2, -1, 1, 0, 0, GRY)      # quill
+    v.box(-2, 1, -1, 2, 5, 0, WHT)
+    return v
+
+
+def drop_bean():
+    v = Vox(DU)
+    rounded(v, 3, 0, 5, BRN)
+    v.box(-1, 4, -3, 1, 5, 3, BRN_D)     # the split
+    return v
+
+
+def drop_cup():
+    v = Vox(DU)
+    rounded(v, 3, 0, 6, WHT)
+    v.box(-2, 5, -2, 2, 6, 2, BRN)
+    v.box(3, 2, -1, 5, 5, 1, WHT)       # handle
+    return v
+
+
+def drop_bomb():
+    v = Vox(DU, glow={ORG})
+    rounded(v, 3, 0, 6, BLK)
+    v.box(-1, 6, -1, 1, 7, 1, GRY)
+    v.box(0, 7, 0, 1, 9, 1, ORG)        # lit fuse
+    return v
+
+
+def drop_shoe():
+    v = Vox(DU)
+    v.box(-4, 0, -2, 4, 1, 2, WHT)      # sole
+    v.box(-4, 1, -2, 1, 4, 2, BLU)      # upper
+    v.box(1, 1, -2, 4, 2, 2, BLU)       # toe
+    v.box(-2, 3, -1, 1, 4, 1, WHT)      # laces
+    return v
+
+
+def drop_stick():
+    v = Vox(DU)
+    v.box(-1, 0, -5, 1, 2, 5, BRN)
+    v.box(-1, 0, 5, 1, 2, 6, BRN_L)     # cut end
+    v.box(1, 1, -2, 3, 2, -1, BRN)      # twig
+    return v
+
+
+def drop_milk():
+    v = Vox(DU)
+    v.box(-2, 0, -2, 2, 6, 2, WHT)
+    v.box(-2, 6, -2, 2, 8, 2, BLU)      # gable top
+    v.box(-2, 3, -2, 2, 4, -1, BLU)     # label band
+    return v
+
+
+def drop_fruit():
+    v = Vox(DU)
+    rounded(v, 3, 0, 6, ORG)
+    v.box(0, 6, 0, 1, 7, 1, BRN_D)
+    v.box(1, 6, -1, 3, 7, 1, GRN)
+    return v
+
+
+def drop_coconut():
+    v = Vox(DU)
+    rounded(v, 3, 0, 6, BRN)
+    for x in (-1, 1):
+        v.set(x, 4, -3, BRN_D)          # the coconut's eyes
+    v.set(0, 3, -3, BRN_D)
+    return v
+
+
+def drop_bell():
+    v = Vox(DU, glow={GOLD_L})
+    v.cylinder(0, 0, 0, 2, 3.5, GOLD)
+    v.cylinder(0, 0, 2, 5, 2.5, GOLD)
+    v.box(-1, 5, -1, 1, 7, 1, GOLD)
+    v.box(0, -1, 0, 1, 0, 1, GOLD_L)    # clapper
+    return v
+
+
+def drop_star():
+    v = Vox(DU, glow={GOLD_L})
+    v.box(-4, 2, -1, 4, 4, 1, GOLD)
+    v.box(-1, 0, -1, 1, 7, 1, GOLD)
+    v.box(-3, 0, -1, -2, 2, 1, GOLD)
+    v.box(2, 0, -1, 3, 2, 1, GOLD)
+    v.box(-1, 2, -1, 1, 4, 1, GOLD_L)   # bright centre
+    return v
+
+
+def drop_watermelon():
+    v = Vox(DU)
+    for i, w in enumerate((4, 3, 2, 1)):
+        v.box(-w, i + 1, -1, w, i + 2, 1, RED)
+    v.box(-4, 0, -1, 4, 1, 1, GRN_D)    # rind
+    v.box(-4, 1, -1, 4, 2, 1, WHT)
+    for x in (-2, 0, 2):
+        v.set(x, 2, -1, BLK)            # seeds
+    return v
+
+
+def drop_golden_shoe():
+    v = Vox(DU, glow={GOLD_L})
+    v.box(-4, 0, -2, 4, 1, 2, GOLD_L)
+    v.box(-4, 1, -2, 1, 4, 2, GOLD)
+    v.box(1, 1, -2, 4, 2, 2, GOLD)
+    v.box(-2, 3, -1, 1, 4, 1, GOLD_L)
+    return v
+
+
+
+# Lucky block chests, one per block type (Config/LuckyBlocks): a 1-stud design
+# (unit 1/8) that code scales to the size it needs. Front (-z) carries the lock.
+CHEST_COLOURS = {
+    "Wood": (rgb(176, 120, 64), rgb(110, 70, 36)),
+    "Stone": (rgb(160, 162, 172), rgb(100, 102, 114)),
+    "Iron": (rgb(214, 220, 230), rgb(120, 126, 140)),
+    "Gold": (rgb(255, 206, 60), rgb(196, 140, 20)),
+    "Diamond": (rgb(120, 230, 255), rgb(40, 150, 200)),
+    "Emerald": (rgb(70, 220, 120), rgb(20, 130, 60)),
+    "Ruby": (rgb(236, 60, 90), rgb(140, 20, 40)),
+    "Rainbow": (rgb(255, 130, 220), rgb(120, 60, 200)),
+    "Cosmic": (rgb(140, 80, 255), rgb(50, 20, 110)),
+}
+LOCK = rgb(255, 214, 90)
+
+
+def make_chest(body, trim, rainbow=False, cosmic=False):
+    def build():
+        v = Vox(1 / 8, glow={LOCK} if cosmic else set())
+        v.box(-4, 0, -4, 4, 5, 4, body)                      # box
+        v.box(-4, 5, -4, 4, 8, 4, lighter(body, 30))        # lid
+        v.box(-4, 4, -4, 4, 5, 4, trim)                      # band under the lid
+        for x in (-4, 3):
+            for z in (-4, 3):
+                v.box(x, 0, z, x + 1, 8, z + 1, trim)        # corner trim
+        if rainbow:
+            for i, c in enumerate((rgb(255, 90, 90), rgb(255, 200, 60), rgb(90, 220, 110), rgb(80, 160, 255))):
+                v.box(-3, i, -4, 3, i + 1, -3, c)            # rainbow stripes on the front
+        if cosmic:
+            for x, y in ((-2, 1), (2, 2), (-1, 6), (2, 6)):
+                v.set(x, y, -4, LOCK)                        # stars
+        v.box(-1, 3, -5, 1, 6, -4, LOCK)                     # lock
+        return v
+    return build
+
+DROPS = [
+    drop_cheese, drop_shrimp, drop_tire, drop_ice, drop_clock, drop_banana, drop_leaf,
+    drop_feather, drop_bean, drop_cup, drop_bomb, drop_shoe, drop_stick, drop_milk,
+    drop_fruit, drop_coconut, drop_bell, drop_star, drop_watermelon, drop_golden_shoe,
+]
+
+
 PROPS = {
     "CherryTree": cherry_tree,
     "StoneLantern": stone_lantern,
@@ -408,6 +644,10 @@ PROPS = {
     "Sprig": sprig,
     "MarketBoardFrame": market_board_frame,
 }
+for _i, _build in enumerate(DROPS, start=1):
+    PROPS[f"Drop{_i}"] = _build
+for _name, (_body, _trim) in CHEST_COLOURS.items():
+    PROPS[f"Chest{_name}"] = make_chest(_body, _trim, rainbow=_name == "Rainbow", cosmic=_name == "Cosmic")
 
 
 # ----------------------------------------------------------------- output

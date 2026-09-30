@@ -85,6 +85,7 @@ function IndexController:Start()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Index"
 	gui.ResetOnSpawn = false
+	Style.autoScale(gui)
 
 	-- The Index button: tan and studded, right of Home (HudController).
 	local open, openLabel = Style.button(gui, "IndexButton", Color3.fromRGB(216, 152, 98), Color3.fromRGB(96, 54, 22))

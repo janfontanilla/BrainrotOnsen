@@ -30,7 +30,8 @@ export type Data = {
 	processorQueue: number, -- deposited Aura (already x market) waiting to become Cash
 	pendingCash: number, -- processed Cash waiting on the Collect Cash pad
 	lastOnline: number, -- os.time() while online, for offline earnings
-	luckyBlock: string, -- name of the lucky block waiting or held ("" = none)
+	luckyBlock: string, -- name of the lucky block held ("" = none)
+	luckyWaiting: { string }, -- names of the lucky blocks floating / waiting in the pool
 	luckyProgress: number, -- seconds of production toward the next lucky block
 	totalBrainrots: number, -- lifetime brainrots obtained (bought or unlocked; leaderboard)
 	receipts: { [string]: boolean }, -- processed dev product PurchaseIds
@@ -55,6 +56,7 @@ local TEMPLATE: Data = {
 	pendingCash = 0,
 	lastOnline = 0,
 	luckyBlock = "",
+	luckyWaiting = {},
 	luckyProgress = 0,
 	totalBrainrots = 0,
 	receipts = {},

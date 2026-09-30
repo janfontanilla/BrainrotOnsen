@@ -1,12 +1,12 @@
 --!strict
--- Lucky blocks. After every Economy.LUCKY_BLOCK_SPAWN_INTERVAL seconds of
--- production (the owner online, owning brainrots, drops under the cap) the next
--- drop from one of their brainrots is a lucky block instead of Aura: it slides
+-- Lucky blocks. After a random stretch of production (Economy.LUCKY_BLOCK_SPAWN_MIN
+-- to _MAX seconds, the owner online, owning brainrots, drops under the cap) the
+-- next drop from one of their brainrots is a lucky block instead of Aura: it slides
 -- out of the bath and floats down the river and channel into the pool like any
--- drop. Only one block at a time. The type is the best one unlocked by the
--- highest tier ever owned (Config/LuckyBlocks).
+-- drop. Its type is a weighted random roll (Config/LuckyBlocks). Several blocks can
+-- float at once (up to Economy.LUCKY_BLOCK_MAX_WAITING); a player holds one.
 --
--- Walking over it (anywhere on its way or in the pool) picks it up: the player's
+-- Walking over one (anywhere on its way or in the pool) while holding none picks it up: the player's
 -- LuckyBlock attribute is set, which makes every client draw the block swinging
 -- above that player's head and opens the owner's panel (odds, price, Unlock /
 -- Discard). Unlock costs the block's Cash price and adds the rolled brainrot to
@@ -14,7 +14,8 @@
 -- make room the block keeps waiting. Unlocking fires LuckyBlockOpened to all
 -- clients for the open-up reveal. Discard throws it away.
 --
--- data.luckyBlock saves the block's name; after a rejoin it rests in the pool.
+-- data.luckyBlock saves the held block, data.luckyWaiting the floating ones; after a
+-- rejoin the floating ones rest in the pool again.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -39,11 +40,18 @@ local LuckyBlockService = {}
 local TICK = 0.25
 local BLOCK_SIZE = 3
 
-type State = {
-	model: Model?, -- the block floating down to / resting in the pool
+type Floating = {
+	name: string,
+	model: Model,
 	path: { Vector3 }, -- its flow path (last point = resting point in the pool)
 	flowAt: number, -- server time it started floating
+}
+
+type State = {
+	floating: { Floating }, -- blocks floating down to / resting in the pool
 	held: boolean,
+	nextAt: number, -- seconds of production at which the next block spawns
+	pending: boolean, -- a block is waiting for the next drop to replace
 	debugReason: string?, -- Studio-only: last "why no block" message printed
 }
 
@@ -52,11 +60,20 @@ local random = Random.new()
 local notify: RemoteEvent
 local opened: RemoteEvent
 
-local function interval(): number
+-- Seconds of production until the next block: random, or the Studio test override.
+local function nextInterval(): number
 	if RunService:IsStudio() and Economy.STUDIO_LUCKY_BLOCK_INTERVAL > 0 then
 		return Economy.STUDIO_LUCKY_BLOCK_INTERVAL
 	end
-	return Economy.LUCKY_BLOCK_SPAWN_INTERVAL
+	return random:NextNumber(Economy.LUCKY_BLOCK_SPAWN_MIN, Economy.LUCKY_BLOCK_SPAWN_MAX)
+end
+
+local function saveWaiting(state: State, data: DataService.Data)
+	local names: { string } = {}
+	for _, entry in state.floating do
+		table.insert(names, entry.name)
+	end
+	data.luckyWaiting = names
 end
 
 local function findBlock(name: string): LuckyBlocks.Block?
@@ -87,53 +104,49 @@ local function makeBlock(name: string): Model
 	return model
 end
 
-local function clearPart(state: State)
-	if state.model then
-		state.model:Destroy()
-		state.model = nil
-	end
-end
-
--- Floats the block along `path` (a drop's path, or just a resting point) into
--- the plot's Drops folder, where clients animate it like a drop.
+-- Floats a block along `path` (a drop's path, or just a resting point) into the
+-- plot's Drops folder, where clients animate it like a drop.
 local function floatDown(player: Player, plot: Plot, name: string, path: { Vector3 }, flowAt: number)
 	local state = states[player]
-	if not state then
+	local data = DataService.get(player)
+	if not state or not data then
 		return
 	end
-	clearPart(state)
-	state.held = false
-	player:SetAttribute("LuckyBlock", "")
 	local model = makeBlock(name)
 	model:PivotTo(CFrame.new(path[#path]))
 	model:SetAttribute("Lucky", true)
 	DropPath.write(model, path, flowAt)
 	model.Parent = plot.dropFolder
-	state.model = model
-	state.path = path
-	state.flowAt = flowAt
+	table.insert(state.floating, { name = name, model = model, path = path, flowAt = flowAt })
+	saveWaiting(state, data)
 end
 
-local function pickUp(player: Player, name: string)
+local function pickUp(player: Player, index: number)
 	local state = states[player]
-	if not state then
+	local data = DataService.get(player)
+	if not state or not data then
 		return
 	end
-	clearPart(state)
+	local entry = table.remove(state.floating, index)
+	if not entry then
+		return
+	end
+	entry.model:Destroy()
 	state.held = true
-	player:SetAttribute("LuckyBlock", name)
+	data.luckyBlock = entry.name
+	saveWaiting(state, data)
+	player:SetAttribute("LuckyBlock", entry.name)
 end
 
+-- Ends the held block (unlocked or discarded).
 local function finish(player: Player)
 	local state = states[player]
 	local data = DataService.get(player)
 	if state then
-		clearPart(state)
 		state.held = false
 	end
 	if data then
 		data.luckyBlock = ""
-		data.luckyProgress = 0
 	end
 	player:SetAttribute("LuckyBlock", "")
 end
@@ -193,12 +206,24 @@ end
 
 -- Called by PlotService once the player has a plot and data.
 function LuckyBlockService.onAssigned(player: Player, plot: Plot)
-	local state: State = { model = nil, path = {}, flowAt = 0, held = false, debugReason = nil }
+	local state: State = { floating = {}, held = false, nextAt = nextInterval(), pending = false, debugReason = nil }
 	states[player] = state
 	player:SetAttribute("LuckyBlock", "")
 	local data = DataService.get(player)
-	if data and data.luckyBlock ~= "" then
-		floatDown(player, plot, data.luckyBlock, { Plots.poolPoint(plot, random) }, workspace:GetServerTimeNow())
+	if not data then
+		return
+	end
+	-- Blocks that were floating (and one that was held) rest in the pool again.
+	local waiting = table.clone(data.luckyWaiting)
+	if data.luckyBlock ~= "" then
+		table.insert(waiting, data.luckyBlock)
+		data.luckyBlock = ""
+	end
+	data.luckyWaiting = {}
+	for _, name in waiting do
+		if findBlock(name) then
+			floatDown(player, plot, name, { Plots.poolPoint(plot, random) }, workspace:GetServerTimeNow())
+		end
 	end
 end
 
@@ -207,7 +232,9 @@ function LuckyBlockService.onRemoving(player: Player)
 	if not state then
 		return
 	end
-	clearPart(state)
+	for _, entry in state.floating do
+		entry.model:Destroy()
+	end
 	states[player] = nil
 end
 
@@ -217,52 +244,55 @@ local function update(player: Player, plot: Plot, dt: number)
 	if not state or not data then
 		return
 	end
-	if data.luckyBlock == "" then
-		local hasBrainrots = DataService.brainrotCount(data) > 0
-		local capped = DropService.dropCount(plot) >= Economy.DROP_CAP
-		local producing = hasBrainrots and not capped
-		if producing then
-			data.luckyProgress = math.min(data.luckyProgress + dt, interval())
+
+	-- Spawning: count production time; when it reaches the random target, the next
+	-- drop from one of their brainrots becomes a random block.
+	local hasBrainrots = DataService.brainrotCount(data) > 0
+	local capped = DropService.dropCount(plot) >= Economy.DROP_CAP
+	local full = #state.floating >= Economy.LUCKY_BLOCK_MAX_WAITING
+	if hasBrainrots and not capped and not full and not state.pending then
+		data.luckyProgress += dt
+	end
+	if RunService:IsStudio() then
+		-- Studio-only: say in the Output why no block is spawning, when that changes.
+		local reason = if not hasBrainrots
+			then "paused: no brainrots"
+			elseif capped then `paused: {Economy.DROP_CAP}-drop cap reached, collect drops`
+			elseif full then `paused: {Economy.LUCKY_BLOCK_MAX_WAITING} blocks already waiting`
+			else "counting"
+		if reason ~= state.debugReason then
+			state.debugReason = reason
+			print(`[LuckyBlock] {player.Name}: {reason}`)
 		end
-		if RunService:IsStudio() then
-			-- Studio-only: say in the Output why no block is spawning, when that changes.
-			local first = LuckyBlocks.list[1]
-			local reason = if data.highestTier < first.unlockTier
-				then `no block unlocked yet: highest tier owned is {data.highestTier}, {first.name} unlocks at tier {first.unlockTier}`
-				elseif not hasBrainrots then "paused: no brainrots"
-				elseif capped then `paused: {Economy.DROP_CAP}-drop cap reached, collect drops`
-				else "counting"
-			if reason ~= state.debugReason then
-				state.debugReason = reason
-				print(`[LuckyBlock] {player.Name}: {reason}`)
+	end
+	if data.luckyProgress >= state.nextAt and not state.pending then
+		data.luckyProgress = 0
+		state.nextAt = nextInterval()
+		state.pending = true
+		local block = LuckyBlocks.randomBlock(random)
+		DropService.replaceNextDrop(plot, function(path, flowAt)
+			if states[player] == state then
+				state.pending = false
+				floatDown(player, plot, block.name, path, flowAt)
 			end
-		end
-		if data.luckyProgress >= interval() then
-			local block = LuckyBlocks.forHighestTier(data.highestTier)
-			if block then
-				data.luckyBlock = block.name
-				data.luckyProgress = 0
-				-- The next drop from one of their brainrots is the block.
-				DropService.replaceNextDrop(plot, function(path, flowAt)
-					if states[player] == state and data.luckyBlock == block.name then
-						floatDown(player, plot, block.name, path, flowAt)
-					end
-				end)
-			end
-		end
+		end)
+	end
+
+	-- Pick up the nearest floating block when the owner walks over it, holding none.
+	local root = Plots.rootPart(player)
+	if state.held or not root or #state.floating == 0 then
 		return
 	end
-	-- A block is waiting in the pool: pick it up when the owner walks over it.
-	local model = state.model
-	local root = Plots.rootPart(player)
-	if not state.held and model and root then
-		local where = DropPath.at(state.path, state.flowAt, workspace:GetServerTimeNow())
+	local now = workspace:GetServerTimeNow()
+	for index, entry in state.floating do
+		local where = DropPath.at(entry.path, entry.flowAt, now)
 		local offset = root.Position - where
 		if
 			Vector3.new(offset.X, 0, offset.Z).Magnitude <= Economy.LUCKY_BLOCK_PICKUP_RANGE
 			and math.abs(offset.Y) < 8
 		then
-			pickUp(player, data.luckyBlock)
+			pickUp(player, index)
+			return
 		end
 	end
 end

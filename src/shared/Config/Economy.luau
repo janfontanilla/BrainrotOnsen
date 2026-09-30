@@ -61,10 +61,14 @@ Economy.PREMIUM_AURA_BOOST = 0.10 -- applies to Aura from drops
 Economy.STUDIO_SIMULATE_PURCHASES = true
 
 -- Lucky blocks
-Economy.LUCKY_BLOCK_SPAWN_INTERVAL = 180 -- seconds of production per block
+-- A block spawns after a random stretch of production between these (seconds), then
+-- the next drop from a brainrot is the block. Several can wait in the pool at once.
+Economy.LUCKY_BLOCK_SPAWN_MIN = 40
+Economy.LUCKY_BLOCK_SPAWN_MAX = 100
+Economy.LUCKY_BLOCK_MAX_WAITING = 5 -- blocks floating / in the pool before spawning pauses
 Economy.LUCKY_BLOCK_PRICE_MULTIPLIER = 800 -- price = unlock tier's aura x this
 Economy.LUCKY_BLOCK_PICKUP_RANGE = 5 -- studs, horizontal; walking this close picks the block up
--- Studio-only override for LUCKY_BLOCK_SPAWN_INTERVAL so blocks can be tested quickly. 0 = off.
+-- Studio-only fixed spawn interval (seconds) so blocks can be tested quickly. 0 = off.
 Economy.STUDIO_LUCKY_BLOCK_INTERVAL = 0
 
 -- Cash packs (dev products): amount = base price of highest tier x multiplier

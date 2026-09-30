@@ -11,13 +11,15 @@
 --                               is there (tools/extract_brainrot_pack.py), else the
 --                               code-built design below.
 --   Models.makeDropItem(tier)   the tier's drop item (cheese, shrimp, tire...),
---                               about 1.6 studs, origin = centre.
+--                               about 2 studs, origin = centre: the voxel design
+--                               Drop<tier> from tools/voxel_forge.py when present.
 --
 -- Everything is anchored, non-colliding and non-queryable.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Visuals = require(script.Parent.Visuals)
+local Props = require(script.Parent.Props)
 
 type Shape = "Block" | "Ball" | "Cylinder"
 type Add = (
@@ -461,6 +463,25 @@ items[20] = function(add) -- Golden shoe
 end
 
 function Models.makeDropItem(tier: number): Model
+	-- The voxel item from tools/voxel_forge.py (Drop<tier>), centred on its middle.
+	local voxelName = `Drop{tier}`
+	if Props.has(voxelName) then
+		local item = Props.clone(voxelName)
+		item.Name = `Item{tier}`
+		local centre = item:GetBoundingBox()
+		item.WorldPivot = CFrame.new(centre.Position)
+		item:PivotTo(CFrame.new())
+		for _, part in item:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+				part.CanQuery = false
+				part.CanTouch = false
+				part.CastShadow = false
+			end
+		end
+		return item
+	end
+	-- Fallback: the older code-built design.
 	local model, add = newBuilder(`Item{tier}`, 1)
 	local build = items[tier]
 	if build then
