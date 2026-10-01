@@ -1,0 +1,20 @@
+Fixes: send these in the SAME Gemini chat as the image you want to fix.
+
+Tung Tung Tung Sahur looks like a person:
+Keep the scene, lighting and composition exactly the same. Redraw Tung Tung Tung Sahur as a tall wooden log (a tree trunk) with a face: big round eyes, thick eyebrows and a wide grin, holding a wooden baseball bat; he is a wooden log, not a person: no hair, no human skin, in the same blocky studded style.
+(Still wrong? Attach docs/store-reference/tung-tung-tung-sahur.jpg and add: "Draw him like this character.")
+
+Logo misspelled:
+Keep the image exactly the same and only fix the sign text to read "Brainrot Bathhouse".
+
+Wrong shape:
+Make this exact image as a wide 16:9 landscape.
+
+Too dull for an icon:
+Same image, but brighter and more saturated with stronger contrast, so it reads as a tiny icon.
+
+Something important in the bottom strip:
+Move everything important up; leave the bottom 15% as plain background.
+
+Styles don't match across images:
+(attach the finished icon) Match the art style and character designs of this image.

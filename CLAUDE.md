@@ -129,7 +129,7 @@ Current phase: see `PROGRESS.md`.
 - The user play-tests in Studio and reports back with screenshots. End each change with exact play-test steps.
 - Match Capybara Onsen's look and feel closely; the screenshots in `reference/` are the target. Save new screenshots the user shares into `reference/` and add them to the design doc.
 - When a user request changes a rule, update the design doc, this file and `Config` together.
-- Commit only when asked. Work happens on a branch/worktree; merge into `main` only when asked.
+- Commit only when asked. Work directly in `C:\dev\BrainrotOnsen` on `main` (user decision 2026-09-30); no worktrees.
 
 ## Tooling
 

@@ -40,20 +40,26 @@ Attach: `tung-tung-tung-sahur.jpg`, `chests-and-drop-items.jpg`, `baths-with-bra
 
 Keep the bottom 15% free of anything important (the title bar covers it). Upload all five; set 1-4 active so Roblox tests them.
 
-**1. Key art with logo (upload first).** Attach: all character references + `baths-with-brainrots.jpg`.
-> [shared style] Wide 16:9 key art. The "Brainrot Bathhouse" logo (wooden sign, yellow "Brainrot", cyan "Bathhouse", thick dark outlines) top centre. Below it, a lineup of seven brainrots soaking side by side in one long steaming turquoise bath, each with a little towel or item on its head: Tim Cheese, Chimpanzini Bananini, Ballerina Cappuccina, Tung Tung Tung Sahur (centre, biggest), Tralalero Tralala, Lirili Larila, Brr Brr Patapim. Drop items float in the water (banana, coffee cup, shoe). Grey stone rim along the front, cherry blossom trees and lanterns behind, warm afternoon light. The only text is the logo, spelled exactly "Brainrot Bathhouse".
+**Size:** if Codex can't output 1920 x 1080 directly, generate the widest landscape size it offers (often 1536 x 1024) and crop it to 16:9 (e.g. 1536 x 864), then scale to 1920 x 1080. Roblox takes any 16:9 image.
 
-**2. Merge (explains the game).** Attach: `tim-cheese.jpg`, `baths-with-brainrots.jpg`, `bathhouse-overview.jpg`.
-> [shared style] Wide 16:9 action scene. Three Tim Cheese brainrots glow and swirl together in a burst of sparkles and steam, becoming one bigger, shinier Chimpanzini Bananini. In front, a grey stone floor pad with a ♨ mark and the word "MERGE!" in big yellow outlined letters above it. Rows of baths with brainrots behind. Caption top-left in big outlined white letters: "MERGE 3 → 1!". No other text.
+**1. Key art with logo (upload first).** Attach: all character references + `baths-with-brainrots.jpg`.
+> [shared style] Wide 16:9 key art. The "Brainrot Bathhouse" logo (wooden sign, yellow "Brainrot", cyan "Bathhouse", thick dark outlines) top centre. Below it, a lineup of seven brainrots soaking side by side in one long steaming turquoise bath, each with a little towel or item on its head: Tim Cheese, Chimpanzini Bananini, Ballerina Cappuccina, Tung Tung Tung Sahur (centre, biggest), Tralalero Tralala, Lirili Larila, Brr Brr Patapim. Drop items float in the water (banana, coffee cup, shoe). Grey stone rim along the front, cherry blossom trees and lanterns behind, warm afternoon light. Keep the bottom 15% clear. The only text is the logo, spelled exactly "Brainrot Bathhouse".
+
+**2. Merge (explains the game).** Attach: `tralalero-tralala-front.jpg`, `tung-tung-tung-sahur.jpg`, `baths-with-brainrots.jpg`, `bathhouse-overview.jpg`.
+> [shared style] Wide 16:9 action scene. Three Tralalero Tralala glow and swirl together in a burst of sparkles and steam above a grey stone floor pad with a ♨ mark, becoming one bigger, shinier Tung Tung Tung Sahur. Rows of baths with brainrots behind. Caption top-left in big outlined white letters: "MERGE 3 INTO 1!". Keep the bottom 15% clear. No other text.
+
+(A real merge: three of a tier make one of the next tier; Tralalero Tralala is tier 12, Tung Tung Tung Sahur tier 13.)
 
 **3. Lucky chest (rarity).** Attach: `chests-and-drop-items.jpg`, `bombardiro-crocodilo-and-tralalero.jpg`.
-> [shared style] Wide 16:9 scene at dusk. A blocky voxel lucky chest with a rainbow trim and a gold lock bursting open on the edge of a steaming pool, beams of light and sparkles; Bombardiro Crocodilo flies out of it, glowing. Above him, a rainbow gradient label "SECRET". Smaller wood, gold and diamond chests float in the water. Lanterns glowing. No other text.
+> [shared style] Wide 16:9 scene at dusk. A glowing purple Cosmic chest (a blocky voxel box with dark purple trim and a gold lock) bursting open on the edge of a steaming pool, beams of light and sparkles; Bombardiro Crocodilo flies out of it, glowing. Above him, a purple and gold label "COSMIC". Smaller wood, gold and diamond chests float in the water. Lanterns glowing. Keep the bottom 15% clear. No other text.
+
+(Our chest types, commonest to rarest: Wood, Stone, Iron, Gold, Diamond, Emerald, Ruby, Rainbow, Cosmic. "SECRET" is not a rarity in this game.)
 
 **4. Cozy sunset (mood, no text).** Attach: `tung-tung-tung-sahur.jpg`, `ballerina-cappuccina.jpg`, `tralalero-tralala-front.jpg`, `chimpanzini-bananini.jpg`, `bathhouse-overview.jpg`.
-> [shared style] Wide 16:9 cozy scene at sunset: Tung Tung Tung Sahur, Ballerina Cappuccina, Tralalero Tralala and Chimpanzini Bananini soaking with eyes closed under strings of paper lanterns, pink cherry blossom petals drifting, a waterfall down stepped blocky cliffs behind, golden light through the steam. No text.
+> [shared style] Wide 16:9 cozy scene at sunset: Tung Tung Tung Sahur, Ballerina Cappuccina, Tralalero Tralala and Chimpanzini Bananini soaking with eyes closed under strings of paper lanterns, pink cherry blossom petals drifting, a waterfall down stepped blocky cliffs behind, golden light through the steam. Keep the bottom 15% clear. No text.
 
 **5. Cozy night (mood, no text).** Attach: `tung-tung-tung-sahur.jpg`, `tim-cheese.jpg`, `baths-with-brainrots.jpg`.
-> [shared style] Wide 16:9 cozy scene at night: a moonlit bathhouse with bamboo, glowing lanterns and steam; Tung Tung Tung Sahur and Tim Cheese soaking side by side under a big full moon, fireflies, a dark wooden gate with blue ♨ curtains in the background. No text.
+> [shared style] Wide 16:9 cozy scene at night: a moonlit bathhouse with bamboo, glowing lanterns and steam; Tung Tung Tung Sahur and Tim Cheese soaking side by side under a big full moon, fireflies, a dark wooden gate with blue ♨ curtains in the background. Keep the bottom 15% clear. No text.
 
 ## Listing text
 

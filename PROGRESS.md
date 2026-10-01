@@ -5,12 +5,8 @@ Last updated: 2026-09-29
 
 ## Handoff (start here)
 
-- **Where the code is:** branch `claude/priceless-cori-962788` in the worktree
-  `C:\dev\BrainrotOnsen\.claude\worktrees\priceless-cori-962788`. Phases 1-4 are committed
-  there; `main` (`C:\dev\BrainrotOnsen`) is still at Phase 0 (278349a). Merge the branch into
-  `main` when the user asks.
-- **How the user tests:** `rojo serve` from the worktree folder (not `C:\dev\BrainrotOnsen`
-  until the branch is merged), Connect in the Rojo plugin, Play in Studio. Claude can start
+- **Where the code is:** `main` in `C:\dev\BrainrotOnsen` (user decision 2026-09-30: work only in this folder). The old worktree branch `claude/priceless-cori-962788` was merged into `main` and is no longer used.
+- **How the user tests:** `rojo serve` from `C:\dev\BrainrotOnsen`, Connect in the Rojo plugin, Play in Studio. Claude can start
   `rojo serve` in the background; only one server can hold port 34872.
 - **`ServerPackages/` is gitignored:** a fresh worktree needs `wally install` or a copy of
   `C:\dev\BrainrotOnsen\ServerPackages` (ProfileStore). Restart `rojo serve` after adding it.
@@ -144,6 +140,11 @@ Last updated: 2026-09-29
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-30: Branch `claude/priceless-cori-962788` merged into `main` (user request); from now on all work happens in `C:\dev\BrainrotOnsen`. Rojo now serves from there.
+- 2026-09-30: Gemini prompts split into `docs/gemini-prompts/` (one file per image: 1-icon, 2-thumbnail-key-art, 3-merge, 4-lucky-chest, 5-sunset, 6-night, plus fixes.txt and README.txt), with a short description of each character (Gemini drew Tung Tung Tung Sahur as a person when only named). Replaces docs/gemini-prompts.md.
+- 2026-09-30: Gemini prompts rewritten without reference attachments (user decision): characters are named and drawn as the commonly known Italian brainrot memes, in a chunky blocky Roblox voxel style; the in-game reference captures stay in `docs/store-reference/` if wanted later.
+- 2026-09-30: `docs/gemini-prompts.md`: self-contained Gemini prompts for the icon and 5 thumbnails (the user generates the images with Gemini; Codex did not work), with attachments per image, follow-up fix prompts and an upload checklist.
+- 2026-09-30: Store prompts fixed after review: the merge thumbnail shows a real merge (3 Tralalero Tralala -> Tung Tung Tung Sahur, tiers 12 -> 13; one caption "MERGE 3 INTO 1!"), the lucky chest thumbnail uses our rarest chest "COSMIC" instead of "SECRET", a note on cropping to 16:9 when Codex cannot output 1920 x 1080, and "keep the bottom 15% clear" on every thumbnail.
 - 2026-09-30: Bathhouse rename, store brief + reference images, processor corner move and chest labels committed on branch `claude/priceless-cori-962788`. Not merged into `main` yet.
 - 2026-09-30: De-crowded the -x front corner (user picked "move the processor group"): processor info board, upgrade pad and Finish Now moved together to the +x side wall beside the pool (board at plot (61, 70) facing -x, upgrade pad (50, 70), Finish Now (50, 59.5)); the +x cherry tree moved back to z 92 and the corner bamboo to the end of the curved wall. Lucky chest labels smaller (sized in studs) and shown only within 25 studs so floating chests don't stack text. Not yet seen in Studio (plugin disconnected).
 - 2026-09-30: Renamed for players to "Brainrot Bathhouse" (user): entrance board / floating name ("<Name>'s Bathhouse", "Empty Bathhouse"), signpost "BATHS", full-bathhouse messages, startup prints. Store brief `docs/store-assets.md` rewritten: title "Brainrot Bathhouse ♨ Merge", hook-first description, louder icon (surprised Tung Tung Tung Sahur + bursting rainbow chest), 5 thumbnail prompts, and 11 real reference captures in `docs/store-reference/` (taken in Studio with the HUD hidden; the pack's Tim Cheese is a mouse in a suit, so prompts describe our actual models). User generates the images with Codex.
