@@ -1,7 +1,7 @@
 # Progress
 
-Current phase: **Phase 6 (art, polish and launch) in progress: map polish roadmap Phases 0-7 done and a Capybara-style HUD in; Phase 8 (phone performance test) and user feedback rounds next. Phase 5 game passes / dev products are deferred to the end (user decision 2026-09-29); Phase 4: Index check pending.**
-Last updated: 2026-09-29
+Current phase: **Phase 6 (art, polish and launch), launch prep: game, monetization (all IDs live), saving and store text done; waiting on the store images (Gemini), a balance play-test, a phone check, then publish. Phase 4: Index check pending.**
+Last updated: 2026-09-30
 
 ## Handoff (start here)
 
@@ -128,18 +128,18 @@ Last updated: 2026-09-29
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- Reconnect the Rojo plugin (Disconnect / Connect), then play-test: the sunken bath field, every pad (incl. the pink Group Reward pad), the lake end waterfalls and pavilions, music and sounds.
-- Give the group ID when ready (Products.GROUP_ID).
-- Map textures are uploaded (IDs in `Config/Textures.luau`); still needed: the user's Studio screenshots of the textured map, and review + commit of the uncommitted map work (see the newest Log line). Whoever continues should read `git status` and `git diff` first, since another session edits the same files.
+- **Store images:** generate the icon and 5 thumbnails in Gemini from `docs/gemini-prompts/` (one file per chat); send them to Claude to crop / resize (icon 512 x 512, thumbnails 1920 x 1080, under 3 MB).
+- **Reconnect the Rojo plugin** (Disconnect / Connect): Rojo now serves from `C:\dev\BrainrotOnsen`. Then check the processor controls moved to the +x side wall.
+- **Play-test the balance** on an alt account or with a friend (the creator account owns every game pass), plus a phone check.
+- **Publish:** upload icon + thumbnails, paste the title / description from `docs/store-assets.md`, fill in the maturity questionnaire, make the game public.
+- Optional: delete the old worktree folder `.claude\worktrees\priceless-cori-962788` (everything is merged into `main`).
 - After changing `default.project.json` (or adding files Rojo must serve), restart `rojo serve` and Disconnect / Connect the plugin; an old server keeps serving the old tree (this is why the pack did not show the first time).
-- Saving only persists in Studio once the place is published (File > Publish to Roblox) and Game Settings > Security > "Enable Studio Access to API Services" is on. Until then ProfileStore runs in mock mode (no persistence) and every join is a new player.
-- Deferred by the user: publish the place and enable Studio API access, then test saving + offline earnings (stop, wait a few minutes, replay).
 - Confirm the Index (open it after getting a few tiers; undiscovered = "???").
-- Before launch, create the 5 game passes and 4 dev products on the Creator Dashboard and put their IDs in `Config/Products` (Robux prices in that file are reference only; the doc marks Cash pack prices 29 / 149 / 499 as suggested). The global leaderboard also needs the published place + Studio API access.
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-09-30: Handoff refreshed after the merge into `main`: current phase, blockers (store images, Rojo reconnect, balance play-test, publish) and stale saving notes removed (saving is verified).
 - 2026-09-30: Branch `claude/priceless-cori-962788` merged into `main` (user request); from now on all work happens in `C:\dev\BrainrotOnsen`. Rojo now serves from there.
 - 2026-09-30: Gemini prompts split into `docs/gemini-prompts/` (one file per image: 1-icon, 2-thumbnail-key-art, 3-merge, 4-lucky-chest, 5-sunset, 6-night, plus fixes.txt and README.txt), with a short description of each character (Gemini drew Tung Tung Tung Sahur as a person when only named). Replaces docs/gemini-prompts.md.
 - 2026-09-30: Gemini prompts rewritten without reference attachments (user decision): characters are named and drawn as the commonly known Italian brainrot memes, in a chunky blocky Roblox voxel style; the in-game reference captures stay in `docs/store-reference/` if wanted later.
