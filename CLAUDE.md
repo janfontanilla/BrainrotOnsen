@@ -1,6 +1,6 @@
 # Brainrot Onsen ♨
 
-Player-facing name: **Brainrot Bathhouse** (renamed from "Brainrot Onsen" 2026-09-30; code, folders and docs keep "Onsen" internally, but every text players see says "Bathhouse"). Store listing and Codex image prompts: `docs/store-assets.md`.
+Player-facing name: **Brainrot Bathhouse** (renamed from "Brainrot Onsen" 2026-09-30; code, folders and docs keep "Onsen" internally, but every text players see says "Bathhouse"). Store listing: `docs/store-assets.md`; image prompts (Gemini): `docs/gemini-prompts/`. Where the project stands: `PROGRESS.md` "Handoff (start here)".
 
 Roblox merge tycoon: famous Italian brainrot characters soak in each player's onsen, drop Aura, and merge 3-into-1 up a 20-tier ladder. Inspired by Capybara Onsen (https://www.roblox.com/games/120336108521610/Capybara-Onsen). Goal: publish, grow, monetize.
 
@@ -48,7 +48,8 @@ src/client/   -> StarterPlayerScripts.Client (Controllers/)
 Packages/       -> ReplicatedStorage.Packages (Wally shared deps, gitignored)
 ServerPackages/ -> ServerStorage.ServerPackages (Wally server deps like ProfileStore, gitignored)
 reference/    Capybara Onsen screenshots: the visual reference for layout and UI
-docs/         map-polish-roadmap.md (the approved phased map plan: check shots, budgets, phases), map-polish.md (deep dive) and prompts/
+docs/         launch.md (pre-publish checklist), store-assets.md (store listing text, research), gemini-prompts/ (one image prompt per file), store-reference/ (in-game captures), map-polish-roadmap.md, map-polish.md, prompts/
+assets/store/ the store icon (icon-512.png, icon-1024.png) and, once made, the thumbnails
 assets/       Brainrots.rbxmx: the 20 pack models (Tier1..Tier20), synced to ReplicatedStorage.Assets.Brainrots; textures/: generated map tiles and HUD images (one shared style; uploaded, IDs in Config/Textures, default.project.json and client/Style)
 tools/        extract_brainrot_pack.py (rebuilds assets/Brainrots.rbxmx), make_textures.py (regenerates assets/textures), voxel_forge.py (designs the voxel map props, writes src/shared/PropData.luau, renders previews)
 ```

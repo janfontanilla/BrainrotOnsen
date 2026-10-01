@@ -1,7 +1,7 @@
 Fixes: send these in the SAME Gemini chat as the image you want to fix.
 
 Tung Tung Tung Sahur looks like a person:
-Keep the scene, lighting and composition exactly the same. Redraw Tung Tung Tung Sahur as a tall wooden log (a tree trunk) with a face: big round eyes, thick eyebrows and a wide grin, holding a wooden baseball bat; he is a wooden log, not a person: no hair, no human skin, in the same blocky studded style.
+Keep the scene, lighting and composition exactly the same. Redraw Tung Tung Tung Sahur as a tall wooden log (a tree trunk) with a cute, simple cartoon face: two big round eyes with small black pupils, short rounded eyebrows and a simple happy smile with no teeth, no wrinkles or human-like details, holding a wooden baseball bat; he is a friendly wooden log, not a person: no hair, no human skin, never scary; exactly two arms, in the same blocky studded style.
 (Still wrong? Attach docs/store-reference/tung-tung-tung-sahur.jpg and add: "Draw him like this character.")
 
 Logo misspelled:

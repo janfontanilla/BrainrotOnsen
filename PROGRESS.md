@@ -1,35 +1,40 @@
 # Progress
 
-Current phase: **Phase 6 (art, polish and launch), launch prep: game, monetization (all IDs live), saving and store text done; waiting on the store images (Gemini), a balance play-test, a phone check, then publish. Phase 4: Index check pending.**
-Last updated: 2026-09-30
+Current phase: **Phase 6 (art, polish and launch), launch prep.** The game, monetization (all product IDs live), saving and the store text are done; the store icon is made. Next: fix the play-test issues (floating models, labels, pace, tutorial), finish the store thumbnails, phone check, publish.
+Last updated: 2026-10-01
 
 ## Handoff (start here)
 
-- **Where the code is:** `main` in `C:\dev\BrainrotOnsen` (user decision 2026-09-30: work only in this folder). The old worktree branch `claude/priceless-cori-962788` was merged into `main` and is no longer used.
-- **How the user tests:** `rojo serve` from `C:\dev\BrainrotOnsen`, Connect in the Rojo plugin, Play in Studio. Claude can start
-  `rojo serve` in the background; only one server can hold port 34872.
-- **`ServerPackages/` is gitignored:** a fresh worktree needs `wally install` or a copy of
-  `C:\dev\BrainrotOnsen\ServerPackages` (ProfileStore). Restart `rojo serve` after adding it.
-- **Before finishing any change:** `stylua src`, `selene src` (0 errors, 0 warnings),
-  `rojo build -o <tmp>.rbxl`; update this file (the Stop hook enforces it). Commit only when
-  the user asks.
-- **Studio-only test knobs** in `Config/Economy` (ignored in live servers):
-  `STUDIO_DROP_INTERVAL` (0 = off), `STUDIO_STARTING_CASH` (500K for new profiles),
-  `STUDIO_LUCKY_BLOCK_INTERVAL` (0 = off; the user sets 10 to test blocks),
-  `STUDIO_SIMULATE_PURCHASES` (true: a pass / product with ID 0 is granted free in Studio).
-- **Visual references:** `reference/*.webp|png` are Capybara Onsen screenshots the user gave;
-  the user wants layout and UI to match them closely. When the user shares a new screenshot,
-  save it to `reference/` and add it to the design doc.
-- **Voxel prop forge (2026-09-29):** the chosen art route for map props. Edit designs in `tools/voxel_forge.py`, run `python tools/voxel_forge.py` (writes `PropData.luau`; previews go to `$PROP_PREVIEW_DIR` or the temp folder and can be looked at with Read), then Rojo syncs. Keep box counts low; use lighter/darker voxels sparingly because they split boxes.
-- **Store link verdicts (user's 12 links, 2026-09-29):** use: Japanese Lantern paper lantern 11526055489 (cartoon, hanging decoration), Rubber Duck 5134201685 (bath prop), maybe the wooden arched bridge from Cherry Blossom tree lake 6003209103 (extract only the bridge), maybe Torii 15999380118 recoloured brighter, Anime Sky 135781140278534 (a sky image; spammy title, inspect for scripts/audio before use; extract only the Sky). Skip: Reeds, Heaven's Plant, grass floor (dull realistic), Enhanced Sakura tree (realistic, heavy), stone lantern 12521854808 (dark realistic), Japanese house / Assets Pack (dark realistic; maybe mine tatami mat and planter trees). Not the processor: use a barrel-style processor built by us.
-- **Ideas from the user:** Tung Tung Tung Sahur (Tier13 model) as the market/deposit stall agent; bamboo-fenced mini pool and onsen signs like the reference; build cliffs / waterfalls / backdrop ourselves for consistency.
-- **State at the end of 2026-09-29 (all uncommitted in the worktree):** map rebuilt Capybara-style (sunken bath field with thin stone-ring baths, narrow pool, Merge! in front, pad row, station row, barrel by the -x wall, dark wooden entrance gate with noren, curved +x front wall with the group sign and Group Reward pad, 140-stud middle area with the flowing lake loop, raised island, three leaderboard pavilions, end cliffs with waterfalls), unified tile set, voxel props, sounds, and the HUD copied from Capybara Onsen (`client/Style`). The last HUD tweak (wider Cash pack buttons) and the entrance name board were not seen in Studio yet.
-- **Next up:** the user reviews in Studio and sends screenshots; phone performance test (roadmap Phase 8; a plot is about 1,900 parts / 42 emitters, the map about 12.4k parts); group ID and group reward check; commit when the user asks. Use the check shots in `docs/map-polish-roadmap.md`. Phase 6 art: play-test the pack models (fit, facing, idle animation), then Index viewports, drop items, bath polish, map decoration, credits. Phase 5 monetization (passes, products,
-  Robux pads) is deferred to the end; resume it with the known issue in the Phase 5 section. Studio purchases are
-  simulated free while product IDs are 0 (`Economy.STUDIO_SIMULATE_PURCHASES`); product IDs in `Config/Products` are
-  0 until created on the Creator Dashboard.
-- **Open decisions for the user:** drop cap stays 50 even though a full onsen (80 brainrots)
-  fills it in ~5 s (raised with the user, no answer yet; kept at 50); Robux prices marked "suggested" in the doc.
+**Read in this order:** this section, then "Blockers / needs from you", then the newest Log lines, then `CLAUDE.md` (rules, module map). The design doc (link in CLAUDE.md, read with the Claude Docs tools) is the source of truth for game rules.
+
+### Where things are
+- **Code:** `main` in `C:\dev\BrainrotOnsen` (user decision 2026-09-30: work only here, no worktrees). An old worktree folder `.claude\worktrees\priceless-cori-962788` still exists; everything in it is merged, ignore it (the user may delete it).
+- **Game name:** players see **Brainrot Bathhouse**; code and docs say "Onsen" internally.
+- **Studio:** place "Brainrot Onsen" (placeId 119217610023596), published, Studio API access ON (saving works in Studio). The Studio MCP is usually connected (`list_roblox_studios`); use it to sync-check, play, capture and test.
+- **Rojo:** run `rojo serve` from `C:\dev\BrainrotOnsen` (background), then the user clicks Disconnect / Connect in the Rojo plugin. It was not running at the end of 2026-09-30; start it at the beginning of a session. After any `default.project.json` change: restart serve + reconnect.
+- **`ServerPackages/`** (ProfileStore) is gitignored; present in `C:\dev\BrainrotOnsen`. `wally install` restores it.
+
+### What is done (high level)
+- Full core loop (buy, drops, Aura, deposit, market, processor, Collect Cash, merge, Buy 100, Upgrade Buy Tier), lucky blocks (random, up to 5 floating), Index, offline earnings, ProfileStore saving (verified 2026-09-30).
+- Map rebuilt Capybara-Onsen-style (sunken bath field, voxel props from `tools/voxel_forge.py`, unified tile set as MaterialVariants, middle lake with a current, leaderboard pavilions, sound). Layout details: CLAUDE.md "Plot layout".
+- HUD copied from Capybara Onsen (`client/Style`), scales down on phones.
+- Monetization live: 6 game passes + 4 dev products with real IDs, group reward for PCC. Studios (`Config/Products`). Cash multipliers apply at collection.
+- Balance (2026-09-30): Upgrade Buy Tier x500, processor 20/s. The user now feels the pace is too fast (see Play-test feedback).
+- Store: listing text and research in `docs/store-assets.md`; Gemini prompts, one file per image, in `docs/gemini-prompts/`; icon done: `assets/store/icon-512.png` (+ `icon-1024.png`).
+
+### Next up (in order)
+1. Fix the "Play-test feedback 2026-09-30" items in the Phase 6 checklist (the user asked to document first, fix later): floating models, name labels inside models, odd model fits, progression too fast, a new-player tutorial.
+2. Store images: the user generated thumbnails 1-5 in Gemini but has not sent the files yet; resize each to 1920 x 1080 (< 3 MB) into `assets/store/`. Optional: 10 game pass / dev product icons (offered, not started).
+3. Phone check, then publish (`docs/launch.md` checklist; upload steps in `docs/store-assets.md`).
+
+### How to work here
+- **Before finishing any change:** `stylua src`, `selene src` (0 errors, 0 warnings), `rojo build -o <tmp>.rbxl`; update this file (a Stop hook enforces it). Commit only when the user asks.
+- **Checking in Studio:** confirm the plugin synced (`execute_luau` in Edit: look for a new string in a module's Source), then `start_stop_play`, then `screen_capture` with a camera position. Plot 1's world origin is (-142, 0, 70); plot-local x, z map to world (x - 142, z + 70). Take captures one at a time (parallel ones time out or return out of order). Hide the HUD for clean shots: disable the PlayerGui ScreenGuis from the Client datamodel.
+- **The creator account owns every game pass** and new Studio profiles start with `STUDIO_STARTING_CASH` (500K): balance feels much faster in Studio than for a real new player.
+- **Studio-only test knobs** in `Config/Economy` (ignored live): `STUDIO_DROP_INTERVAL` (0 = off), `STUDIO_STARTING_CASH` (500K for new profiles), `STUDIO_LUCKY_BLOCK_INTERVAL` (0 = off; set 10 to test blocks), `STUDIO_SIMULATE_PURCHASES` (only matters for products whose ID is 0; all IDs are set now).
+- **Images:** upload to the user's account with the MCP `upload_image` from a local `python -m http.server`; texture / HUD image IDs live in `Config/Textures`, `default.project.json` and `client/Style`.
+- **Visual references:** `reference/*.webp|png` are Capybara Onsen screenshots; the user wants the look and UI close to them.
+- **Voxel prop forge:** edit `tools/voxel_forge.py`, run `python tools/voxel_forge.py` (writes `src/shared/PropData.luau`, previews to `$PROP_PREVIEW_DIR`), keep box counts low.
 
 ## Phase checklist
 
@@ -121,24 +126,38 @@ Last updated: 2026-09-30
 - [ ] Title, description, icon, thumbnails
 - [ ] Publish
 
+### Play-test feedback 2026-09-30 (documented only; user asked not to fix yet)
+Seen by the user in Studio (screenshots in chat). Fix these before launch:
+- [ ] **Floating models:** some pack models hover above the bath instead of sitting in it: Tralalero Tralala (tier 12), La Vacca Saturno Saturnita (tier 14, the cow on a saucer) and likely Bombardiro Crocodilo (tier 11). Earlier measurement: tier 12's bounding box centre sat at y 11.6 and tier 11's at 10.3 while the others sat near 5.5, so their pack pivots are offset (made for flying idle poses). Likely fix: seat every model by its bounding-box bottom instead of its pivot in `Models.makeBrainrot` / `PoolService`.
+- [ ] **Name labels inside the models:** the floating "Name / Tier N" labels sit too low and overlap the models (seen on Los Tralaleritos, Tung Tung Tung Sahur, Cappuccino Assassino, La Vacca Saturno Saturnita). The label anchor comes from the model's "Label" part and the Billboard uses offsetY 0; since the models were made bigger (fit 6 x 8), the label should sit above the bounding-box top.
+- [ ] **Some models look off** (user: "some are off like this"): odd positions / overlaps in the baths; check each tier's model fit after the floating fix.
+- [ ] **Progression too fast; Upgrade Buy Tier too cheap.** The user reached tier 16-20 buy tiers quickly. Note: the creator account starts with Studio's 500K Cash (`STUDIO_STARTING_CASH`) and owns every game pass (x12 Cash, 2x Aura, Auto Collect), which inflates the pace a lot; re-check with STUDIO_STARTING_CASH = 0 on an account without passes before tuning. The 2026-09-30 change (BUY_TIER_UPGRADE_MULTIPLIER 2,500 -> 500, processor 10 -> 20/s) may need to be partly reverted.
+- [ ] **Tutorial phase (user request):** a simple, easy guided start for new players, before launch (moved up from Phase 7): e.g. step-by-step arrows / prompts: buy a brainrot, collect drops, deposit, collect Cash, merge, upgrade.
+
 ### Phase 7: Post-launch
 - [ ] Group reward pad (a sign on each plot's front wall already promises "Join the group + Like for money every 5 minutes"; needs the group ID and the reward logic)
-- [ ] New-player tutorial
+- [ ] New-player tutorial (user wants it before launch: see "Play-test feedback 2026-09-30")
 - [ ] Music and sound effects
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- **Store images:** generate the icon and 5 thumbnails in Gemini from `docs/gemini-prompts/` (one file per chat); send them to Claude to crop / resize (icon 512 x 512, thumbnails 1920 x 1080, under 3 MB).
-- **Reconnect the Rojo plugin** (Disconnect / Connect): Rojo now serves from `C:\dev\BrainrotOnsen`. Then check the processor controls moved to the +x side wall.
-- **Play-test the balance** on an alt account or with a friend (the creator account owns every game pass), plus a phone check.
+- **Play-test issues to fix before launch** (documented, not fixed yet at the user's request): floating models, name labels inside models, odd model fits, progression too fast, a tutorial. See "Play-test feedback 2026-09-30" in the Phase checklist.
+- **Store thumbnails:** the user generated thumbnails 1-5 in Gemini (`docs/gemini-prompts/`); send the files so Claude can resize them to 1920 x 1080 (< 3 MB) into `assets/store/`. The icon is done (`assets/store/icon-512.png`).
+- **Start Rojo + reconnect the plugin** at the start of a session (serve from `C:\dev\BrainrotOnsen`). Not yet seen in Studio: the processor controls moved to the +x side wall, the smaller lucky chest labels.
+- **Balance play-test** on an alt account or with a friend (the creator account owns every game pass), plus a phone check.
 - **Publish:** upload icon + thumbnails, paste the title / description from `docs/store-assets.md`, fill in the maturity questionnaire, make the game public.
-- Optional: delete the old worktree folder `.claude\worktrees\priceless-cori-962788` (everything is merged into `main`).
+- Optional: delete the old worktree folder `.claude\worktrees\priceless-cori-962788` (merged into `main`).
 - After changing `default.project.json` (or adding files Rojo must serve), restart `rojo serve` and Disconnect / Connect the plugin; an old server keeps serving the old tree (this is why the pack did not show the first time).
 - Confirm the Index (open it after getting a few tiers; undiscovered = "???").
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
 - A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-10-01: Handoff rewritten as a single current snapshot for a new session (where things are, what is done, next up, how to work here incl. Studio MCP tips and plot coordinates); blockers refreshed; store icon saved under `assets/store/`.
+- 2026-09-30: Documented the user's play-test feedback (no fixes yet, user request): floating models (tiers 11 / 12 / 14), name labels too low inside the models, some models off, progression too fast / Upgrade Buy Tier too cheap (inflated by Studio's 500K start and the owned passes), and a tutorial phase wanted before launch.
+- 2026-09-30: Gemini prompts: Tim Cheese now described as in our pack model (a grey mouse with pink ears in a black suit and red tie) instead of "a cute cheese character", which Gemini drew as a cheese block.
+- 2026-09-30: Store icon chosen (Gemini, cute Tung Tung Tung Sahur version): saved as `assets/store/icon-1024.png` and `icon-512.png` (424 KB). Next: thumbnail 1 (key art).
+- 2026-09-30: First Gemini icon reviewed (logo spelled right, reads well at 64-150 px, but Tung looked scary/human and had extra limbs). Prompts now ask for a cute simple face (big round eyes, no teeth, no human details, exactly two arms) and the icon asks for a cheerful smile instead of a huge grin.
 - 2026-09-30: Handoff refreshed after the merge into `main`: current phase, blockers (store images, Rojo reconnect, balance play-test, publish) and stale saving notes removed (saving is verified).
 - 2026-09-30: Branch `claude/priceless-cori-962788` merged into `main` (user request); from now on all work happens in `C:\dev\BrainrotOnsen`. Rojo now serves from there.
 - 2026-09-30: Gemini prompts split into `docs/gemini-prompts/` (one file per image: 1-icon, 2-thumbnail-key-art, 3-merge, 4-lucky-chest, 5-sunset, 6-night, plus fixes.txt and README.txt), with a short description of each character (Gemini drew Tung Tung Tung Sahur as a person when only named). Replaces docs/gemini-prompts.md.

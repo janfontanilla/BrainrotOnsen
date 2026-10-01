@@ -1,4 +1,4 @@
-# Store assets: icon, thumbnails and listing (Codex prompts)
+# Store assets: icon, thumbnails and listing (image prompts: see docs/gemini-prompts/)
 
 Game name: **Brainrot Bathhouse** (renamed from Brainrot Onsen 2026-09-30). The user generates the images with Codex; this file says what to make and gives copy-paste prompts. Researched 2026-09-30.
 
