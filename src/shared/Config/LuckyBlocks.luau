@@ -58,7 +58,9 @@ for _, def in BLOCKS do
 		name = def.name,
 		unlockTier = def.unlockTier,
 		weight = def.weight,
-		price = Tiers.get(def.unlockTier).aura * Economy.LUCKY_BLOCK_PRICE_MULTIPLIER,
+		price = Tiers.get(def.unlockTier).aura
+			* Economy.LUCKY_BLOCK_PRICE_MULTIPLIER
+			* Economy.BUY_TIER_UPGRADE_GROWTH ^ Economy.tierGrowthSteps(def.unlockTier),
 		rolls = buildRolls(def.unlockTier),
 	})
 end

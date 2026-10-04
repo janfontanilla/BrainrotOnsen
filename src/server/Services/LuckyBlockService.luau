@@ -32,6 +32,7 @@ local DataService = require(script.Parent.DataService)
 local PoolService = require(script.Parent.PoolService)
 local DropService = require(script.Parent.DropService)
 local ShopService = require(script.Parent.ShopService)
+local Analytics = require(script.Parent.Parent.Analytics)
 
 type Plot = Plots.Plot
 
@@ -177,6 +178,7 @@ local function unlock(player: Player)
 		notify:FireClient(player, `Not enough Cash (need {Format.short(block.price)})`)
 		return
 	end
+	Analytics.cash(player, "sink", block.price, data.cash, "Shop", `LuckyBlock{block.name}`)
 	local tier = LuckyBlocks.roll(block, random)
 	data.counts[tier] += 1
 	data.totalBrainrots += 1

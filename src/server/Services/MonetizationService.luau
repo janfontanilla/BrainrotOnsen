@@ -31,6 +31,7 @@ local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
 local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
+local Analytics = require(script.Parent.Parent.Analytics)
 
 type Plot = Plots.Plot
 
@@ -181,10 +182,11 @@ local function grantProduct(player: Player, name: string): boolean
 	if not data or not size then
 		return false
 	end
-	local amount = Economy.cashPackAmount(math.max(1, data.highestTier), size)
+	local amount = Economy.cashPackAmount(DataService.auraPerSecond(data), size)
 	data.cash += amount
 	data.totalCashEarned += amount
 	DataService.sync(player)
+	Analytics.cash(player, "source", amount, data.cash, "IAP", `CashPack{size}`)
 	notify:FireClient(player, `Received {Format.short(amount)} Cash!`, "cash")
 	return true
 end
@@ -321,8 +323,9 @@ local function onPlayerRemoving(player: Player)
 end
 
 local function onBuyProduct(player: Player, name: unknown)
-	-- "CashPass" (the HUD promo) offers the next Cash multiplier pass up.
-	if typeof(name) ~= "string" or not (PRODUCT_INTENTS[name] or name == "CashPass") then
+	-- "CashPass" (the HUD promo) offers the next Cash multiplier pass up; "AutoCollect"
+	-- comes from the guide's hint when the drop cap stops production.
+	if typeof(name) ~= "string" or not (PRODUCT_INTENTS[name] or name == "CashPass" or name == "AutoCollect") then
 		return
 	end
 	local now = os.clock()
@@ -332,6 +335,8 @@ local function onBuyProduct(player: Player, name: unknown)
 	lastBuy[player] = now
 	if name == "CashPass" then
 		promptCashPass(player)
+	elseif name == "AutoCollect" then
+		promptPass(player, "AutoCollect")
 	else
 		promptProduct(player, name)
 	end

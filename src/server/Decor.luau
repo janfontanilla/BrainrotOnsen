@@ -596,7 +596,7 @@ local function frontage(folder: Folder, o: Options)
 		label.RichText = true
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.Text = '<font color="#ffd84a">Join the group + Like</font>\n'
-			.. '<font color="#7dff8a">for money every 5 minutes!</font>'
+			.. '<font color="#7dff8a">for money every 10 minutes!</font>'
 		label.Parent = gui
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = Color3.fromRGB(60, 40, 25)

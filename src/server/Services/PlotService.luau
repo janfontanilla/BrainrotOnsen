@@ -16,6 +16,7 @@ local DropService = require(script.Parent.DropService)
 local ProcessorService = require(script.Parent.ProcessorService)
 local LuckyBlockService = require(script.Parent.LuckyBlockService)
 local MonetizationService = require(script.Parent.MonetizationService)
+local TutorialService = require(script.Parent.TutorialService)
 
 local PlotService = {}
 
@@ -55,6 +56,7 @@ local function onPlayerAdded(player: Player)
 	ProcessorService.refresh(plot)
 	LuckyBlockService.onAssigned(player, plot)
 	MonetizationService.refresh(player)
+	TutorialService.begin(player)
 
 	player.CharacterAdded:Connect(function(character)
 		sendHome(player, character)

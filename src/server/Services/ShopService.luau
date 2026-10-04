@@ -19,6 +19,8 @@ local Plots = require(script.Parent.Parent.Plots)
 local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
 local PoolService = require(script.Parent.PoolService)
+local TutorialService = require(script.Parent.TutorialService)
+local Analytics = require(script.Parent.Parent.Analytics)
 
 type Plot = Plots.Plot
 type Data = DataService.Data
@@ -137,8 +139,14 @@ local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: numbe
 	end
 	data.boughtAtBuyTier += amount
 	data.totalBrainrots += amount
+	local merged = total(after) < total(data.counts) + amount
 	data.counts = after
 	afterChange(player, plot, data)
+	Analytics.cash(player, "sink", cost, data.cash, "Shop", "Brainrot")
+	TutorialService.record(player, "buy")
+	if merged then
+		TutorialService.record(player, "merge")
+	end
 	notify:FireClient(player, `Bought {amount} {Tiers.get(data.buyTier).name}!`, "good")
 end
 
@@ -174,6 +182,8 @@ local function buy(player: Player, plot: Plot, amount: number)
 	data.totalBrainrots += count
 	ShopService.mergeIfFull(data)
 	afterChange(player, plot, data)
+	Analytics.cash(player, "sink", cost, data.cash, "Shop", "Brainrot")
+	TutorialService.record(player, "buy")
 	if count < amount then
 		notify:FireClient(player, `Only room for {count}: bought {count}`)
 	end
@@ -186,6 +196,7 @@ local function merge(player: Player, plot: Plot)
 	end
 	if ShopService.mergeCounts(data.counts) > 0 then
 		afterChange(player, plot, data)
+		TutorialService.record(player, "merge")
 	end
 end
 
@@ -205,7 +216,10 @@ local function upgradeBuyTier(player: Player, plot: Plot)
 	end
 	data.buyTier += 1
 	data.boughtAtBuyTier = 0
+	DataService.sync(player)
 	ShopService.refreshPads(plot)
+	Analytics.cash(player, "sink", cost, data.cash, "Gameplay", "UpgradeBuyTier")
+	Analytics.buyTier(player, data.buyTier)
 	notify:FireClient(player, `Buy pads now sell {Tiers.get(data.buyTier).name}!`, "good")
 end
 

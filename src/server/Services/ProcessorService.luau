@@ -16,6 +16,8 @@ local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
 local MarketService = require(script.Parent.MarketService)
 local MonetizationService = require(script.Parent.MonetizationService)
+local TutorialService = require(script.Parent.TutorialService)
+local Analytics = require(script.Parent.Parent.Analytics)
 
 type Plot = Plots.Plot
 
@@ -54,6 +56,11 @@ function ProcessorService.refresh(plot: Plot)
 	-- Cash multipliers apply when the Cash is collected (like Capybara Onsen's
 	-- "[x4 Cash] Collect Cash"), so the pad shows the multiplied amount.
 	local multiplier = if owner then MonetizationService.cashMultiplier(owner) else 1
+	if owner then
+		-- GuideController: "Collect your Cash" and the Finish Now hint.
+		owner:SetAttribute("PendingCash", data.pendingCash * multiplier)
+		owner:SetAttribute("ProcessorWait", data.processorQueue / rate)
+	end
 	local tag = if multiplier > 1
 		then Billboard.color(`[{Format.multiplier(multiplier)} Cash] `, Billboard.CYAN)
 		else ""
@@ -94,6 +101,7 @@ local function deposit(player: Player, plot: Plot)
 			.. `[x{string.format("%.2f", multiplier)}]!`,
 		"deposit"
 	)
+	TutorialService.record(player, "deposit")
 end
 
 local function collectCash(player: Player, plot: Plot)
@@ -108,6 +116,8 @@ local function collectCash(player: Player, plot: Plot)
 	DataService.sync(player)
 	ProcessorService.refresh(plot)
 	notify:FireClient(player, `Collected {Format.short(amount)} Cash!`, "cash")
+	Analytics.cash(player, "source", amount, data.cash, "Gameplay", "Processor")
+	TutorialService.record(player, "collectCash")
 end
 
 local function upgrade(player: Player, plot: Plot)
@@ -122,6 +132,7 @@ local function upgrade(player: Player, plot: Plot)
 	end
 	data.processorLevel += 1
 	ProcessorService.refresh(plot)
+	Analytics.cash(player, "sink", cost, data.cash, "Gameplay", "UpgradeProcessor")
 	notify:FireClient(
 		player,
 		`Processor Lv {data.processorLevel}: {Format.short(Economy.processorRate(data.processorLevel))} per second`,

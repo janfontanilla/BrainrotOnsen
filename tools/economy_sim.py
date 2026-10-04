@@ -51,11 +51,15 @@ def load_config() -> dict:
         (n, int(u), int(w))
         for n, u, w in re.findall(r'name = "(\w+)", unlockTier = (\d+), weight = (\d+)', blocks)
     ]
-    m = re.search(r"CASH_PACK_MULTIPLIERS = \{ S = ([0-9_]+), M = ([0-9_]+), L = ([0-9_]+)", (CONFIG / "Economy.luau").read_text())
-    cfg["PACKS"] = {k: float(v.replace("_", "")) for k, v in zip("SML", m.groups())} if m else {}
-    # Proposed extension (not in the code yet): Upgrade Buy Tier cost grows by this
-    # factor per buy tier on top of the 4x tier value. 1.0 = today's formula.
-    cfg["BUY_TIER_UPGRADE_GROWTH"] = 1.0
+    m = re.search(r"CASH_PACK_HOURS = \{ S = ([0-9_.]+), M = ([0-9_.]+), L = ([0-9_.]+)", (CONFIG / "Economy.luau").read_text())
+    cfg["PACK_HOURS"] = {k: float(v) for k, v in zip("SML", m.groups())} if m else {}
+    # Upgrade Buy Tier cost growth per tier between TIER_GROWTH_FROM and _TO (1.0 = none).
+    cfg.setdefault("BUY_TIER_UPGRADE_GROWTH", 1.0)
+    cfg.setdefault("TIER_GROWTH_FROM", 1)
+    cfg.setdefault("TIER_GROWTH_TO", 20)
+    # Lucky block prices follow the same growth (Config/LuckyBlocks); a separate knob here
+    # so the sim can test them apart.
+    cfg["LUCKY_BLOCK_PRICE_GROWTH"] = cfg["BUY_TIER_UPGRADE_GROWTH"]
     cfg["MAX_TIER"] = len(cfg["AURA"]) - 1
     assert cfg["MAX_TIER"] == 20 and len(cfg["BLOCKS"]) == 9, "config parse failed"
     return cfg
@@ -93,6 +97,9 @@ class Profile:
 
 
 PATIENT_MARKET = 1.2
+FINE_DT = 2.0  # time step for the first FINE_SECONDS of play (early game is fast)
+FINE_SECONDS = 7200
+COARSE_DT = 30.0  # after that; divides the 90 s station cycle and the 30 s market roll
 
 
 @dataclass
@@ -151,8 +158,13 @@ class Sim:
         return (
             self.base_price(self.buy_tier + 1)
             * self.c["BUY_TIER_UPGRADE_MULTIPLIER"]
-            * self.c["BUY_TIER_UPGRADE_GROWTH"] ** (self.buy_tier - 1)
+            * self.c["BUY_TIER_UPGRADE_GROWTH"] ** self.growth_steps(self.buy_tier)
         )
+
+    def growth_steps(self, tier: int) -> int:
+        """How many times the per-tier growth applies: only between GROWTH_FROM and GROWTH_TO."""
+        lo, hi = int(self.c["TIER_GROWTH_FROM"]), int(self.c["TIER_GROWTH_TO"])
+        return max(0, min(tier, hi) - lo)
 
     def proc_rate(self, level: int | None = None) -> float:
         lv = self.proc_level if level is None else level
@@ -165,7 +177,11 @@ class Sim:
         return max(self.c["GROUP_REWARD_MIN"], self.base_price(self.buy_tier) * self.c["GROUP_REWARD_MULTIPLIER"])
 
     def block_price(self, unlock: int) -> float:
-        return self.aura_t[unlock] * self.c["LUCKY_BLOCK_PRICE_MULTIPLIER"]
+        return (
+            self.aura_t[unlock]
+            * self.c["LUCKY_BLOCK_PRICE_MULTIPLIER"]
+            * self.c["LUCKY_BLOCK_PRICE_GROWTH"] ** self.growth_steps(unlock)
+        )
 
     # -- state helpers --
     def _recount(self):
@@ -276,7 +292,12 @@ class Sim:
             if r <= 0:
                 break
         price = self.block_price(unlock)
-        if not self.p.lucky or price > self.cash * self.p.lucky_max_spend or not self.lucky_worth(unlock):
+        if (
+            not self.p.lucky
+            or unlock < self.buy_tier  # contents mostly below what the pads sell: discard
+            or price > self.cash * self.p.lucky_max_spend
+            or not self.lucky_worth(unlock)
+        ):
             return
         if self._n >= 80:
             self.merge()
@@ -336,7 +357,13 @@ class Sim:
             # 3. buy while a unit pays back within the horizon (merging only improves it)
             price = self.unit_price()
             payback_h = price / self.unit_cash_per_real_s(self.buy_tier) / 3600
-            if payback_h <= self.p.buy_payback_hours or self._n == 0:
+            # Worth buying if it pays back before the next upgrade could be afforded anyway.
+            horizon = self.p.buy_payback_hours
+            if up is not None:
+                income_h = self.income_per_real_hour()
+                if income_h > 0:
+                    horizon = max(horizon, (up - self.cash) / income_h)
+            if payback_h <= horizon or self._n == 0:
                 bought = False
                 for n in (100, 25, 5, 1):
                     if n * price <= self.cash:
@@ -369,7 +396,7 @@ class Sim:
         t = 0.0
         next_visit = p.cycle
         while t < seconds:
-            dt = 2.0 if self.t_active < 7200 else 10.0
+            dt = FINE_DT if self.t_active < FINE_SECONDS else COARSE_DT
             dt = min(dt, seconds - t)
             eff = self.efficiency()
             self.aura += self._rate_cache * dt * eff * p.aura_mult
@@ -443,9 +470,9 @@ def simulate(cfg: dict, p: Profile, seeds=(1, 2, 3)) -> Result:
 
 # ---------------------------------------------------------------- report ---
 
-FREE = Profile("Free (no passes)", active_hours=4.0)
-X7 = Profile("x7 Cash", cash_mult=7.0, active_hours=4.0, offline_credit_hours=20.0)
-WHALE = Profile("Whale (x12, 2x Aura, Auto Collect)", cash_mult=12.0, aura_mult=2.0, auto_collect=True, active_hours=4.0)
+FREE = Profile("Free (no passes)", active_hours=2.0)
+X7 = Profile("x7 Cash", cash_mult=7.0, active_hours=2.0)
+WHALE = Profile("Whale (x12, 2x Aura, Auto Collect)", cash_mult=12.0, aura_mult=2.0, auto_collect=True, active_hours=2.0)
 
 
 def fmt_num(x: float) -> str:
@@ -502,21 +529,21 @@ def milestone_table(res: Result):
 
 
 def packs_table(cfg: dict, res_by_name: dict):
-    print("\n=== Cash packs: hours of income they replace ===")
-    print("| highest tier | S | M | L | x7 Cash / real day | free Cash / real day |")
-    print("|---|---|---|---|---|---|")
-    for t in (1, 5, 10, 15, 19):
-        base = cfg["AURA"][t] * cfg["BASE_PRICE_MULTIPLIER"]
-        per = {}
-        for name, res in res_by_name.items():
-            m = res.milestones.get(f"highest {t}") if t > 1 else res.milestones.get("first upgrade")
-            per[name] = (m["income_h"] if m else 0.0) * 24
+    print("\n=== Cash packs (hours of brainrot income) at each buy tier, vs the step to the next tier ===")
+    print("| buy tier | S | M | L | that step takes (x7 / free, real time) |")
+    print("|---|---|---|---|---|")
+    for t in (2, 5, 10, 12, 15, 18):
         cells = []
+        steps = []
+        for name in ("x7", "free"):
+            ms = res_by_name[name].milestones
+            a, b = ms.get(f"buy tier {t}"), ms.get(f"buy tier {t + 1}")
+            steps.append(f"{(b['day'] - a['day']) * 24:.1f} h" if a and b else "-")
+        x7 = res_by_name["x7"].milestones.get(f"buy tier {t}")
+        raw = x7["income_h"] / 7 if x7 else 0  # raw Aura per hour, before the x7 pass
         for size in "SML":
-            amt = base * cfg["PACKS"][size]
-            x7 = per.get("x7", 0)
-            cells.append(f"{fmt_num(amt)} ({amt / x7 * 24:.1f} h x7)" if x7 else fmt_num(amt))
-        print(f"| {t} | " + " | ".join(cells) + f" | {fmt_num(per.get('x7', 0))} | {fmt_num(per.get('free', 0))} |")
+            cells.append(fmt_num(max(raw, cfg["STARTING_CASH"]) * cfg["PACK_HOURS"][size]))
+        print(f"| {t} | " + " | ".join(cells) + f" | {' / '.join(steps)} |")
 
 
 def tuned_config(cfg: dict) -> dict:
@@ -525,6 +552,8 @@ def tuned_config(cfg: dict) -> dict:
     return c
 
 
+# Overrides to try on top of the live Config (empty = the live numbers). The live
+# numbers were tuned with this file on 2026-10-04.
 TUNING: dict = {}
 
 

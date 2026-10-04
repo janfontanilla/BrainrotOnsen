@@ -250,10 +250,10 @@ function HudController:Start()
 			promoPrice.Text = `R$ {nextPass.robux}`
 		end
 
-		local highest = math.max(1, number("HighestTier"))
+		local auraPerSecond = number("AuraPerSecond")
 		for _, pack in PACKS do
 			local entry = packButtons[pack.name]
-			entry.amount.Text = "+$" .. Format.short(Economy.cashPackAmount(highest, pack.size))
+			entry.amount.Text = "+$" .. Format.short(Economy.cashPackAmount(auraPerSecond, pack.size))
 		end
 		local isPremium = player:GetAttribute("Premium") == true
 		premium.Text = if isPremium
@@ -261,7 +261,9 @@ function HudController:Start()
 			else "Premium: Inactive"
 		friends.Text = `Friends {math.round(friendBoost * 100)}%`
 	end
-	for _, name in { "Aura", "Cash", "TotalBrainrots", "CashPass", "FriendBoost", "Premium", "HighestTier" } do
+	for _, name in
+		{ "Aura", "Cash", "TotalBrainrots", "CashPass", "FriendBoost", "Premium", "HighestTier", "AuraPerSecond" }
+	do
 		player:GetAttributeChangedSignal(name):Connect(refresh)
 	end
 	refresh()

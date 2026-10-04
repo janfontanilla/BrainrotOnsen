@@ -17,7 +17,7 @@ Icon, thumbnail and listing brief with the Codex prompts: `docs/store-assets.md`
 > 🎁 Open lucky chests for rare brainrots
 > 🌊 Ride the river between onsens and visit your friends
 >
-> Join the group and like the game for a Cash reward every 5 minutes!
+> Join the group and like the game for a Cash reward every 10 minutes!
 >
 > Brainrot models: "Brainrot Pack [150+]" by Agus_Fellini2.
 

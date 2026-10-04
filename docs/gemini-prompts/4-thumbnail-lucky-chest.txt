@@ -1,4 +1,6 @@
-Create a wide 16:9 landscape thumbnail at dusk for the Roblox game "Brainrot Bathhouse".
+IMAGE SIZE: landscape 16:9, 1920 x 1080 pixels, about twice as wide as it is tall. Never square, never portrait.
+
+Create a wide 16:9 landscape thumbnail at dusk for the Roblox game "Brainrot Bathhouse". Spread the scene across the full width: the chest and Bombardiro Crocodilo slightly left of centre, the pool, lanterns and floating chests filling the right side.
 
 Everything in a chunky, blocky Roblox voxel style with studded surfaces. A glowing purple treasure chest (a blocky box with dark purple trim and a gold lock) bursts open on the edge of a steaming turquoise hot-spring pool, with beams of light and sparkles. Bombardiro Crocodilo (a green crocodile whose body is a grey military bomber plane) flies out of it, glowing. Smaller brown wooden, gold and light-blue diamond chests float in the water around it. Warm paper lanterns glow in the dusk.
 

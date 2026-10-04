@@ -29,13 +29,28 @@ Economy.STARTING_CASH = 1_000
 -- Studio-only: a brand-new profile in Studio starts with this much Cash instead,
 -- for testing. 0 = off. Ignored in live servers.
 Economy.STUDIO_STARTING_CASH = 500_000
+-- Studio-only: appended to the profile key, so a new suffix plays as a brand-new player
+-- without touching the real save. "" = the real profile.
+Economy.STUDIO_PROFILE_SUFFIX = ""
+-- Studio-only: a brand-new profile gets this many of every tier (model checks). 0 = off.
+Economy.STUDIO_GIVE_EACH_TIER = 0
+-- Studio-only: restart the new-player tutorial on every join (TutorialService). false = off.
+Economy.STUDIO_FORCE_TUTORIAL = false
 
 -- Buying
 Economy.BUY_AMOUNTS = { 1, 5, 25, 100 }
 Economy.AUTO_MERGE_BUY_AMOUNT = 100 -- only this buy size auto-merges
 Economy.BASE_PRICE_MULTIPLIER = 20 -- base price = aura per drop x this
-Economy.PRICE_GROWTH = 1.005 -- unit price x this per brainrot bought at the current buy tier
-Economy.BUY_TIER_UPGRADE_MULTIPLIER = 500 -- upgrade cost = next tier's base price x this (2026-09-30: 2,500 -> 500, first upgrade ~12 min)
+Economy.PRICE_GROWTH = 1.08 -- unit price x this per brainrot bought at the current buy tier (2026-10-04: 1.005 -> 1.08, keeps the best brainrot ~3 tiers ahead of the pads)
+-- Upgrade Buy Tier cost = next tier's base price x MULTIPLIER x GROWTH ^ tierGrowthSteps(buy tier).
+-- An expanding curve (2026-10-04, tools/economy_sim.py): fast at the start, each step
+-- ~2-3x longer from buy tier 4 to 15, then about the same length per step. Simulated:
+-- first upgrade 3-9 min, free player buy tier 12 ~day 3 and a tier 20 ~day 48, x7 Cash
+-- player a tier 20 ~day 8 (2 h play a day, offline the rest).
+Economy.BUY_TIER_UPGRADE_MULTIPLIER = 15 -- (2026-10-04: 500 -> 15; the growth below does the rest)
+Economy.BUY_TIER_UPGRADE_GROWTH = 2.9
+Economy.TIER_GROWTH_FROM = 4 -- the growth starts after this buy tier...
+Economy.TIER_GROWTH_TO = 15 -- ...and stops at this one
 
 -- Merging
 Economy.MERGE_COUNT = 3
@@ -66,18 +81,24 @@ Economy.STUDIO_SIMULATE_PURCHASES = true
 Economy.LUCKY_BLOCK_SPAWN_MIN = 40
 Economy.LUCKY_BLOCK_SPAWN_MAX = 100
 Economy.LUCKY_BLOCK_MAX_WAITING = 5 -- blocks floating / in the pool before spawning pauses
-Economy.LUCKY_BLOCK_PRICE_MULTIPLIER = 800 -- price = unlock tier's aura x this
+-- price = unlock tier's aura x MULTIPLIER x BUY_TIER_UPGRADE_GROWTH ^ tierGrowthSteps(unlock tier):
+-- on the same curve as the upgrades, so a chest never skips the ladder (2026-10-04: 800 -> 100 + growth).
+Economy.LUCKY_BLOCK_PRICE_MULTIPLIER = 100
 Economy.LUCKY_BLOCK_PICKUP_RANGE = 5 -- studs, horizontal; walking this close picks the block up
 -- Studio-only fixed spawn interval (seconds) so blocks can be tested quickly. 0 = off.
 Economy.STUDIO_LUCKY_BLOCK_INTERVAL = 0
 
--- Cash packs (dev products): amount = base price of highest tier x multiplier
-Economy.CASH_PACK_MULTIPLIERS = { S = 50, M = 2_500, L = 125_000 }
+-- Cash packs (dev products): amount = this many hours of the player's brainrot income
+-- (Aura per second x 3600 x hours; at least STARTING_CASH x hours for brand-new players).
+-- 2026-10-04: was base price of the highest tier x 50 / 2,500 / 125,000, which skipped
+-- weeks late on; hours keep every pack a shortcut of at most a day, better value per
+-- Robux the bigger the pack (29 / 149 / 499 Robux).
+Economy.CASH_PACK_HOURS = { S = 1, M = 6, L = 24 }
 
 -- Group reward (the pad in front of the "Join the group + Like" sign): members can
 -- claim Cash every GROUP_REWARD_INTERVAL seconds. A helper, not income: the amount
 -- starts at GROUP_REWARD_MIN and grows with the buy tier (base price x multiplier).
-Economy.GROUP_REWARD_INTERVAL = 300
+Economy.GROUP_REWARD_INTERVAL = 600 -- (2026-10-04: 300 -> 600, user request)
 Economy.GROUP_REWARD_MIN = 10_000
 Economy.GROUP_REWARD_MULTIPLIER = 25
 
@@ -99,11 +120,19 @@ function Economy.bulkPrice(buyTier: number, boughtAtBuyTier: number, amount: num
 	return Economy.unitPrice(buyTier, boughtAtBuyTier) * amount
 end
 
+-- How many times BUY_TIER_UPGRADE_GROWTH applies at `tier` (0 up to TIER_GROWTH_FROM,
+-- then +1 per tier, capped at TIER_GROWTH_TO).
+function Economy.tierGrowthSteps(tier: number): number
+	return math.max(0, math.min(tier, Economy.TIER_GROWTH_TO) - Economy.TIER_GROWTH_FROM)
+end
+
 function Economy.buyTierUpgradeCost(currentBuyTier: number): number?
 	if currentBuyTier >= Tiers.MAX_TIER then
 		return nil
 	end
-	return Economy.basePrice(currentBuyTier + 1) * Economy.BUY_TIER_UPGRADE_MULTIPLIER
+	return Economy.basePrice(currentBuyTier + 1)
+		* Economy.BUY_TIER_UPGRADE_MULTIPLIER
+		* Economy.BUY_TIER_UPGRADE_GROWTH ^ Economy.tierGrowthSteps(currentBuyTier)
 end
 
 function Economy.processorRate(level: number): number
@@ -118,8 +147,10 @@ function Economy.friendBoost(friendsInServer: number): number
 	return math.min(friendsInServer * Economy.FRIEND_BOOST_PER_FRIEND, Economy.FRIEND_BOOST_MAX)
 end
 
-function Economy.cashPackAmount(highestTier: number, size: "S" | "M" | "L"): number
-	return Economy.basePrice(highestTier) * Economy.CASH_PACK_MULTIPLIERS[size]
+-- `auraPerSecond` = what the player's brainrots make (DataService.auraPerSecond).
+function Economy.cashPackAmount(auraPerSecond: number, size: "S" | "M" | "L"): number
+	local hours = Economy.CASH_PACK_HOURS[size]
+	return math.floor(math.max(auraPerSecond * 3600, Economy.STARTING_CASH) * hours)
 end
 
 return Economy

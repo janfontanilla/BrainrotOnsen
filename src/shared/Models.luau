@@ -273,8 +273,19 @@ end
 
 -- A brainrot from the pack in ReplicatedStorage.Assets.Brainrots, scaled to fit a
 -- bath, standing on the origin. nil if the pack model is not there.
-local PACK_MAX_FOOTPRINT = 6 -- studs: widest horizontal size (they overhang the bath rims, like Capybara Onsen's)
-local PACK_MAX_HEIGHT = 8
+-- The fit box grows with the tier, so a higher tier always looks bigger (2026-10-04:
+-- with one box for all, tier 1 was the tallest model and tiers 15-16 half its height).
+local PACK_FOOTPRINT = { min = 5, max = 7 } -- studs: widest horizontal size, tier 1 -> 20 (they overhang the bath rims, like Capybara Onsen's)
+local PACK_HEIGHT = { min = 5, max = 8 } -- studs, tier 1 -> 20
+-- Front to back (z) there is more room than side to side (neighbours are 9 apart in x):
+-- long models (sharks, elephants) may reach this much further along z.
+local PACK_DEPTH_ROOM = 1.4
+-- Per-tier overrides for models whose shape fits the box badly (flat planes and birds
+-- come out tiny when held to the footprint): footprint in studs (spots are 9 apart).
+local PACK_FIXES: { [number]: { footprint: number? } } = {
+	[8] = { footprint = 8 }, -- Bombombini Gusini: a flat goose-plane
+	[11] = { footprint = 8 }, -- Bombardiro Crocodilo: a bomber plane
+}
 
 -- World-axis bounds (min, max) of the model's visible parts, from their rotated corners.
 local function worldBounds(model: Model): (Vector3, Vector3)
@@ -320,7 +331,15 @@ local function fromPack(tier: number): Model?
 	-- axes) give the wrong height: measure the world-axis bounds instead.
 	local low, high = worldBounds(model)
 	local size = high - low
-	local fit = math.min(PACK_MAX_FOOTPRINT / math.max(size.X, size.Z, 0.1), PACK_MAX_HEIGHT / math.max(size.Y, 0.1))
+	local grow = (tier - 1) / 19
+	local fix = PACK_FIXES[tier]
+	local footprint = (fix and fix.footprint) or (PACK_FOOTPRINT.min + (PACK_FOOTPRINT.max - PACK_FOOTPRINT.min) * grow)
+	local height = PACK_HEIGHT.min + (PACK_HEIGHT.max - PACK_HEIGHT.min) * grow
+	local fit = math.min(
+		footprint / math.max(size.X, 0.1),
+		footprint * PACK_DEPTH_ROOM / math.max(size.Z, 0.1),
+		height / math.max(size.Y, 0.1)
+	)
 	model:ScaleTo(model:GetScale() * fit)
 	low, high = worldBounds(model)
 	local bottom = Vector3.new((low.X + high.X) / 2, low.Y, (low.Z + high.Z) / 2)

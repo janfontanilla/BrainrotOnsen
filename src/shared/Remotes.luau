@@ -8,6 +8,7 @@
 -- GoHome       client -> server  ()                 Home button: send my character to my plot
 -- LuckyBlockAction client -> server ("unlock" | "discard")  buttons on the held block's panel
 -- LuckyBlockOpened server -> all clients (player, blockName, tier)  play the open-up reveal
+-- TutorialAction client -> server ("skip")         Skip button on the tutorial line (TutorialService)
 -- Notify       server -> client  (message: string, kind: string?)  HUD message:
 --              "deposit" / "cash" / "away" / "lucky" / "newBrainrot" = big popup; "good" = green toast; nil = red toast
 
@@ -22,6 +23,7 @@ export type Name =
 	| "LuckyBlockAction"
 	| "LuckyBlockOpened"
 	| "Notify"
+	| "TutorialAction"
 
 local FOLDER_NAME = "Remotes"
 

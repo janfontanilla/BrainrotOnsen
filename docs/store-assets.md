@@ -78,7 +78,7 @@ Tung Tung Tung Sahur needs a bath! 🛁 Build the craziest brainrot bathhouse, m
 🎁 Open lucky chests for rare brainrots
 💤 Your brainrots earn while you're offline!
 
-👍 Like & join PCC. Studios for free Cash every 5 minutes!
+👍 Like & join PCC. Studios for free Cash every 10 minutes!
 🙏 Brainrot models by Agus_Fellini2
 ```
 

@@ -7,8 +7,8 @@ Keep the scene, lighting and composition exactly the same. Redraw Tung Tung Tung
 Logo misspelled:
 Keep the image exactly the same and only fix the sign text to read "Brainrot Bathhouse".
 
-Wrong shape:
-Make this exact image as a wide 16:9 landscape.
+Wrong shape (came back square or tall):
+Redraw this exact scene as a wide 16:9 landscape image, 1920 x 1080 pixels, about twice as wide as it is tall. Keep the characters, chest, "COSMIC" text and lighting the same; extend the pool, lanterns and sky out to the left and right instead of cropping anything.
 
 Too dull for an icon:
 Same image, but brighter and more saturated with stronger contrast, so it reads as a tiny icon.

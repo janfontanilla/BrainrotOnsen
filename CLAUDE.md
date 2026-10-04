@@ -25,12 +25,15 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 - Drop cap: 50 uncollected drops per plot. At the cap, all production silently stops (no banner) until drops are picked up.
 - Buy 100 always auto-merges (together with what the player already owns). Buy 1/5/25 and lucky block results only merge when the onsen maxes out: if they wouldn't fit, or the onsen is full after adding them, everything merges automatically. Otherwise they wait for the Merge! pad. Buy 1/5/25 buy as many as fit and charge only for those.
 - Tier value is roughly 4x the tier below (must always be more than 3x so merging pays).
-- Upgrade Buy Tier permanently raises the tier the buy pads sell and resets price scaling.
+- Upgrade Buy Tier permanently raises the tier the buy pads sell and resets price scaling. Its cost grows faster than income (user decision 2026-10-04: an expanding curve, quick to hook, then slower and slower so passes are worth buying): next tier's base price x `BUY_TIER_UPGRADE_MULTIPLIER` x `BUY_TIER_UPGRADE_GROWTH` ^ steps, where the growth applies from buy tier `TIER_GROWTH_FROM` to `TIER_GROWTH_TO`. Simulated (`tools/economy_sim.py`, 2 h play a day): free player owns a tier 20 around day 48, x7 Cash player around day 8 (target: a week or more).
+- Offline earnings are never cut to slow the game (user decision 2026-10-04); pacing comes from costs.
 - Offline: brainrots earn at 100% forever, straight into the Aura counter (ignores the drop cap). Processor keeps processing.
-- Lucky blocks: after a random 40-100 s of production the next drop from a brainrot is a lucky block instead of Aura (floats into the pool like a drop). Several can float at once (up to 5); a player holds one. Type is a weighted random roll (Wood most common, Cosmic rarest; user decision 2026-09-30, not tied to progress); contains the type's unlock tier -1 to +2 at 60/30/9/1 odds; paid with Cash only (never Robux directly); very expensive.
+- Lucky blocks: after a random 40-100 s of production the next drop from a brainrot is a lucky block instead of Aura (floats into the pool like a drop). Several can float at once (up to 5); a player holds one. Type is a weighted random roll (Wood most common, Cosmic rarest; user decision 2026-09-30, not tied to progress); contains the type's unlock tier -1 to +2 at 60/30/9/1 odds; paid with Cash only (never Robux directly); price = unlock tier Aura x `LUCKY_BLOCK_PRICE_MULTIPLIER` on the same growth curve as Upgrade Buy Tier, so a chest is a small jump ahead, never a skip.
 - Cash multiplier game passes: x2 / x4 / x7 / x12 at 40 / 80 / 140 / 240 Robux (multiplier x 20; x12 added 2026-09-29, user request). Highest owned applies, no stacking between them.
 - Auto Collect game pass collects Aura drops, not Cash.
 - Finish Now dev product instantly processes the processor queue (with the same Cash multipliers).
+- Cash packs (S / M / L) give `CASH_PACK_HOURS` (1 / 6 / 24) hours of the player's brainrot income (at least `STARTING_CASH` x hours): a shortcut of at most a day at every stage.
+- Group reward: every 10 minutes (`GROUP_REWARD_INTERVAL` 600, user request 2026-10-04).
 - Boosts multiply: Aura = 2x pass x (1 + 10% Premium); processor Cash = highest Cash pass x (1 + friend boost). Auto Collect credits each drop straight to Aura (no floating drop, never hits the cap).
 - Total Brainrots counts brainrots obtained by buying or lucky block unlocks (not merges).
 - No pedestals. The Index is the collection.
@@ -48,7 +51,7 @@ src/client/   -> StarterPlayerScripts.Client (Controllers/)
 Packages/       -> ReplicatedStorage.Packages (Wally shared deps, gitignored)
 ServerPackages/ -> ServerStorage.ServerPackages (Wally server deps like ProfileStore, gitignored)
 reference/    Capybara Onsen screenshots: the visual reference for layout and UI
-docs/         launch.md (pre-publish checklist), store-assets.md (store listing text, research), gemini-prompts/ (one image prompt per file), store-reference/ (in-game captures), map-polish-roadmap.md, map-polish.md, prompts/
+docs/         launch-plan.md (the plan to launch, phase by phase), launch.md (pre-publish checklist), store-assets.md (store listing text, research), gemini-prompts/ (one image prompt per file), store-reference/ (in-game captures), map-polish-roadmap.md, map-polish.md, prompts/
 assets/store/ the store icon (icon-512.png, icon-1024.png) and, once made, the thumbnails
 assets/       Brainrots.rbxmx: the 20 pack models (Tier1..Tier20), synced to ReplicatedStorage.Assets.Brainrots; textures/: generated map tiles and HUD images (one shared style; uploaded, IDs in Config/Textures, default.project.json and client/Style)
 tools/        extract_brainrot_pack.py (rebuilds assets/Brainrots.rbxmx), make_textures.py (regenerates assets/textures), voxel_forge.py (designs the voxel map props, writes src/shared/PropData.luau, renders previews)
@@ -79,6 +82,8 @@ Module map:
 | `Services/AtmosphereService` | Lighting, sky, haze, bloom, colour correction |
 | `Services/MonetizationService` | Game passes, dev products (`ProcessReceipt` + `data.receipts`), Aura / Cash multipliers, friend + Premium boosts, Robux pads, `BuyProduct` intent |
 | `Services/LeaderboardService` | `Total Brainrots` leaderstat; three pavilions on the plaza island (Top Brainrots, Net Worth = lifetime Cash earned stored as log10 x 1e6, Playtime) from OrderedDataStores |
+| `Services/TutorialService` + `shared/Tutorial` | New-player tutorial (buy, collect 3 drops, deposit, collect Cash, merge): `data.tutorialStep`, `TutorialService.record(player, id)` called by Shop / Drop / Processor services, `TutorialStep` / `TutorialCount` attributes, skip from step 2 (`TutorialAction`); old profiles with brainrots skip it |
+| `server/Analytics` | Roblox AnalyticsService wrappers (live only): onboarding funnel, buy tier funnel, Cash sources / sinks |
 | `Services/GroupRewardService` | Group reward pad: members claim Cash every `Economy.GROUP_REWARD_INTERVAL` (max(min, base price x multiplier)); `Products.GROUP_ID` 0 = Studio treats everyone as a member |
 | `client/Style` | HUD building blocks in Capybara Onsen's style: `Style.button` (studded blocky button, dark border, outlined label), `Style.outlined` (big outlined text, no box), `Style.autoScale` (shrinks a ScreenGui on small screens), image ids |
 | `Controllers/SoundController` | Music playlist and cues (`Config/Sounds`); 3D water loops are placed by `Decor.ambient` |
@@ -88,14 +93,15 @@ Module map:
 | `Controllers/MarketBoardController` | Draws the market boards |
 | `Controllers/LuckyBlockController` | Held chest + tool-hold animation, odds panel, on-screen unlock reveal |
 | `Controllers/IndexController` | Index button and grid |
+| `Controllers/GuideController` | Guide line under Home: tutorial step + beam + arrow + Skip, then the next goal (deposit pile, collect Cash for the upgrade, Merge!, Upgrade Buy Tier progress bar) and friction hints (Auto Collect at the drop cap, Finish Now on a long queue, next Cash pass "ready in X instead of Y" from buy tier 6) |
 
 Conventions:
 
 - All tunable numbers live in `src/shared/Config/` (`Tiers`, `Economy`, `LuckyBlocks`, `Products`, `Sounds`, `Textures`). Never hard-code a balance number in a service. Visual-only layout numbers (studs, colors) live at the top of the module that uses them.
-- Studio-only test knobs are `Economy.STUDIO_*` (0 / false = off), always gated by `RunService:IsStudio()`. `STUDIO_SIMULATE_PURCHASES` grants passes / products whose ID is still 0 for free in Studio.
+- Studio-only test knobs are `Economy.STUDIO_*` (0 / false = off), always gated by `RunService:IsStudio()`. `STUDIO_PROFILE_SUFFIX` loads a separate profile (play as a brand-new player without touching the real save); `STUDIO_GIVE_EACH_TIER` gives a new profile n of every tier (model checks); `STUDIO_FORCE_TUTORIAL` restarts the tutorial. `STUDIO_SIMULATE_PURCHASES` grants passes / products whose ID is still 0 for free in Studio.
 - Brainrots are stored as counts per tier (`data.counts`, dense array), not as instances.
 - Saving: ProfileStore with session locking. New `Data` fields go in `DataService`'s `TEMPLATE`; `Reconcile` fills them into old profiles. Dev product receipts are logged in the profile.
-- Server -> client state: player attributes (`Aura`, `Cash`, `Brainrots`, `TotalBrainrots`, `HighestTier`, `Discovered`, `LuckyBlock`, `PlotIndex`, and from MonetizationService `CashPass`, `FriendBoost`, `Premium`, `AuraMultiplier`, `AutoCollect`) and part attributes; events through `Shared.Remotes` (the list and payloads are in its header).
+- Server -> client state: player attributes (`Aura`, `Cash`, `Brainrots`, `TotalBrainrots`, `HighestTier`, `BuyTier`, `AuraPerSecond`, `MergeReady`, `TutorialStep`, `TutorialCount`, `PendingCash`, `ProcessorWait`, `DropsCapped`, `Discovered`, `LuckyBlock`, `PlotIndex`, and from MonetizationService `CashPass`, `FriendBoost`, `Premium`, `AuraMultiplier`, `AutoCollect`) and part attributes; events through `Shared.Remotes` (the list and payloads are in its header).
 - Messages: `Notify(message, kind?)`: nil = red toast, "good" = green toast, "deposit" / "cash" / "away" / "lucky" / "newBrainrot" = big popup.
 - Brainrot art: the free "Brainrot Pack [150+]" by Agus_Fellini2 (Creator Store asset 137461628889541; credit him in-game). `Shared.Models.makeBrainrot(tier)` clones `ReplicatedStorage.Assets.Brainrots.Tier<N>` (scaled to the bath, pivot at the bottom centre) and falls back to a code-built model. Models must not set a `PrimaryPart` (it overrides `WorldPivot`). Drop items are voxel props (`Drop<tier>`, cloned by `makeDropItem`); lucky block chests are voxel props (`Chest<Name>`, cloned by `Visuals.makeLuckyBlock`).
 - Placeholder art: `Shared.Visuals` (`tierColor`, `blockColor`, `makeLuckyBlock`) and `Shared.Models` (`makeBrainrot(tier)`, `makeDropItem(tier)`: blocky models built in code; brainrot origin = bottom centre, front = -Z, `Label` anchor above the head). Art order (user decision): code-built models, then Studio-MCP-built models, and the user's own models last. Swap models by keeping these function signatures.

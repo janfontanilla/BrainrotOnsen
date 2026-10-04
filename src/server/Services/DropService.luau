@@ -24,6 +24,7 @@ local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
 local PoolService = require(script.Parent.PoolService)
 local MonetizationService = require(script.Parent.MonetizationService)
+local TutorialService = require(script.Parent.TutorialService)
 
 type Plot = Plots.Plot
 
@@ -71,6 +72,7 @@ local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: num
 		local credited = value * MonetizationService.auraMultiplier(owner)
 		DataService.addAura(owner, credited)
 		dropCollected:FireClient(owner, credited)
+		TutorialService.record(owner, "collect")
 		return
 	end
 
@@ -125,6 +127,9 @@ local function produce(plot: Plot, now: number)
 			end
 		end
 	end
+	-- GuideController offers Auto Collect while production is stopped by the cap.
+	local owner = plot.owner :: Player
+	owner:SetAttribute("DropsCapped", not autoCollect and (dropCounts[plot.index] or 0) >= Economy.DROP_CAP)
 	for i = #tiers + 1, #plotTimers do
 		plotTimers[i] = nil
 	end
@@ -161,6 +166,7 @@ local function onCollect(player: Player, dropId: unknown)
 	local credited = drop.value * MonetizationService.auraMultiplier(player)
 	DataService.addAura(player, credited)
 	dropCollected:FireClient(player, credited)
+	TutorialService.record(player, "collect")
 end
 
 -- Uncollected drops on the plot right now.

@@ -46,6 +46,18 @@ function ConfigCheck.run()
 		"Client touch range must be inside server pickup range"
 	)
 	assert(Economy.STARTING_CASH >= Economy.basePrice(1), "Starting Cash must buy at least one tier 1 brainrot")
+	assert(Economy.BUY_TIER_UPGRADE_GROWTH >= 1, "Upgrade cost growth must not shrink costs")
+	assert(Economy.TIER_GROWTH_FROM < Economy.TIER_GROWTH_TO, "TIER_GROWTH_FROM must be below TIER_GROWTH_TO")
+	local lastCost = 0
+	for tier = 1, Tiers.MAX_TIER - 1 do
+		local cost = Economy.buyTierUpgradeCost(tier) :: number
+		assert(cost > lastCost, `Upgrade Buy Tier cost must rise every tier (tier {tier})`)
+		lastCost = cost
+	end
+	assert(
+		Economy.CASH_PACK_HOURS.S < Economy.CASH_PACK_HOURS.M and Economy.CASH_PACK_HOURS.M < Economy.CASH_PACK_HOURS.L,
+		"Cash packs must grow S < M < L"
+	)
 
 	for _, block in LuckyBlocks.list do
 		local total = 0

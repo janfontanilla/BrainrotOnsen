@@ -15,6 +15,7 @@ local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
 local Billboard = require(script.Parent.Parent.Billboard)
 local DataService = require(script.Parent.DataService)
+local Analytics = require(script.Parent.Parent.Analytics)
 
 type Plot = Plots.Plot
 
@@ -77,6 +78,7 @@ local function claim(player: Player, plot: Plot)
 	data.totalCashEarned += amount
 	data.groupRewardAt = os.time()
 	DataService.sync(player)
+	Analytics.cash(player, "source", amount, data.cash, "TimedReward", "GroupReward")
 	notify:FireClient(player, `Collected {Format.short(amount)} Cash!`, "cash")
 	refresh(plot)
 end

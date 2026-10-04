@@ -4,7 +4,8 @@
 -- mutate it and call DataService.sync so balances reach the client.
 --
 -- Balances replicate to the owning client as read-only player attributes
--- (Aura, Cash, Brainrots, TotalBrainrots, HighestTier, Discovered = "0101..." one char per tier). Attributes a client sets never reach the server.
+-- (Aura, Cash, Brainrots, TotalBrainrots, HighestTier, BuyTier, AuraPerSecond, MergeReady,
+-- Discovered = "0101..." one char per tier). Attributes a client sets never reach the server.
 --
 -- In Studio, saving only persists when the place is published and "Enable
 -- Studio Access to API Services" is on; otherwise ProfileStore runs in mock
@@ -38,6 +39,7 @@ export type Data = {
 	groupRewardAt: number, -- os.time() of the last group reward claim
 	totalCashEarned: number, -- lifetime Cash earned (the Net Worth board)
 	playtime: number, -- seconds played (the Playtime board)
+	tutorialStep: number, -- TutorialService: 0 = not decided, then the step, Tutorial.DONE = finished
 }
 
 local STORE_NAME = "PlayerData_v1"
@@ -63,6 +65,7 @@ local TEMPLATE: Data = {
 	groupRewardAt = 0,
 	totalCashEarned = 0,
 	playtime = 0,
+	tutorialStep = 0,
 }
 
 local DataService = {}
@@ -74,7 +77,10 @@ local loaded: { [Player]: Data } = {}
 -- Loads (or creates) the player's profile. Yields. Returns nil if the player
 -- left or the profile could not be loaded (the player is kicked).
 function DataService.load(player: Player): Data?
-	local profile = store:StartSessionAsync(`Player_{player.UserId}`, {
+	-- Studio-only: a suffix loads a separate test profile (a fresh new player) and
+	-- leaves the real save alone.
+	local suffix = if RunService:IsStudio() then Economy.STUDIO_PROFILE_SUFFIX else ""
+	local profile = store:StartSessionAsync(`Player_{player.UserId}{suffix}`, {
 		Cancel = function()
 			return player.Parent ~= Players
 		end,
@@ -103,6 +109,13 @@ function DataService.load(player: Player): Data?
 	if data.lastOnline == 0 and RunService:IsStudio() and Economy.STUDIO_STARTING_CASH > 0 then
 		-- Brand-new profile in Studio: testing Cash (Economy.STUDIO_STARTING_CASH).
 		data.cash = Economy.STUDIO_STARTING_CASH
+	end
+	if data.lastOnline == 0 and RunService:IsStudio() and Economy.STUDIO_GIVE_EACH_TIER > 0 then
+		-- Brand-new profile in Studio: n of every tier, to check every model in a bath.
+		for tier = 1, Tiers.MAX_TIER do
+			data.counts[tier] = Economy.STUDIO_GIVE_EACH_TIER
+		end
+		DataService.markOwned(data)
 	end
 	loaded[player] = data
 	DataService.sync(player)
@@ -201,6 +214,16 @@ function DataService.sync(player: Player)
 	player:SetAttribute("Discovered", table.concat(discovered))
 	player:SetAttribute("TotalBrainrots", data.totalBrainrots)
 	player:SetAttribute("HighestTier", data.highestTier)
+	player:SetAttribute("BuyTier", data.buyTier)
+	player:SetAttribute("AuraPerSecond", DataService.auraPerSecond(data))
+	local mergeReady = false
+	for tier = 1, Tiers.MAX_TIER - 1 do
+		if data.counts[tier] >= Economy.MERGE_COUNT then
+			mergeReady = true
+			break
+		end
+	end
+	player:SetAttribute("MergeReady", mergeReady)
 end
 
 function DataService.addAura(player: Player, amount: number)
