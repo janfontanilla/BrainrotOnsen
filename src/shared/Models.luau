@@ -33,6 +33,8 @@ type Add = (
 
 local Models = {}
 
+local LABEL_GAP = 1.2 -- studs between a brainrot's top and the bottom of its name label
+
 local function rgb(r: number, g: number, b: number): Color3
 	return Color3.fromRGB(r, g, b)
 end
@@ -105,7 +107,7 @@ local function finishBrainrot(model: Model)
 	anchor.CanQuery = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	anchor.CFrame = CFrame.new(0, top + 0.6, 0)
+	anchor.CFrame = CFrame.new(0, top + LABEL_GAP, 0)
 	anchor.Parent = model
 	model.WorldPivot = CFrame.new()
 end
@@ -274,6 +276,27 @@ end
 local PACK_MAX_FOOTPRINT = 6 -- studs: widest horizontal size (they overhang the bath rims, like Capybara Onsen's)
 local PACK_MAX_HEIGHT = 8
 
+-- World-axis bounds (min, max) of the model's visible parts, from their rotated corners.
+local function worldBounds(model: Model): (Vector3, Vector3)
+	local low = Vector3.new(math.huge, math.huge, math.huge)
+	local high = -low
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Transparency < 0.95 then
+			local half = part.Size / 2
+			for _, sx in { -1, 1 } do
+				for _, sy in { -1, 1 } do
+					for _, sz in { -1, 1 } do
+						local corner = part.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
+						low = low:Min(corner)
+						high = high:Max(corner)
+					end
+				end
+			end
+		end
+	end
+	return low, high
+end
+
 local function fromPack(tier: number): Model?
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local folder = assets and assets:FindFirstChild("Brainrots")
@@ -292,15 +315,18 @@ local function fromPack(tier: number): Model?
 			descendant.CanQuery = false
 		end
 	end
-	-- Fit the bath, then stand the model on the origin (bottom centre).
-	local size = model:GetExtentsSize()
+	-- Fit the bath, then stand the model on the origin (bottom centre). The pack's
+	-- pivots are rotated, so GetBoundingBox / GetExtentsSize (which follow the pivot's
+	-- axes) give the wrong height: measure the world-axis bounds instead.
+	local low, high = worldBounds(model)
+	local size = high - low
 	local fit = math.min(PACK_MAX_FOOTPRINT / math.max(size.X, size.Z, 0.1), PACK_MAX_HEIGHT / math.max(size.Y, 0.1))
 	model:ScaleTo(model:GetScale() * fit)
-	local boxCFrame, boxSize = model:GetBoundingBox()
-	local bottom = Vector3.new(boxCFrame.Position.X, boxCFrame.Position.Y - boxSize.Y / 2, boxCFrame.Position.Z)
+	low, high = worldBounds(model)
+	local bottom = Vector3.new((low.X + high.X) / 2, low.Y, (low.Z + high.Z) / 2)
 	model:PivotTo(model:GetPivot() - bottom)
 	model.WorldPivot = CFrame.new()
-	local top = boxSize.Y
+	local top = high.Y - low.Y
 	local anchor = Instance.new("Part")
 	anchor.Name = "Label"
 	anchor.Anchored = true
@@ -309,7 +335,7 @@ local function fromPack(tier: number): Model?
 	anchor.CanQuery = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	anchor.CFrame = CFrame.new(0, top + 0.6, 0)
+	anchor.CFrame = CFrame.new(0, top + LABEL_GAP, 0)
 	anchor.Parent = model
 	return model
 end
