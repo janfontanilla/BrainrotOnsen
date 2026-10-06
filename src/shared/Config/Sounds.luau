@@ -20,11 +20,11 @@ Sounds.WATERFALL_VOLUME = 0.5
 Sounds.STREAM_VOLUME = 0.35
 
 -- UI cues, by what happened.
-Sounds.PAD = "rbxasset://sounds/button.wav" -- stepping onto any pad on your plot
+Sounds.PAD = "rbxassetid://6586979979" -- stepping onto any pad on your plot: "cartoon_pop" (2026-10-06, was button.wav, user: ugly)
 Sounds.DEPOSIT = "rbxasset://sounds/swoosh.wav"
 Sounds.CASH = "rbxassetid://1319346243" -- coins into a register: Collect Cash, purchases
-Sounds.GOOD = "rbxasset://sounds/electronicpingshort.wav" -- bought brainrots, merges, rewards
-Sounds.SPECIAL = "rbxasset://sounds/electronicpingshort.wav" -- new brainrot, lucky block
+Sounds.GOOD = "rbxassetid://72264591133889" -- bought brainrots, merges, rewards: "ui-pop-sound" (2026-10-06, was electronicpingshort)
+Sounds.SPECIAL = "rbxassetid://4612374036" -- new brainrot, lucky chest unlock: "bling_big_diamond_pickup" (2026-10-06)
 Sounds.CUE_VOLUME = 0.6
 
 return Sounds

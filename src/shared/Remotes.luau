@@ -2,7 +2,7 @@
 -- RemoteEvent definitions. The server creates them; the client waits for them.
 -- Clients only send intents (never amounts); the server validates everything.
 --
--- BuyProduct   client -> server  (name: string)     HUD Cash pack buttons: "CashPackS" | "CashPackM" | "CashPackL" | "FinishNow"
+-- BuyProduct   client -> server  (name: string)     HUD Cash pack buttons: "CashPackS" | "CashPackM" | "CashPackL" | "FinishNow" | "LuckyUnlock" | "AutoCollect" | "CashPass"
 -- CollectDrop  client -> server  (dropId: string)   "I walked over this drop"
 -- DropCollected server -> client (aura: number)     a drop was credited; show "+X" over the player
 -- GoHome       client -> server  ()                 Home button: send my character to my plot

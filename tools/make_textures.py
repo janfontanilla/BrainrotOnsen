@@ -41,17 +41,21 @@ def bevel(d, box, face, light, dark, width=4, sunken=False):
 
 
 def grass(name):
-    base = (98, 190, 62)
+    # Calm lime with small, low-contrast studs (2026-10-06: was neon green with big,
+    # high-contrast squares, the loudest surface on screen; see docs/visual-overhaul.md).
+    base = (126, 196, 74)
     img = Image.new("RGB", (SIZE, SIZE), base)
     d = ImageDraw.Draw(img)
     for cy in range(0, SIZE, CELL):
         for cx in range(0, SIZE, CELL):
-            bevel(d, [cx + 12, cy + 12, cx + CELL - 13, cy + CELL - 13], (110, 202, 72), (140, 222, 98), (78, 158, 48))
+            bevel(d, [cx + 16, cy + 16, cx + CELL - 17, cy + CELL - 17], (134, 204, 82), (152, 216, 98), (112, 180, 64), width=3)
     img.save(os.path.join(OUT, name))
 
 
 def stone(name):
-    base, mortar = (150, 154, 164), (112, 116, 128)
+    # Light neutral grey blocks, soft edges, a small inset stud (2026-10-06: was dark
+    # blue-slate bricks with a big inset square; Capybara Onsen's stone is light grey).
+    base, mortar = (190, 190, 194), (160, 160, 166)
     img = Image.new("RGB", (SIZE, SIZE), mortar)
     d = ImageDraw.Draw(img)
     brick_w, brick_h = 128, 64
@@ -62,9 +66,9 @@ def stone(name):
             y0 = row * brick_h
             for ox in (0, SIZE, -SIZE):
                 bx = x0 + ox
-                bevel(d, [bx + 2, y0 + 2, bx + brick_w - 3, y0 + brick_h - 3], base, (178, 182, 190), (122, 126, 138))
-                cx = bx + brick_w // 2
-                bevel(d, [cx - 18, y0 + 14, cx + 17, y0 + brick_h - 15], (140, 144, 154), (174, 178, 188), (118, 122, 134), sunken=True)
+                bevel(d, [bx + 2, y0 + 2, bx + brick_w - 3, y0 + brick_h - 3], base, (206, 206, 210), (168, 168, 174), width=3)
+                for sx in (bx + brick_w // 4, bx + 3 * brick_w // 4):
+                    bevel(d, [sx - 10, y0 + 22, sx + 9, y0 + brick_h - 23], (198, 198, 202), (212, 212, 216), (174, 174, 180), width=3)
     img.save(os.path.join(OUT, name))
 
 
@@ -102,13 +106,15 @@ def pegboard(name):
 
 def cliff(name):
     """At 16 studs per tile: 32 px cells are 2 studs, matching the other tiles."""
-    base = (150, 162, 156)
+    # Neutral, slightly warm grey (2026-10-06: was green-grey; tinted by the parts it
+    # read blue-green next to the new light stone).
+    base = (196, 194, 188)
     img = Image.new("RGB", (SIZE, SIZE), base)
     d = ImageDraw.Draw(img)
     for cy in range(0, SIZE, 32):
         for cx in range(0, SIZE, 32):
-            bevel(d, [cx + 1, cy + 1, cx + 30, cy + 30], base, (168, 180, 174), (132, 144, 138), width=2)
-            bevel(d, [cx + 11, cy + 11, cx + 20, cy + 20], (142, 154, 148), (166, 178, 172), (126, 138, 132), width=2, sunken=True)
+            bevel(d, [cx + 1, cy + 1, cx + 30, cy + 30], base, (210, 208, 202), (176, 174, 168), width=2)
+            bevel(d, [cx + 12, cy + 12, cx + 19, cy + 19], (190, 188, 182), (206, 204, 198), (172, 170, 164), width=2, sunken=True)
     img.save(os.path.join(OUT, name))
 
 

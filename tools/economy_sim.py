@@ -277,24 +277,33 @@ class Sim:
         p_unit = self.unit_price()
         alt = 0.0
         for off, w in LUCKY_ODDS:
-            t = min(unlock + off, self.max_tier)
+            t = max(min(unlock + off, self.max_tier), self.buy_tier)  # raised to the buy tier
             if t >= self.buy_tier:
                 alt += w / 100 * 3 ** (t - self.buy_tier) * p_unit
             else:
                 alt += w / 100 * self.aura_t[t] / self.aura_t[self.buy_tier] * p_unit
-        return self.block_price(unlock) < alt
+        return self.block_price(max(unlock, self.buy_tier + 1)) < alt
 
     def open_lucky(self):
-        total = sum(w for _, _, w in self.c["BLOCKS"])
+        # Config/LuckyBlocks: only types that can still give the buy tier and whose
+        # lowest tier the player owns; results below the buy tier are raised to it.
+        allowed = [
+            (n, u, w)
+            for n, u, w in self.c["BLOCKS"]
+            if u + 2 >= self.buy_tier and u - 1 <= self.highest
+        ]
+        if not allowed:
+            return
+        total = sum(w for _, _, w in allowed)
         r = self.rng.uniform(0, total)
-        for name, unlock, w in self.c["BLOCKS"]:
+        for name, unlock, w in allowed:
             r -= w
             if r <= 0:
                 break
-        price = self.block_price(unlock)
+        # Priced as what it gives: never below a chest whose lowest result is the buy tier.
+        price = self.block_price(max(unlock, self.buy_tier + 1))
         if (
             not self.p.lucky
-            or unlock < self.buy_tier  # contents mostly below what the pads sell: discard
             or price > self.cash * self.p.lucky_max_spend
             or not self.lucky_worth(unlock)
         ):
@@ -308,7 +317,7 @@ class Sim:
             rr -= w
             if rr <= 0:
                 break
-        tier = min(unlock + off, self.max_tier)
+        tier = max(min(unlock + off, self.max_tier), self.buy_tier)
         self.cash -= price
         self.counts[tier] += 1
         self.res.lucky_opened[name] = self.res.lucky_opened.get(name, 0) + 1

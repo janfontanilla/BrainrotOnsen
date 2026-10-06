@@ -33,6 +33,7 @@ local PoolService = require(script.Parent.PoolService)
 local DropService = require(script.Parent.DropService)
 local ShopService = require(script.Parent.ShopService)
 local Analytics = require(script.Parent.Parent.Analytics)
+local MonetizationService = require(script.Parent.MonetizationService)
 
 type Plot = Plots.Plot
 
@@ -154,32 +155,37 @@ local function finish(player: Player)
 	player:SetAttribute("LuckyBlock", "")
 end
 
-local function unlock(player: Player)
+-- Opens the held block. `paid` = bought with Robux (no Cash spent). Returns whether
+-- a block was opened.
+local function unlock(player: Player, paid: boolean?): boolean
 	local state = states[player]
 	local data = DataService.get(player)
 	local plot = Plots.get(player)
 	if not state or not state.held or not data or not plot then
-		return
+		return false
 	end
 	local block = findBlock(data.luckyBlock)
 	if not block then
 		finish(player)
-		return
+		return false
 	end
 	local before = table.clone(data.counts)
 	ShopService.makeRoom(data, 1)
 	if DataService.brainrotCount(data) >= Economy.MAX_SPOTS then
 		data.counts = before
 		notify:FireClient(player, "Your bathhouse is full and nothing can merge")
-		return
+		return false
 	end
-	if not DataService.spendCash(player, block.price) then
-		data.counts = before
-		notify:FireClient(player, `Not enough Cash (need {Format.short(block.price)})`)
-		return
+	if not paid then
+		local price = LuckyBlocks.priceFor(block, data.buyTier)
+		if not DataService.spendCash(player, price) then
+			data.counts = before
+			notify:FireClient(player, `Not enough Cash (need {Format.short(price)})`)
+			return false
+		end
+		Analytics.cash(player, "sink", price, data.cash, "Shop", `LuckyBlock{block.name}`)
 	end
-	Analytics.cash(player, "sink", block.price, data.cash, "Shop", `LuckyBlock{block.name}`)
-	local tier = LuckyBlocks.roll(block, random)
+	local tier = LuckyBlocks.roll(block, data.buyTier, random)
 	data.counts[tier] += 1
 	data.totalBrainrots += 1
 	ShopService.mergeIfFull(data)
@@ -195,6 +201,7 @@ local function unlock(player: Player)
 	else
 		notify:FireClient(player, `Unlocked {name}!`, "lucky")
 	end
+	return true
 end
 
 local function onAction(player: Player, action: unknown)
@@ -273,13 +280,18 @@ local function update(player: Player, plot: Plot, dt: number)
 		data.luckyProgress = 0
 		state.nextAt = nextInterval()
 		state.pending = true
-		local block = LuckyBlocks.randomBlock(random)
-		DropService.replaceNextDrop(plot, function(path, flowAt)
-			if states[player] == state then
-				state.pending = false
-				floatDown(player, plot, block.name, path, flowAt)
-			end
-		end)
+		local block = LuckyBlocks.randomBlock(data.buyTier, data.highestTier, random)
+		if block then
+			local name = block.name
+			DropService.replaceNextDrop(plot, function(path, flowAt)
+				if states[player] == state then
+					state.pending = false
+					floatDown(player, plot, name, path, flowAt)
+				end
+			end)
+		else
+			state.pending = false -- nothing allowed yet (no tier 2 owned): try again next time
+		end
 	end
 
 	-- Pick up the nearest floating block when the owner walks over it, holding none.
@@ -308,6 +320,10 @@ function LuckyBlockService:Init()
 end
 
 function LuckyBlockService:Start()
+	-- The 89 Robux "Unlock Lucky Chest" product opens the held chest without Cash.
+	MonetizationService.setLuckyUnlockHandler(function(player: Player): boolean
+		return unlock(player, true)
+	end)
 	local last = os.clock()
 	while true do
 		task.wait(TICK)

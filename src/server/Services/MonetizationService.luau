@@ -21,6 +21,7 @@
 -- AuraMultiplier, AutoCollect.
 
 local MarketplaceService = game:GetService("MarketplaceService")
+local PolicyService = game:GetService("PolicyService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -40,13 +41,20 @@ local MonetizationService = {}
 local BUY_PRODUCT_COOLDOWN = 1 -- seconds between BuyProduct intents per player
 local CASH_PASS_ORDER = { "Cash2x", "Cash4x", "Cash7x", "Cash12x" } -- ascending
 local PRODUCT_INTENTS: { [string]: boolean } =
-	{ FinishNow = true, CashPackS = true, CashPackM = true, CashPackL = true }
+	{ FinishNow = true, CashPackS = true, CashPackM = true, CashPackL = true, LuckyUnlock = true }
 
 local notify: RemoteEvent
 local owned: { [Player]: { [string]: boolean } } = {}
 local friendPairs: { [Player]: { [Player]: boolean } } = {}
 local lastBuy: { [Player]: number } = {}
 local finishNowHandler: ((Player) -> ())? = nil
+local luckyUnlockHandler: ((Player) -> boolean)? = nil
+
+-- LuckyBlockService registers what "Unlock Lucky Chest" does: open the held chest
+-- without Cash; returns false when there was none to open.
+function MonetizationService.setLuckyUnlockHandler(handler: (Player) -> boolean)
+	luckyUnlockHandler = handler
+end
 
 -- ProcessorService registers what Finish Now does (avoids a require cycle).
 function MonetizationService.setFinishNowHandler(handler: (Player) -> ())
@@ -177,6 +185,23 @@ local function grantProduct(player: Player, name: string): boolean
 		notify:FireClient(player, "Processor finished!", "good")
 		return true
 	end
+	if name == "LuckyUnlock" then
+		if luckyUnlockHandler and luckyUnlockHandler(player) then
+			return true
+		end
+		-- Paid but no chest to open (dropped or bathhouse full meanwhile): Cash worth
+		-- the Medium pack instead, so nobody loses Robux.
+		local data = DataService.get(player)
+		if not data then
+			return false
+		end
+		local amount = Economy.cashPackAmount(DataService.auraPerSecond(data), "M")
+		data.cash += amount
+		data.totalCashEarned += amount
+		DataService.sync(player)
+		notify:FireClient(player, `No chest to open: received {Format.short(amount)} Cash instead`, "cash")
+		return true
+	end
 	local data = DataService.get(player)
 	local size = product.size
 	if not data or not size then
@@ -268,6 +293,11 @@ end
 local function loadOwnership(player: Player)
 	local set: { [string]: boolean } = {}
 	owned[player] = set
+	if RunService:IsStudio() and Economy.STUDIO_IGNORE_OWNED_PASSES then
+		-- Play as a free player: passes bought on the account don't count in Studio.
+		MonetizationService.refresh(player)
+		return
+	end
 	for name, pass in Products.GamePasses do
 		if pass.id > 0 then
 			local ok, result = pcall(function()
@@ -303,7 +333,23 @@ local function updateFriends(player: Player)
 	end
 end
 
+-- Paid random items (the Robux chest unlock) are forbidden in some countries.
+-- PaidRandomItems attribute: true = the Robux unlock may be shown.
+local function loadPolicy(player: Player)
+	local allowed = false
+	if RunService:IsStudio() then
+		allowed = not Economy.STUDIO_PAID_RANDOM_RESTRICTED
+	else
+		local ok, info = pcall(function()
+			return PolicyService:GetPolicyInfoForPlayerAsync(player)
+		end)
+		allowed = ok and info.ArePaidRandomItemsRestricted == false
+	end
+	player:SetAttribute("PaidRandomItems", allowed)
+end
+
 local function onPlayerAdded(player: Player)
+	task.spawn(loadPolicy, player)
 	loadOwnership(player)
 	updateFriends(player)
 end
@@ -333,6 +379,9 @@ local function onBuyProduct(player: Player, name: unknown)
 		return
 	end
 	lastBuy[player] = now
+	if name == "LuckyUnlock" and player:GetAttribute("PaidRandomItems") ~= true then
+		return
+	end
 	if name == "CashPass" then
 		promptCashPass(player)
 	elseif name == "AutoCollect" then

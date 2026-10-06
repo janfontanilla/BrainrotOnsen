@@ -18,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
 local LuckyBlocks = require(Shared.Config.LuckyBlocks)
+local Products = require(Shared.Config.Products)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Models = require(Shared.Models)
@@ -418,8 +419,14 @@ local function buildPanel(): (ScreenGui, () -> ())
 	local discard = button(root, "🗑 Discard", Color3.fromRGB(230, 80, 40), UDim2.fromOffset(0, 520))
 	unlock.Size = UDim2.new(1, 0, 0, 58)
 	discard.Size = UDim2.new(1, 0, 0, 40)
+	local buyProduct = Remotes.event("BuyProduct")
+	local robuxMode = false -- Cash is short: the button buys "Unlock Lucky Chest" (Robux)
 	unlock.Activated:Connect(function()
-		action:FireServer("unlock")
+		if robuxMode then
+			buyProduct:FireServer("LuckyUnlock")
+		else
+			action:FireServer("unlock")
+		end
 	end)
 	discard.Activated:Connect(function()
 		action:FireServer("discard")
@@ -442,6 +449,10 @@ local function buildPanel(): (ScreenGui, () -> ())
 			end
 		end
 		local model = Visuals.makeLuckyBlock(block.name, 4)
+		local beacon = model:FindFirstChild("Beacon")
+		if beacon then
+			beacon:Destroy() -- the rare-chest light beam would fill the panel's picture
+		end
 		model:PivotTo(CFrame.Angles(math.rad(-15), math.rad(-30), 0))
 		model.Parent = viewport
 		camera.CFrame = CFrame.lookAt(Vector3.new(0, 2, -11), Vector3.zero)
@@ -451,8 +462,15 @@ local function buildPanel(): (ScreenGui, () -> ())
 				child:Destroy()
 			end
 		end
-		local rowHeight = 236 / #block.rolls
-		for i, roll in block.rolls do
+		-- The chest's own rows, as before. A result below the buy tier is still listed
+		-- with its odds, dimmed, with the tier it really turns into ("-> Lirili Larila"),
+		-- so the shown odds stay exactly the real ones (Roblox paid random item rules).
+		local buyTier = player:GetAttribute("BuyTier")
+		local floorTier = math.min(if typeof(buyTier) == "number" then buyTier else 1, Tiers.MAX_TIER)
+		local rolls = block.rolls
+		local rowHeight = 236 / #rolls
+		for i, roll in rolls do
+			local raised = roll.tier < floorTier
 			local y = 10 + (i - 1) * rowHeight
 			local tier = Tiers.get(roll.tier)
 			local nameLabel = text(
@@ -465,9 +483,9 @@ local function buildPanel(): (ScreenGui, () -> ())
 			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 			local tierLabel = text(
 				odds,
-				`Tier {roll.tier}`,
-				Color3.new(1, 1, 1),
-				UDim2.new(0.4, 0, 0, rowHeight * 0.3),
+				if raised then `Tier {roll.tier} → {Tiers.get(floorTier).name}` else `Tier {roll.tier}`,
+				if raised then Color3.fromRGB(125, 255, 110) else Color3.new(1, 1, 1),
+				UDim2.new(0.72, -12, 0, rowHeight * 0.3),
 				UDim2.fromOffset(12, y + rowHeight * 0.55)
 			)
 			tierLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -479,12 +497,26 @@ local function buildPanel(): (ScreenGui, () -> ())
 				UDim2.new(0.72, 0, 0, y + rowHeight * 0.1)
 			)
 			percent.TextXAlignment = Enum.TextXAlignment.Right
+			if raised then
+				nameLabel.TextTransparency = 0.55
+				percent.TextTransparency = 0.3
+			end
 		end
-		price.Text = `{Format.short(block.price)} Cash`
+		local blockPrice = LuckyBlocks.priceFor(block, if typeof(buyTier) == "number" then buyTier else 1)
+		price.Text = `{Format.short(blockPrice)} Cash`
+		local cash = player:GetAttribute("Cash")
+		robuxMode = typeof(cash) == "number" and cash < blockPrice and player:GetAttribute("PaidRandomItems") == true
+		unlock.Text = if robuxMode
+			then `🔓 Unlock for R$ {Products.DevProducts.LuckyUnlock.robux}`
+			else "🔓 Unlock!"
+		unlock.BackgroundColor3 = if robuxMode then Color3.fromRGB(60, 170, 90) else Color3.fromRGB(110, 210, 50)
 		root.Visible = true
 	end
 
 	player:GetAttributeChangedSignal("LuckyBlock"):Connect(show)
+	for _, name in { "Cash", "BuyTier", "PaidRandomItems" } do
+		player:GetAttributeChangedSignal(name):Connect(show)
+	end
 	return gui, show
 end
 

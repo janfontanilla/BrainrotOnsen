@@ -56,11 +56,6 @@ function ProcessorService.refresh(plot: Plot)
 	-- Cash multipliers apply when the Cash is collected (like Capybara Onsen's
 	-- "[x4 Cash] Collect Cash"), so the pad shows the multiplied amount.
 	local multiplier = if owner then MonetizationService.cashMultiplier(owner) else 1
-	if owner then
-		-- GuideController: "Collect your Cash" and the Finish Now hint.
-		owner:SetAttribute("PendingCash", data.pendingCash * multiplier)
-		owner:SetAttribute("ProcessorWait", data.processorQueue / rate)
-	end
 	local tag = if multiplier > 1
 		then Billboard.color(`[{Format.multiplier(multiplier)} Cash] `, Billboard.CYAN)
 		else ""

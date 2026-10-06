@@ -28,14 +28,16 @@ export type Options = {
 local WALL = Color3.fromRGB(190, 142, 88)
 local WALL_DARK = Color3.fromRGB(104, 70, 44)
 local BLOSSOM_A = Color3.fromRGB(255, 170, 200)
-local CLIFF = Color3.fromRGB(140, 160, 182)
+local CLIFF = Color3.fromRGB(172, 178, 186) -- light warm grey (2026-10-06, was blue-grey 140, 160, 182)
 local CLIFF_CAP = Color3.fromRGB(92, 172, 72)
 local CLIFF_TIER_TINT = Color3.fromRGB(215, 222, 235) -- upper cliff tier a shade darker than the tile
 local FAR_TINT = Color3.fromRGB(235, 242, 250) -- far peaks, pale
 local FAR_CAP_TINT = Color3.fromRGB(205, 228, 205)
-local NEAR_HEIGHTS = { 30, 38, 44, 36, 28 } -- the middle step catches the waterfall
-local MID_HEIGHTS = { 62, 92, 74 }
-local FAR_HEIGHTS = { 118, 136, 124, 140 }
+-- About half the old heights (2026-10-06, docs/visual-overhaul.md): the cliffs framed
+-- the plot like a wall of sky-high boxes; Capybara Onsen's frame it lower.
+local NEAR_HEIGHTS = { 16, 20, 24, 20, 16 } -- the middle step catches the waterfall
+local MID_HEIGHTS = { 36, 50, 42 }
+local FAR_HEIGHTS = { 60, 72, 66, 76 }
 local PAPER = Color3.fromRGB(245, 240, 225)
 local WOOD = Color3.fromRGB(178, 116, 62)
 local BRIDGE_RED = Color3.fromRGB(196, 58, 48)
@@ -354,7 +356,7 @@ local function cliffs(folder: Folder, o: Options)
 			o,
 			x,
 			midFront + midDepth * 0.4,
-			Vector3.new(segment * 0.6, height * 1.4, midDepth * 0.5),
+			Vector3.new(segment * 0.6, height * 1.25, midDepth * 0.5),
 			CLIFF_TIER_TINT
 		)
 	end
@@ -736,12 +738,12 @@ function Decor.build(parent: Instance, o: Options)
 		end
 	end
 
-	-- The open lawn left of the pool (+x) stays open, like Capybara Onsen's: just a
-	-- few small leaf sprigs and daisies.
-	for _ = 1, 8 do
+	-- The open lawn left of the pool (+x) stays open, like Capybara Onsen's: a couple
+	-- of sprigs and daisies (2026-10-06: fewer; the random scatter read as noise).
+	for _ = 1, 3 do
 		sprig(folder, o, rng, rng:NextNumber(40, 56), rng:NextNumber(46, 76))
 	end
-	for _ = 1, 10 do
+	for _ = 1, 4 do
 		daisy(folder, o, rng, rng:NextNumber(40, 56), rng:NextNumber(46, 76))
 	end
 	-- Sprigs in the strips beside the baths and on the verge by the road.
@@ -749,19 +751,12 @@ function Decor.build(parent: Instance, o: Options)
 		for _, z in { 125, 165, 196 } do
 			sprig(folder, o, rng, side * (half - 5), z + rng:NextNumber(-3, 3))
 		end
-		for _, x in { 20, 44 } do
-			sprig(folder, o, rng, side * x, 4 + rng:NextNumber(-1, 1))
-		end
 	end
 
-	-- Daisies on the verge outside the canal (clear of the torii) and along the walls.
-	for _ = 1, 16 do
+	-- A few daisies on the verge outside the canal (clear of the torii).
+	for _ = 1, 6 do
 		local side = if rng:NextInteger(0, 1) == 0 then -1 else 1
 		daisy(folder, o, rng, side * rng:NextNumber(16, half - 2), rng:NextNumber(1.5, Decor.FRONT_Z - 1.5))
-	end
-	for _ = 1, 24 do
-		local side = if rng:NextInteger(0, 1) == 0 then -1 else 1
-		daisy(folder, o, rng, side * rng:NextNumber(half - 8, half - 2), rng:NextNumber(20, o.depth - 12))
 	end
 end
 
@@ -779,7 +774,7 @@ function Decor.horizon(parent: Instance)
 	for _, side in { -1, 1 } do
 		for i = 0, 5 do
 			local width = rng:NextNumber(110, 160)
-			local height = rng:NextNumber(50, 110)
+			local height = rng:NextNumber(36, 70) -- lower (2026-10-06, was 50-110)
 			local x = side * (330 + rng:NextNumber(0, 80))
 			local z = -360 + i * 144 + rng:NextNumber(-20, 20)
 			local hill = part(folder, "Hill", Vector3.new(width, height, 100), CFrame.new(x, height / 2, z), CLIFF)

@@ -36,7 +36,7 @@ function ConfigCheck.run()
 		lastMultiplier = pass.multiplier
 	end
 	for name, product in Products.DevProducts do
-		assert(name == "FinishNow" or product.size, `Dev product {name} needs a pack size`)
+		assert(name == "FinishNow" or name == "LuckyUnlock" or product.size, `Dev product {name} needs a pack size`)
 	end
 
 	assert(Economy.MAX_SPOTS == 80, `Expected 80 spots, got {Economy.MAX_SPOTS}`)

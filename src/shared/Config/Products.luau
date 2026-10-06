@@ -29,6 +29,9 @@ Products.DevProducts = {
 	CashPackS = { id = 3715676473, robux = 29, size = "S" },
 	CashPackM = { id = 3715676515, robux = 149, size = "M" },
 	CashPackL = { id = 3715676564, robux = 499, size = "L" },
+	-- Unlocks the lucky chest the player holds when Cash is short; one price for every
+	-- chest (user decision 2026-10-04). Hidden where paid random items are restricted.
+	LuckyUnlock = { id = 3716958562, robux = 89 },
 } :: { [string]: Product }
 
 return Products

@@ -28,10 +28,10 @@ Economy.STUDIO_DROP_INTERVAL = 0
 Economy.STARTING_CASH = 1_000
 -- Studio-only: a brand-new profile in Studio starts with this much Cash instead,
 -- for testing. 0 = off. Ignored in live servers.
-Economy.STUDIO_STARTING_CASH = 500_000
+Economy.STUDIO_STARTING_CASH = 0 -- user test 2026-10-04: real new-player start (1,000); was 500_000
 -- Studio-only: appended to the profile key, so a new suffix plays as a brand-new player
 -- without touching the real save. "" = the real profile.
-Economy.STUDIO_PROFILE_SUFFIX = ""
+Economy.STUDIO_PROFILE_SUFFIX = "_fresh2" -- user test 2026-10-04: a fresh profile; "" = the real save
 -- Studio-only: a brand-new profile gets this many of every tier (model checks). 0 = off.
 Economy.STUDIO_GIVE_EACH_TIER = 0
 -- Studio-only: restart the new-player tutorial on every join (TutorialService). false = off.
@@ -74,6 +74,11 @@ Economy.PREMIUM_AURA_BOOST = 0.10 -- applies to Aura from drops
 -- Studio-only: a game pass / dev product whose ID is still 0 is granted directly when its
 -- Robux pad or button is used (session only, no receipt), so purchases can be tested for free.
 Economy.STUDIO_SIMULATE_PURCHASES = true
+-- Studio-only: treat the account's owned game passes as not owned (play as a free player). false = off.
+Economy.STUDIO_IGNORE_OWNED_PASSES = true -- user test 2026-10-04: free-player play-test
+-- Studio-only: act as if this player's country forbids paid random items (hides the
+-- Robux chest unlock). false = off.
+Economy.STUDIO_PAID_RANDOM_RESTRICTED = false
 
 -- Lucky blocks
 -- A block spawns after a random stretch of production between these (seconds), then
@@ -81,9 +86,11 @@ Economy.STUDIO_SIMULATE_PURCHASES = true
 Economy.LUCKY_BLOCK_SPAWN_MIN = 40
 Economy.LUCKY_BLOCK_SPAWN_MAX = 100
 Economy.LUCKY_BLOCK_MAX_WAITING = 5 -- blocks floating / in the pool before spawning pauses
--- price = unlock tier's aura x MULTIPLIER x BUY_TIER_UPGRADE_GROWTH ^ tierGrowthSteps(unlock tier):
--- on the same curve as the upgrades, so a chest never skips the ladder (2026-10-04: 800 -> 100 + growth).
-Economy.LUCKY_BLOCK_PRICE_MULTIPLIER = 100
+-- price = aura of the tier the chest really gives (its unlock tier, or the buy tier + 1
+-- when chests are raised to the buy tier) x MULTIPLIER x the Upgrade Buy Tier growth
+-- (LuckyBlocks.priceFor). 2026-10-04: 800 -> 100 -> 10 with chests following progress;
+-- simulated: a fun gamble that never speeds up reaching tier 20.
+Economy.LUCKY_BLOCK_PRICE_MULTIPLIER = 10
 Economy.LUCKY_BLOCK_PICKUP_RANGE = 5 -- studs, horizontal; walking this close picks the block up
 -- Studio-only fixed spawn interval (seconds) so blocks can be tested quickly. 0 = off.
 Economy.STUDIO_LUCKY_BLOCK_INTERVAL = 0

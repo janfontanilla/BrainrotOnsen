@@ -22,6 +22,67 @@ local BLOCK_COLORS: { [string]: Color3 } = {
 	Cosmic = Color3.fromRGB(140, 80, 255),
 }
 
+-- Rarity rank of each chest (1 = Wood ... 9 = Cosmic): how strongly it glows.
+local GLOW_RANK: { [string]: number } = {
+	Wood = 1,
+	Stone = 2,
+	Iron = 3,
+	Gold = 4,
+	Diamond = 5,
+	Emerald = 6,
+	Ruby = 7,
+	Rainbow = 8,
+	Cosmic = 9,
+}
+local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
+local BEACON_FROM_RANK = 5 -- Diamond and rarer
+local BEACON_HEIGHT = 14
+
+-- A soft coloured light and sparkles on a chest, stronger for rarer chests, so a rare
+-- one floating in the pool stands out across the plot (2026-10-06).
+function Visuals.addGlow(body: BasePart, name: string)
+	local rank = GLOW_RANK[name] or 1
+	local color = BLOCK_COLORS[name] or Color3.new(1, 1, 1)
+	local light = Instance.new("PointLight")
+	light.Name = "Glow"
+	light.Color = color
+	light.Brightness = 0.6 + rank * 0.25
+	light.Range = 6 + rank
+	light.Shadows = false
+	light.Parent = body
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Name = "Sparkles"
+	sparkles.Texture = SPARKLE_TEXTURE
+	sparkles.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.4))
+	sparkles.LightEmission = 1
+	sparkles.Rate = 3 + rank * 2
+	sparkles.Lifetime = NumberRange.new(0.6, 1.2)
+	sparkles.Speed = NumberRange.new(1, 2.5)
+	sparkles.SpreadAngle = Vector2.new(180, 180)
+	sparkles.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5 + rank * 0.06),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	sparkles.Transparency = NumberSequence.new(0.2)
+	sparkles.Parent = body
+	-- Rare chests (Diamond and up) also send a soft beam of light upward.
+	if rank >= BEACON_FROM_RANK then
+		local beacon = Instance.new("Part")
+		beacon.Name = "Beacon"
+		beacon.Anchored = true
+		beacon.CanCollide = false
+		beacon.CanQuery = false
+		beacon.CanTouch = false
+		beacon.CastShadow = false
+		beacon.Material = Enum.Material.Neon
+		beacon.Color = color
+		beacon.Transparency = 0.65
+		beacon.Size = Vector3.new(0.6, BEACON_HEIGHT, 0.6)
+		beacon.CFrame = body.CFrame * CFrame.new(0, body.Size.Y / 2 + BEACON_HEIGHT / 2, 0)
+		beacon.Parent = body.Parent
+	end
+end
+
 function Visuals.blockColor(name: string): Color3
 	return BLOCK_COLORS[name] or Color3.new(1, 1, 1)
 end
@@ -62,6 +123,7 @@ function Visuals.makeLuckyBlock(name: string, size: number): Model
 		body.CFrame = CFrame.new()
 		body.Parent = chest
 		chest.PrimaryPart = body
+		Visuals.addGlow(body, name)
 		return chest
 	end
 

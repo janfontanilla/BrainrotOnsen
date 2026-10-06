@@ -1,7 +1,13 @@
 --!strict
--- Lucky block types. Which type spawns is a weighted random roll (weight below;
--- user decision 2026-09-30: rarity is random, not tied to progress).
--- Contents: unlockTier - 1 .. unlockTier + 2 at 60 / 30 / 9 / 1 percent.
+-- Lucky block types. Contents: unlockTier - 1 .. unlockTier + 2 at 60 / 30 / 9 / 1 percent.
+-- Chests follow the player's progress (user decision 2026-10-04, replaces "random,
+-- not tied to progress"):
+--   * a type only spawns when it can still give the buy tier or more
+--     (unlockTier + 2 >= buy tier) and the player already owns its lowest tier
+--     (unlockTier - 1 <= highest tier); among those, the weights below apply;
+--   * a result below the buy tier is raised to the buy tier (rollsFor), so a
+--     chest never gives less than what the pads sell. At buy tier 13 an Emerald
+--     chest gives 13 / 14 / 15 at 90 / 9 / 1 percent.
 -- Near the top of the ladder, weight past MAX_TIER folds into the last valid tier
 -- (so Cosmic rolls 18 / 19 / 20 at 60 / 30 / 10).
 
@@ -60,7 +66,7 @@ for _, def in BLOCKS do
 		weight = def.weight,
 		price = Tiers.get(def.unlockTier).aura
 			* Economy.LUCKY_BLOCK_PRICE_MULTIPLIER
-			* Economy.BUY_TIER_UPGRADE_GROWTH ^ Economy.tierGrowthSteps(def.unlockTier),
+			* Economy.BUY_TIER_UPGRADE_GROWTH ^ Economy.tierGrowthSteps(def.unlockTier), -- base; players pay priceFor
 		rolls = buildRolls(def.unlockTier),
 	})
 end
@@ -69,38 +75,81 @@ local LuckyBlocks = {}
 
 LuckyBlocks.list = list
 
--- A random block type, weighted by `weight`. `random` is injectable for tests.
-function LuckyBlocks.randomBlock(random: Random?): Block
-	local rng = random or Random.new()
-	local total = 0
-	for _, block in list do
-		total += block.weight
-	end
-	local pick = rng:NextNumber() * total
-	for _, block in list do
-		pick -= block.weight
-		if pick < 0 then
-			return block
-		end
-	end
-	return list[#list]
+-- Whether this type may spawn for a player at `buyTier` whose best is `highestTier`.
+function LuckyBlocks.allowed(block: Block, buyTier: number, highestTier: number): boolean
+	return block.unlockTier + 2 >= buyTier and block.unlockTier - 1 <= highestTier
 end
 
--- Pick a tier from a block. `random` is injectable for tests.
-function LuckyBlocks.roll(block: Block, random: Random?): number
+-- A random block type among the allowed ones, weighted by `weight`; nil when none
+-- is allowed yet (before the first tier 2). `random` is injectable for tests.
+function LuckyBlocks.randomBlock(buyTier: number, highestTier: number, random: Random?): Block?
 	local rng = random or Random.new()
 	local total = 0
+	for _, block in list do
+		if LuckyBlocks.allowed(block, buyTier, highestTier) then
+			total += block.weight
+		end
+	end
+	if total <= 0 then
+		return nil
+	end
+	local pick = rng:NextNumber() * total
+	local last: Block? = nil
+	for _, block in list do
+		if LuckyBlocks.allowed(block, buyTier, highestTier) then
+			last = block
+			pick -= block.weight
+			if pick < 0 then
+				return block
+			end
+		end
+	end
+	return last
+end
+
+-- The block's odds for a player at `buyTier`: results below the buy tier are
+-- raised to it (their weight folds into the buy tier). The odds panel shows these.
+function LuckyBlocks.rollsFor(block: Block, buyTier: number): { Roll }
+	local rolls: { Roll } = {}
 	for _, r in block.rolls do
+		local tier = math.max(r.tier, math.min(buyTier, Tiers.MAX_TIER))
+		local last = rolls[#rolls]
+		if last and last.tier == tier then
+			last.weight += r.weight
+		else
+			table.insert(rolls, { tier = tier, weight = r.weight })
+		end
+	end
+	return rolls
+end
+
+-- What the block costs a player at `buyTier`: priced as the tier it really gives (its
+-- lowest result raised to the buy tier), on the Upgrade Buy Tier growth curve. An old,
+-- cheap type raised to the buy tier is priced as a chest that starts at the buy tier,
+-- so it is never a cheap source of top brainrots.
+function LuckyBlocks.priceFor(block: Block, buyTier: number): number
+	local tier = math.clamp(math.max(block.unlockTier, buyTier + 1), 1, Tiers.MAX_TIER)
+	return Tiers.get(tier).aura
+		* Economy.LUCKY_BLOCK_PRICE_MULTIPLIER
+		* Economy.BUY_TIER_UPGRADE_GROWTH ^ Economy.tierGrowthSteps(tier)
+end
+
+-- Pick a tier from a block for a player at `buyTier`. `random` is injectable for tests.
+function LuckyBlocks.roll(block: Block, buyTier: number, random: Random?): number
+	local rng = random or Random.new()
+	local rolls = LuckyBlocks.rollsFor(block, buyTier)
+	local total = 0
+	for _, r in rolls do
 		total += r.weight
 	end
 	local pick = rng:NextNumber() * total
-	for _, r in block.rolls do
+	for _, r in rolls do
 		pick -= r.weight
 		if pick < 0 then
 			return r.tier
 		end
 	end
-	return block.rolls[#block.rolls].tier
+	return rolls[#rolls].tier
 end
 
 return LuckyBlocks

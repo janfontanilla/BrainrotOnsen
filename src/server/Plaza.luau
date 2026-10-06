@@ -36,19 +36,21 @@ local KERB_WIDTH = 1.4
 local PROMENADE_WIDTH = 6
 
 local WATER = Color3.fromRGB(70, 205, 240)
-local CLIFF = Color3.fromRGB(150, 162, 156)
+local CLIFF = Color3.fromRGB(172, 178, 186) -- light warm grey, as server/Decor (2026-10-06)
 local GRASS = Color3.fromRGB(112, 190, 74)
 -- End cliffs: { z centre, height, depth (x), set back from END_CLIFF_FRONT, width (z) }.
 -- The first one is the tallest and carries the waterfall.
+-- About half the old heights (2026-10-06, docs/visual-overhaul.md: they towered over
+-- every view like flat walls).
 local END_CLIFF_BLOCKS: { { number } } = {
-	{ 0, 86, 30, 0, 36 },
-	{ -38, 58, 28, 2, 40 },
-	{ 38, 64, 28, 2, 40 },
-	{ -78, 44, 26, 4, 40 },
-	{ 78, 50, 26, 4, 40 },
-	{ 0, 118, 30, 30, 70 },
-	{ -60, 92, 30, 32, 60 },
-	{ 60, 100, 30, 32, 60 },
+	{ 0, 46, 30, 0, 36 },
+	{ -38, 32, 28, 2, 40 },
+	{ 38, 36, 28, 2, 40 },
+	{ -78, 24, 26, 4, 40 },
+	{ 78, 28, 26, 4, 40 },
+	{ 0, 64, 30, 30, 70 },
+	{ -60, 50, 30, 32, 60 },
+	{ 60, 56, 30, 32, 60 },
 }
 local STONE = Color3.fromRGB(150, 155, 168)
 local STONE_TINT = Color3.fromRGB(200, 204, 216)

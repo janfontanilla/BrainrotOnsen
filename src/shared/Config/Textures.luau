@@ -11,11 +11,11 @@
 export type Entry = { id: number, studsPerTile: number }
 
 local Textures: { [string]: Entry } = {
-	grass = { id = 75242265066226, studsPerTile = 8 }, -- plot floor and ground
+	grass = { id = 140529279829797, studsPerTile = 8 }, -- plot floor and ground
 	water = { id = 124963839053487, studsPerTile = 8 }, -- baths, rivers, channel, pool
-	stone = { id = 87193335822641, studsPerTile = 8 }, -- bath bases, rims, dividers, pool rim
+	stone = { id = 105605227441855, studsPerTile = 8 }, -- bath bases, rims, dividers, pool rim
 	pegboard = { id = 117506550117439, studsPerTile = 8 }, -- the tall wall
-	cliff = { id = 96525064219749, studsPerTile = 16 }, -- the cliffs
+	cliff = { id = 129130191968990, studsPerTile = 16 }, -- the cliffs
 	arrow = { id = 77482197620211, studsPerTile = 6 }, -- floor arrows toward the pads (not placed yet)
 	planks = { id = 118670792677489, studsPerTile = 4 }, -- slides, bridge, stall wood
 	onsen = { id = 138167444057526, studsPerTile = 8 }, -- hot-spring mark (white on transparent) for noren banners; a decal, not a tile

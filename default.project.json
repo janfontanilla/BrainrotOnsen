@@ -43,7 +43,7 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Grass",
-          "ColorMap": "rbxassetid://75242265066226",
+          "ColorMap": "rbxassetid://140529279829797",
           "StudsPerTile": 8
         }
       },
@@ -51,7 +51,7 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Slate",
-          "ColorMap": "rbxassetid://87193335822641",
+          "ColorMap": "rbxassetid://105605227441855",
           "StudsPerTile": 8
         }
       },
@@ -67,7 +67,7 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Rock",
-          "ColorMap": "rbxassetid://96525064219749",
+          "ColorMap": "rbxassetid://129130191968990",
           "StudsPerTile": 16
         }
       },

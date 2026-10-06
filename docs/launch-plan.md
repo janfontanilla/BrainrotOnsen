@@ -77,12 +77,12 @@ The tutorial teaches the loop once. A goal tracker keeps pointing at the next th
 - **Never stuck.** Each step checks it can still be done: if the player has no Cash for step 5, the step gives the 2 brainrots' Cash. If the player leaves mid-tutorial, the next session resumes at the same step.
 - **Studio knob:** `Economy.STUDIO_FORCE_TUTORIAL` (false = off) restarts the tutorial on join. Test with `STUDIO_STARTING_CASH = 0` so the flow matches a real new player.
 
-### 1b. Next-goal tracker (retention)
+### 1b. Next-goal tracker (removed 2026-10-04: the user wants the guide only during the tutorial)
 
 - A permanent line under the Cash counter: **"Next: Upgrade Buy Tier · 32K / 50K"** with a progress bar. Tapping it turns the beam on for that pad.
 - Goal order: Upgrade Buy Tier, otherwise the processor when its queue is backing up, otherwise "Merge! (3 ready)", otherwise "Collect your drops (cap reached)".
-- **Show what a pass would do (the main conversion lever):** under the goal, a small line "x7 Cash: ready in 3 h instead of 21 h" for the next Cash pass the player doesn't own, tapping opens the pass prompt. Shown only from the first slow step (about buy tier 8, when a step first takes longer than a session), never in the first session, so the hook comes first.
-- **Offers at real friction points, once each, never as pop-ups mid-action:** Auto Collect when the drop cap stops production ("Your bathhouse stopped: 50 drops waiting"); Finish Now at login when the queue would take more than 20 min; x2 Cash (40 Robux, the cheapest entry) at the first step that takes longer than a session; the bigger Cash passes on the goal line after that.
+- **(Removed 2026-10-04, user: "I hate how this is in the middle of the UI") Show what a pass would do:** under the goal, a small line "x7 Cash: ready in 3 h instead of 21 h" for the next Cash pass the player doesn't own, tapping opens the pass prompt. Shown only from the first slow step (about buy tier 8, when a step first takes longer than a session), never in the first session, so the hook comes first.
+- **(Removed 2026-10-04 with the hint button) Offers at real friction points:** Auto Collect when the drop cap stops production ("Your bathhouse stopped: 50 drops waiting"); Finish Now at login when the queue would take more than 20 min; x2 Cash (40 Robux, the cheapest entry) at the first step that takes longer than a session; the bigger Cash passes on the goal line after that.
 - **Welcome back:** the existing "away" popup is followed by a goal of "Deposit your 1.2B Aura" with the beam to the stall. The offline loop only pays once the pile is deposited, and new players won't know that.
 
 ### 1c. Measure it (Roblox Analytics, free)
@@ -122,6 +122,46 @@ Start `rojo serve`, reconnect the plugin, confirm the sync, enter Play. Captures
 
 ---
 
+## Phase 3b: Lucky chests follow the buy tier (built 2026-10-04, not yet seen in Studio)
+
+Today the chest type is a weighted roll over all nine types, unrelated to progress (decision 2026-09-30). New rule:
+
+- **Which chests drop:** only types whose lowest result (unlock tier - 1) sits between the player's buy tier and their highest owned tier: `buyTier <= unlockTier - 1 <= highestTier`. Floor: at buy tier 8 (Capybara Onsen's "ninjas" stage) no Wood, Stone or Iron. Ceiling (user, 2026-10-04: "I should not be getting this when my highest does not even get the lowest in the box"): a chest never shows up before you own its lowest tier, so with a tier 2 as your best you only get Wood (tiers 2-5), never Iron (6-9). The existing weights still apply among the allowed types (the lower one most common). No allowed type = no chest that time (e.g. before the first tier 2).
+- **What's inside:** any roll below the buy tier is raised to the buy tier, so every chest gives the buy tier or higher.
+- **Top of the ladder:** at buy tier 19-20 no type qualifies, so only Cosmic drops, contents raised the same way.
+
+Build:
+1. `Config/LuckyBlocks`: `LuckyBlocks.randomBlock(buyTier, random)` picks among the allowed types; `LuckyBlocks.rollsFor(block, buyTier)` returns the odds with low results folded into the buy tier; `LuckyBlocks.roll(block, buyTier, random)` uses them.
+2. `LuckyBlockService`: pass the owner's buy tier when spawning and unlocking (a chest already held keeps the buy tier it was spawned at, or uses the current one; decide while building).
+3. `LuckyBlockController`: the odds panel shows `rollsFor(block, BuyTier)` so the shown odds match the real ones.
+4. `tools/economy_sim.py`: same rule; re-run and check chests are still a fun jump ahead, not a skip (x7 owns tier 20 ~day 8, free ~day 48).
+5. Update CLAUDE.md (Lucky blocks rule), the design doc and PROGRESS.
+
+**Done when:** in Studio, a new player with a tier 2 as their best only gets Wood chests, and at buy tier 8 only chests from Gold up appear (and only up to their highest owned tier), none giving below tier 8.
+
+---
+
+## Phase 3c: Unlock a lucky chest with Robux (built 2026-10-04, not yet seen in Studio; needs the product ID)
+
+Changes the rule "lucky blocks are paid with Cash only, never Robux" (2026-09-30). When the player holds a chest they can't afford with Cash, the panel shows a second button, **"Unlock for R$ X"**, next to the Cash price.
+
+- **Roblox rules for paid random items:** a chest bought with Robux is a "paid random item". Roblox requires the odds to be shown before the purchase (our odds panel already does; it must show the real odds after 3b) and lets some countries forbid them. Check `PolicyService:GetPolicyInfoForPlayerAsync(player).ArePaidRandomItemsRestricted` on join and never show the Robux button to those players.
+- **Product:** one dev product, **"Unlock Lucky Chest", always 89 Robux** for any chest type (user decision 2026-10-04). **You create it** in the Creator Dashboard and send the ID (`Config/Products`, `LuckyUnlock`). Until then Studio grants it for free (`STUDIO_SIMULATE_PURCHASES`).
+- **Server:** `MonetizationService` adds the products. The receipt unlocks the chest the player holds (the same roll as a Cash unlock, through `LuckyBlockService`). If the player no longer holds a chest of that type, the purchase is still granted: Cash worth the chest's Cash price, so nobody loses Robux. Receipts are logged in `data.receipts` like the other products.
+- **Client:** `LuckyBlockController` shows the Robux button only when Cash < price and the player is allowed paid random items.
+- **Sim / balance:** a Robux unlock is at most one chest, already capped by 3b (only chests up to your highest tier), so a flat 89 never buys a chest above what you have reached. Check the sim: buying one of each allowed chest with Robux must not skip more than about a day.
+- **Docs:** CLAUDE.md "Lucky blocks" rule, the design doc, the store description (mention "odds shown before every purchase").
+
+**Done when:** in Studio, holding a chest you can't afford shows "Unlock for R$ X"; the simulated purchase unlocks it with the shown odds; with paid random items restricted (test by forcing the policy flag in Studio), the button never shows.
+
+---
+
+## Phase 3d: Visual overhaul toward Capybara Onsen (user request 2026-10-06)
+
+Full analysis and order of work: `docs/visual-overhaul.md`. In short: raised stepped stone bath platforms with ramps down into lower rivers and corner lanterns (the biggest gap), calmer grass and stone tiles with a fixed palette, fewer and bigger props, lower layered cliffs, a stocked deposit stall, the lucky chest glow, then a HUD pass. Voxel brainrot models later.
+
+---
+
 ## Phase 4: Phone check
 
 1. **Studio Device Emulator:** iPhone SE (smallest), a mid Android, an iPad. Check that the HUD, the tutorial line, the goal tracker, the Index and the lucky block panel fit and can be tapped (buttons at least 44 px), with nothing under the Roblox top bar or the thumbstick.
@@ -138,6 +178,20 @@ Start `rojo serve`, reconnect the plugin, confirm the sync, enter Play. Captures
 - **Fix the prompt:** make `docs/gemini-prompts/4-thumbnail-lucky-chest.txt` open with a strict size line ("Landscape 16:9, 1920 x 1080, much wider than tall; never square"), put the scene left and right of the centre, and add a matching line to `fixes.txt` ("Make it 16:9 landscape, wider, same scene").
 - **You** regenerate the image in a new Gemini chat and send it. Claude resizes it to 1920 x 1080 (< 3 MB) as `assets/store/thumbnail-4-lucky-chest.jpg`.
 - **Fallback:** publish with thumbnails 1, 2, 3 and 5 and add 4 later.
+
+---
+
+## Phase 5b: Gameplay video for the store page (user request 2026-10-06)
+
+Like other top games, a 15-30 s video on the store page (Creator Dashboard > the game > Places > Thumbnails & videos; 16:9, 1920 x 1080). Record after the visual overhaul, on the published private place with the HUD on:
+
+1. Buy brainrots, drops float down the slides into the pool, walk through them (+Aura numbers).
+2. Deposit at the stall (market x1.36 popup), Collect Cash.
+3. Merge! with a "New brainrot!" popup.
+4. A lucky chest floating in, picked up, unlocked (the reveal).
+5. A wide shot of a full bathhouse, ending on the title.
+
+Recording: Windows Game Bar (Win + Alt + R) or OBS at 1080p / 60 fps; Claude can script camera paths in Studio for clean fly-over shots if wanted, and trim / caption with ffmpeg. Check Roblox's video rules (no misleading footage: only real gameplay).
 
 ---
 
@@ -187,12 +241,13 @@ Fix what it finds, then run it again if anything in the flow changed.
 
 ## Phase 9: Retention updates (after launch, ranked by expected effect)
 
-1. **Experience notifications:** "Your brainrots made 1.2B Aura while you were away". The game's whole design is offline income, so this is the strongest pull-back. Needs the opt-in prompt and a template on the Creator Dashboard.
-2. **Daily login streak:** a free lucky block on day 1, Cash on later days, a better chest on day 7.
-3. **Favourite reminder** after the first Upgrade Buy Tier: a one-time popup asking players to favourite the game (check first whether Roblox offers a native favourite prompt for experiences).
-4. **Index rewards:** Cash for discovering each new tier, and a bonus for completing rows.
-5. **Weekend events:** double market luck, a guaranteed Cosmic chest hour.
-6. **Lucky block polish** (you said it could be polished; what to change still needs deciding), idle animations, bath steam and splashes, more tiers past 20.
+1. **Enhanced brainrots (first update after launch, user decision 2026-10-06):** variants of a brainrot such as Shiny, Glowing and Golden (like Steal a Brainrot / Grow a Garden mutations), rolled mostly from lucky chests. To decide when building: how they are saved (counts per tier x variant), whether 3 Shinies merge into a Shiny, the income bonus per variant, the look (sparkles, glow, gold), and Index slots per variant.
+2. **Experience notifications:** "Your brainrots made 1.2B Aura while you were away". The game's whole design is offline income, so this is the strongest pull-back. Needs the opt-in prompt and a template on the Creator Dashboard.
+3. **Daily login streak:** a free lucky block on day 1, Cash on later days, a better chest on day 7.
+4. **Favourite reminder** after the first Upgrade Buy Tier: a one-time popup asking players to favourite the game (check first whether Roblox offers a native favourite prompt for experiences).
+5. **Index rewards:** Cash for discovering each new tier, and a bonus for completing rows.
+6. **Weekend events:** double market luck, a guaranteed Cosmic chest hour.
+7. **Lucky block polish** (you said it could be polished; what to change still needs deciding), idle animations, bath steam and splashes, more tiers past 20.
 
 ---
 

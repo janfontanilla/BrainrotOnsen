@@ -98,11 +98,17 @@ local STEP_COUNT = 4 -- steps up from the map ground at the plot's front edge (1
 local DROP_FLOAT = 1.2 -- drop height above the water
 local LANE_WIDTH = 7 -- baths run along x; this is their size in z, rims included
 local RIVER_WIDTH = 8 -- low river in front of each bath, flowing to the channel
-local BATH_RIM = 1
--- Baths are thin stone rings standing in the sunken water (Capybara Onsen): their
--- water sits just below the grass and the rim tops just above it, so no tall box.
-local BATH_WATER_TOP = FLOOR_TOP - 0.3
-local BATH_RIM_TOP = FLOOR_TOP + 0.5
+local BATH_RIM = 1.25 -- rim of the platform's top layer around the bath water
+-- Baths are raised, stepped stone platforms standing up out of the sunken rivers
+-- (Capybara Onsen, docs/visual-overhaul.md; 2026-10-06, were thin rims on the water):
+-- a wide base layer, a narrower top layer with the bath water sunk into it, the
+-- brainrots on the water at the top, ramps from the top edge down into the river.
+local PLATFORM_STEP = 0.75 -- the base sticks out this far past the top layer on the long sides
+local PLATFORM_BASE_TOP = WATER_TOP + 1.1 -- top of the base layer
+local BATH_RIM_TOP = FLOOR_TOP + 1.3 -- top of the platform (the rim)
+local BATH_WATER_TOP = BATH_RIM_TOP - 0.5 -- the bath water; brainrots stand on it
+local PLATFORM_TOP_WIDTH = LANE_WIDTH - 2 * PLATFORM_STEP -- top layer, in z
+local BATH_EDGE = PLATFORM_TOP_WIDTH / 2 -- lane centre to the top layer's long edge (slides start here)
 local SPOT_SPACING = 9 -- along the bath (x)
 local SLIDE_OFFSET = SPOT_SPACING / 2 -- slides sit between brainrots
 local LANES_FRONT_Z = 90
@@ -142,6 +148,19 @@ local MARKET_X = 26 -- left of the entrance gate, clear of it
 local STALL_KEEPER_TIER = 13 -- Tung Tung Tung Sahur behind the deposit counter
 local STALL_KEEPER_SCALE = 1
 local STALL_KEEPER_STEP = 5.2 -- stands up at counter-top height so all of him shows
+-- The wooden stool he stands on (seat top = STALL_KEEPER_STEP).
+local STOOL_SEAT = 4 -- seat width and depth
+local STOOL_SEAT_THICK = 0.6
+local STOOL_LEG = 0.6
+local STOOL_COLOR = Color3.fromRGB(130, 84, 44)
+-- Goods on the deposit counter (Capybara Onsen's stall has crates of yuzu): a crate at
+-- each end of the counter, piled with drop items; the middle stays clear for the keeper.
+local COUNTER_TOP = 9.5 -- measured in Studio (the DepositStall prop at STALL_SCALE)
+local COUNTER_Z = 27.8 -- front half of the counter (its centre is 26.6, the front edge 29.1)
+local CRATE_OFFSET_X = 4.6 -- from the stall centre: clear of the keeper and the lamp at the ends
+local CRATE_SIZE = Vector3.new(3.4, 1.4, 2.8)
+local CRATE_ITEMS = { { 1, 4, 2 }, { 5, 3, 6 } } -- drop item tiers piled in each crate
+local CRATE_COLOR = Color3.fromRGB(150, 98, 52)
 -- The barrel's chimney top relative to its base centre, in the barrel's own frame
 -- (tools/voxel_forge.py processor_barrel).
 local CHIMNEY_OFFSET = Vector3.new(2.5, 26.5, 3)
@@ -188,7 +207,11 @@ local BRIDGE_RED = Color3.fromRGB(196, 58, 48)
 local FLOW_TAG = "FlowWater" -- Controllers/WaterController scrolls these textures
 local WATER_FLOW_SPEED = 6 -- studs per second the river and channel textures drift
 -- Tints for textured parts (Skin multiplies the tile by these; white = the tile as drawn).
-local RIM_TINT = Color3.fromRGB(200, 204, 216) -- rims a shade darker than the bath body
+local RIM_TINT = Color3.fromRGB(236, 238, 244) -- light grey rims (2026-10-06, was slate 200, 204, 216)
+local LANTERN_SCALE = 1.2 -- bath lanterns, a bit bigger than the prop (Capybara Onsen)
+local SLIDE_RAIL = 0.4 -- side rails on the slides (the water runs between them)
+local SLIDE_POST = 0.5 -- posts at the top of each slide
+local SLIDE_WATER_COLOR = Color3.fromRGB(170, 238, 255) -- the water running down each slide
 local PAD_TRAY_COLOR = Color3.fromRGB(78, 80, 92)
 local PAD_TRAY = 0.7 -- the dark studded tray shows this far around each pad
 -- Floor arrows along the loop (x, z, direction x, direction z): pool > Deposit,
@@ -346,9 +369,9 @@ local function buildPlot(root: Instance, index: number): Plot
 	local bathLength = bathInnerLength + 2 * BATH_RIM
 	local bathNearX = CHANNEL_WIDTH / 2 + 1 -- bath edge nearest the channel
 	local bathCenterX = bathNearX + bathLength / 2
-	local baseHeight = BATH_WATER_TOP - 0.4 - BASIN_BOTTOM
-	local rimHeight = BATH_RIM_TOP - (BATH_WATER_TOP - 0.4)
-	local rimY = BATH_WATER_TOP - 0.4 + rimHeight / 2
+	local bodyBottom = BATH_WATER_TOP - 0.4 -- the bath water's floor
+	local rimHeight = BATH_RIM_TOP - bodyBottom
+	local rimY = bodyBottom + rimHeight / 2
 
 	local lanes: { { side: number, z: number, riverZ: number } } = {}
 	for row = 0, Economy.ROWS - 1 do
@@ -379,16 +402,22 @@ local function buildPlot(root: Instance, index: number): Plot
 			foam.CastShadow = false
 			Decor.foam(foam)
 
-			-- Raised bath: stone base, shallow water on top, rim around it.
+			-- Raised platform: a wide base layer from the basin bed, a narrower top layer
+			-- whose middle holds the shallow bath water, rims all round the water.
+			stone(
+				"BathBase",
+				Vector3.new(bathLength, PLATFORM_BASE_TOP - BASIN_BOTTOM, LANE_WIDTH),
+				at(side * bathCenterX, (PLATFORM_BASE_TOP + BASIN_BOTTOM) / 2, z)
+			)
 			stone(
 				"Bath",
-				Vector3.new(bathLength, baseHeight, LANE_WIDTH),
-				at(side * bathCenterX, BASIN_BOTTOM + baseHeight / 2, z)
+				Vector3.new(bathLength, bodyBottom - PLATFORM_BASE_TOP, PLATFORM_TOP_WIDTH),
+				at(side * bathCenterX, (bodyBottom + PLATFORM_BASE_TOP) / 2, z)
 			)
 			Decor.steam(
 				water(
 					"BathWater",
-					Vector3.new(bathInnerLength, 0.4, LANE_WIDTH - 2 * BATH_RIM),
+					Vector3.new(bathInnerLength, 0.4, PLATFORM_TOP_WIDTH - 2 * BATH_RIM),
 					at(side * bathCenterX, BATH_WATER_TOP - 0.2, z)
 				)
 			)
@@ -396,26 +425,27 @@ local function buildPlot(root: Instance, index: number): Plot
 				stone(
 					"BathRim",
 					Vector3.new(bathLength, rimHeight, BATH_RIM),
-					at(side * bathCenterX, rimY, z + dz * (LANE_WIDTH - BATH_RIM) / 2)
+					at(side * bathCenterX, rimY, z + dz * (PLATFORM_TOP_WIDTH - BATH_RIM) / 2)
 				)
 			end
 			for _, dx in { -1, 1 } do
 				stone(
 					"BathRim",
-					Vector3.new(BATH_RIM, rimHeight, LANE_WIDTH - 2 * BATH_RIM),
+					Vector3.new(BATH_RIM, rimHeight, PLATFORM_TOP_WIDTH - 2 * BATH_RIM),
 					at(side * bathCenterX + dx * (bathLength - BATH_RIM) / 2, rimY, z)
 				)
 			end
 
-			-- A step down at the channel end of the rim.
-			stone(
-				"BathStep",
-				Vector3.new(1, BATH_WATER_TOP - BASIN_BOTTOM, LANE_WIDTH),
-				at(side * (bathNearX - 0.5), (BATH_WATER_TOP + BASIN_BOTTOM) / 2, z)
-			)
-
-			-- Lantern on the rim at the channel end of each bath.
-			Props.place("RimLantern", at(side * (bathNearX + 0.7), BATH_RIM_TOP, z), geometry)
+			-- Two lanterns per bath, on opposite top corners: the channel end on the river
+			-- side and the far end on the back side (four were too many, 2026-10-06).
+			for _, corner in { { bathNearX + BATH_RIM / 2, -1 }, { bathNearX + bathLength - BATH_RIM / 2, 1 } } do
+				Props.place(
+					"RimLantern",
+					at(side * corner[1], BATH_RIM_TOP, z + corner[2] * (PLATFORM_TOP_WIDTH - BATH_RIM) / 2),
+					geometry,
+					LANTERN_SCALE
+				)
+			end
 		end
 	end
 
@@ -548,7 +578,7 @@ local function buildPlot(root: Instance, index: number): Plot
 
 		local toward = if lane.riverZ > lane.z then 1 else -1
 		local slideX = lane.side * (x + SLIDE_OFFSET)
-		local top = at(slideX, BATH_RIM_TOP + 0.2, lane.z + toward * (LANE_WIDTH / 2 - BATH_RIM)).Position
+		local top = at(slideX, BATH_RIM_TOP + 0.1, lane.z + toward * BATH_EDGE).Position
 		local bottom = at(slideX, WATER_TOP, lane.riverZ - toward).Position
 		local slide = makePart(
 			geometry,
@@ -560,6 +590,42 @@ local function buildPlot(root: Instance, index: number): Plot
 		Skin.apply(slide, "planks")
 		slide.CanCollide = false
 		slide.CastShadow = false
+		for _, edge in { -1, 1 } do
+			local rail = makePart(
+				geometry,
+				"SlideRail",
+				Vector3.new(SLIDE_RAIL, 0.8, slide.Size.Z),
+				slide.CFrame * CFrame.new(edge * (slide.Size.X / 2 - SLIDE_RAIL / 2), 0.5, 0),
+				WOOD_COLOR
+			)
+			Skin.apply(rail, "planks", Color3.fromRGB(200, 170, 140))
+			rail.CanCollide = false
+			rail.CastShadow = false
+			local post = makePart(
+				geometry,
+				"SlidePost",
+				Vector3.new(SLIDE_POST, 1.2, SLIDE_POST),
+				at(slideX + edge * (slide.Size.X / 2), BATH_RIM_TOP + 0.6, lane.z + toward * (BATH_EDGE - 0.3)),
+				WOOD_COLOR
+			)
+			Skin.apply(post, "planks")
+			post.CanCollide = false
+		end
+		-- Water running down the slide between the rails, its texture scrolling
+		-- downhill (the slide's front, -z in its own frame, faces the river).
+		local runoff = water(
+			"SlideWater",
+			Vector3.new(slide.Size.X - 2 * SLIDE_RAIL, 0.12, slide.Size.Z),
+			slide.CFrame * CFrame.new(0, 0.2, 0)
+		)
+		runoff.CanCollide = false
+		runoff.CanQuery = false
+		runoff.CanTouch = false
+		-- Solid, brighter water: Glass refracts the river behind it and the strip vanishes.
+		runoff.Material = Enum.Material.SmoothPlastic
+		runoff.Color = SLIDE_WATER_COLOR
+		runoff.Transparency = 0
+		flows(runoff, 0, -1)
 	end
 
 	-- A thick studded pad in a dark studded tray (reference: capybara-onsen-plot-layout.webp),
@@ -665,6 +731,66 @@ local function buildPlot(root: Instance, index: number): Plot
 	keeper:ScaleTo(keeper:GetScale() * STALL_KEEPER_SCALE)
 	keeper:PivotTo(facingPool(DEPOSIT_X, FLOOR_TOP + STALL_KEEPER_STEP, STATION_Z - 3.5))
 	keeper.Parent = geometry
+	-- A tall wooden stool under him, so he doesn't float: a seat on four legs
+	-- with a footrest ring halfway up.
+	local stool = Instance.new("Model")
+	stool.Name = "KeeperStool"
+	stool.Parent = geometry
+	local stoolAt = facingPool(DEPOSIT_X, FLOOR_TOP, STATION_Z - 3.5)
+	local seatHeight = STALL_KEEPER_STEP
+	local function stoolPart(name: string, size: Vector3, offset: Vector3)
+		local part = makePart(stool, name, size, stoolAt * CFrame.new(offset), STOOL_COLOR)
+		part.Material = Enum.Material.Wood
+		return part
+	end
+	stoolPart(
+		"Seat",
+		Vector3.new(STOOL_SEAT, STOOL_SEAT_THICK, STOOL_SEAT),
+		Vector3.new(0, seatHeight - STOOL_SEAT_THICK / 2, 0)
+	)
+	local legHeight = seatHeight - STOOL_SEAT_THICK
+	local inset = STOOL_SEAT / 2 - STOOL_LEG / 2 - 0.2
+	for _, corner in { Vector2.new(1, 1), Vector2.new(1, -1), Vector2.new(-1, 1), Vector2.new(-1, -1) } do
+		stoolPart(
+			"Leg",
+			Vector3.new(STOOL_LEG, legHeight, STOOL_LEG),
+			Vector3.new(corner.X * inset, legHeight / 2, corner.Y * inset)
+		)
+	end
+	local ringY = legHeight * 0.45
+	local ringLength = inset * 2
+	for _, side in { 1, -1 } do
+		stoolPart("Rung", Vector3.new(ringLength, 0.35, 0.35), Vector3.new(0, ringY, side * inset))
+		stoolPart("Rung", Vector3.new(0.35, 0.35, ringLength), Vector3.new(side * inset, ringY, 0))
+	end
+
+	-- Crates of drop items on the counter.
+	for i, dx in { -CRATE_OFFSET_X, CRATE_OFFSET_X } do
+		local crateAt = facingPool(DEPOSIT_X + dx, COUNTER_TOP + CRATE_SIZE.Y / 2, COUNTER_Z)
+		local crate = makePart(geometry, "StallCrate", CRATE_SIZE, crateAt, CRATE_COLOR)
+		Skin.apply(crate, "planks")
+		for _, dz in { -1, 1 } do
+			-- darker slats along the front and back
+			makePart(
+				geometry,
+				"StallCrateSlat",
+				Vector3.new(CRATE_SIZE.X + 0.1, 0.35, 0.2),
+				crateAt * CFrame.new(0, 0.1, dz * (CRATE_SIZE.Z / 2)),
+				STOOL_COLOR
+			)
+		end
+		for j, tier in CRATE_ITEMS[i] do
+			local item = Models.makeDropItem(tier)
+			local spread = (j - 2) * 1.05
+			item:PivotTo(
+				crateAt
+					* CFrame.new(spread, CRATE_SIZE.Y / 2 + 0.6 + (if j == 2 then 0.35 else 0), (j % 2) * 0.3)
+					* CFrame.Angles(0, math.rad(j * 37), 0)
+			)
+			item:ScaleTo(item:GetScale() * 1.1)
+			item.Parent = geometry
+		end
+	end
 
 	-- Market board in a wooden frame.
 	stationProp("MarketBoardFrame", MARKET_X)
@@ -870,7 +996,7 @@ function Plots.dropPath(plot: Plot, spotIndex: number, random: Random): { Vector
 	local rest = plot.origin:PointToObjectSpace(Plots.poolPoint(plot, random))
 	local points = {
 		Vector3.new(x, BATH_WATER_TOP + DROP_FLOAT, z),
-		Vector3.new(slideX, BATH_RIM_TOP + DROP_FLOAT, z + toward * (LANE_WIDTH / 2 - BATH_RIM)),
+		Vector3.new(slideX, BATH_RIM_TOP + DROP_FLOAT, z + toward * BATH_EDGE),
 		Vector3.new(slideX, floatY, floatZ),
 		Vector3.new(0, floatY, floatZ),
 		Vector3.new(0, floatY, POOL_BACK_Z),

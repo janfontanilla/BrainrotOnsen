@@ -5,7 +5,8 @@
 -- brainrots are marked done on load, so existing players never see it.
 --
 -- Services report actions with TutorialService.record(player, id) ("buy",
--- "collect", "deposit", "collectCash", "merge"); the step advances when the current
+-- "collect", "deposit", "collectCash", "merge", "upgradeBuyTier"); the last step
+-- starts with a reward worth exactly the next Upgrade Buy Tier; the step advances when the current
 -- step's action has happened `count` times. Replicated as the TutorialStep and
 -- TutorialCount player attributes; GuideController draws the instruction, the beam
 -- and the arrow. The client can only ask to skip (TutorialAction "skip").
@@ -16,6 +17,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
 local Tutorial = require(Shared.Tutorial)
 local Remotes = require(Shared.Remotes)
+local Format = require(Shared.Format)
 local Analytics = require(script.Parent.Parent.Analytics)
 local DataService = require(script.Parent.DataService)
 
@@ -42,6 +44,21 @@ local function fundMergeStep(player: Player)
 	end
 end
 
+-- The last step's reward: exactly the Cash for the next Upgrade Buy Tier, so the
+-- tutorial ends on new brainrots on the pads.
+local function giveReward(player: Player)
+	local data = DataService.get(player)
+	local cost = data and Economy.buyTierUpgradeCost(data.buyTier)
+	if not data or not cost then
+		return
+	end
+	data.cash += cost
+	data.totalCashEarned += cost
+	DataService.sync(player)
+	Analytics.cash(player, "source", cost, data.cash, "Onboarding", "TutorialReward")
+	notify:FireClient(player, `Tutorial reward: +{Format.short(cost)} Cash!`, "cash")
+end
+
 local function advance(player: Player, step: number)
 	local data = DataService.get(player)
 	if not data then
@@ -52,9 +69,14 @@ local function advance(player: Player, step: number)
 	counts[player] = 0
 	publish(player, data.tutorialStep)
 	if data.tutorialStep == Tutorial.DONE then
-		notify:FireClient(player, "Tutorial complete! Next goal: Upgrade Buy Tier", "good")
-	elseif Tutorial.STEPS[data.tutorialStep].id == "merge" then
+		notify:FireClient(player, "Tutorial complete! Keep merging and upgrading", "newBrainrot")
+		return
+	end
+	local nextId = Tutorial.STEPS[data.tutorialStep].id
+	if nextId == "merge" then
 		fundMergeStep(player)
+	elseif nextId == "upgradeBuyTier" then
+		giveReward(player)
 	end
 end
 
@@ -64,10 +86,13 @@ function TutorialService.begin(player: Player)
 	if not data then
 		return
 	end
-	if data.tutorialStep == 0 then
+	local forced = RunService:IsStudio() and Economy.STUDIO_FORCE_TUTORIAL
+	if data.tutorialStep == 0 or (data.tutorialStep == 1 and data.totalBrainrots > 0 and not forced) then
+		-- Owning brainrots while on step 1 only happens after a forced Studio test
+		-- saved the step; such a player is past the tutorial.
 		data.tutorialStep = if data.totalBrainrots > 0 then Tutorial.DONE else 1
 	end
-	if RunService:IsStudio() and Economy.STUDIO_FORCE_TUTORIAL then
+	if forced then
 		data.tutorialStep = 1
 	end
 	counts[player] = 0

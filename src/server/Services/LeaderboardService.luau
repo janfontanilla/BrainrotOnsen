@@ -40,7 +40,7 @@ type Board = {
 local LeaderboardService = {}
 
 local TOP_COUNT = 10
-local LEADERSTAT_INTERVAL = 5 -- seconds between leaderstat / playtime updates
+local LEADERSTAT_INTERVAL = 2 -- seconds between leaderstat / playtime updates
 local BOARD_INTERVAL = 60 -- seconds between DataStore saves / board refreshes
 local NET_WORTH_SCALE = 1e6 -- stored = floor(log10(cash + 1) x this)
 
@@ -90,7 +90,7 @@ local DEFS: { BoardDef } = {
 }
 
 local boards: { Board } = {}
-local stats: { [Player]: IntValue } = {}
+local stats: { [Player]: { best: IntValue, cash: StringValue, total: IntValue } } = {}
 local nameCache: { [number]: string } = {}
 local warned = false
 
@@ -158,7 +158,7 @@ local function buildBoard(folder: Folder, def: BoardDef): Board
 		gui.CanvasSize = Vector2.new(500, 440)
 		gui.LightInfluence = 0.2
 		gui.Parent = board
-		local title = label(gui, UDim2.fromScale(0.9, 0.13), UDim2.fromScale(0.05, 0.02), Enum.TextXAlignment.Center)
+		local title = label(gui, UDim2.fromScale(0.9, 0.14), UDim2.fromScale(0.05, 0.03), Enum.TextXAlignment.Center)
 		title.Text = def.title
 		title.TextColor3 = def.roof
 		local stroke = Instance.new("UIStroke")
@@ -166,11 +166,12 @@ local function buildBoard(folder: Folder, def: BoardDef): Board
 		stroke.Thickness = 2
 		stroke.Parent = title
 		for i = 1, TOP_COUNT do
+			-- Rows centred on the board (left-aligned rows bunched in the corner).
 			local row = label(
 				gui,
-				UDim2.fromScale(0.9, 0.07),
-				UDim2.fromScale(0.05, 0.17 + (i - 1) * 0.074),
-				Enum.TextXAlignment.Left
+				UDim2.fromScale(0.86, 0.068),
+				UDim2.fromScale(0.07, 0.19 + (i - 1) * 0.073),
+				Enum.TextXAlignment.Center
 			)
 			row.RichText = true
 			row.TextColor3 = Color3.fromRGB(70, 48, 30)
@@ -261,15 +262,23 @@ local function refreshBoards()
 	end
 end
 
+-- The player list (top right): who is in the server with their best tier (first
+-- column, so the list sorts by it), Cash and Total Brainrots.
 local function onPlayerAdded(player: Player)
 	local folder = Instance.new("Folder")
 	folder.Name = "leaderstats"
-	local stat = Instance.new("IntValue")
-	stat.Name = "Total Brainrots"
-	stat.Value = 0
-	stat.Parent = folder
+	local best = Instance.new("IntValue")
+	best.Name = "Best Tier"
+	best.Parent = folder
+	local cash = Instance.new("StringValue")
+	cash.Name = "Cash"
+	cash.Value = "0"
+	cash.Parent = folder
+	local total = Instance.new("IntValue")
+	total.Name = "Total Brainrots"
+	total.Parent = folder
 	folder.Parent = player
-	stats[player] = stat
+	stats[player] = { best = best, cash = cash, total = total }
 end
 
 local function onPlayerRemoving(player: Player)
@@ -302,7 +311,9 @@ function LeaderboardService:Start()
 			for player, stat in stats do
 				local data = DataService.get(player)
 				if data then
-					stat.Value = math.floor(data.totalBrainrots)
+					stat.best.Value = data.highestTier
+					stat.cash.Value = Format.short(data.cash)
+					stat.total.Value = math.floor(data.totalBrainrots)
 					data.playtime += LEADERSTAT_INTERVAL
 				end
 			end

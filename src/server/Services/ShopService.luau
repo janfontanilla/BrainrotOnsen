@@ -220,6 +220,7 @@ local function upgradeBuyTier(player: Player, plot: Plot)
 	ShopService.refreshPads(plot)
 	Analytics.cash(player, "sink", cost, data.cash, "Gameplay", "UpgradeBuyTier")
 	Analytics.buyTier(player, data.buyTier)
+	TutorialService.record(player, "upgradeBuyTier")
 	notify:FireClient(player, `Buy pads now sell {Tiers.get(data.buyTier).name}!`, "good")
 end
 

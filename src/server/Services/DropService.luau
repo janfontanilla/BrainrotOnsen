@@ -127,9 +127,6 @@ local function produce(plot: Plot, now: number)
 			end
 		end
 	end
-	-- GuideController offers Auto Collect while production is stopped by the cap.
-	local owner = plot.owner :: Player
-	owner:SetAttribute("DropsCapped", not autoCollect and (dropCounts[plot.index] or 0) >= Economy.DROP_CAP)
 	for i = #tiers + 1, #plotTimers do
 		plotTimers[i] = nil
 	end
