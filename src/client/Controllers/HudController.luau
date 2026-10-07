@@ -27,6 +27,7 @@ local POPUP_STYLES: { [string]: { text: Color3, stroke: Color3 } } = {
 	newBrainrot = { text = Color3.fromRGB(255, 120, 255), stroke = Color3.fromRGB(60, 0, 80) },
 }
 local POPUP_HOLD = 1.6 -- seconds on screen before floating away
+local GAIN_HOLD = 1.1 -- seconds the "+X" over the Aura number stays after the last pickup
 
 -- Cash pack buttons (left side): the amount scales with the highest tier owned.
 local PACKS: { { name: string, size: "S" | "M" | "L" } } = {
@@ -48,7 +49,9 @@ function HudController:Start()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = false
+	-- From the very top of the screen: Home / Index sit in the Roblox top bar row,
+	-- centred, like Capybara Onsen's (2026-10-06; below the bar they looked misplaced).
+	gui.IgnoreGuiInset = true
 	Style.autoScale(gui)
 
 	-- Bottom centre: the Aura gem and a big white number.
@@ -70,6 +73,49 @@ function HudController:Start()
 	aura.Size = UDim2.new(1, -76, 1, 0)
 	aura.Position = UDim2.fromOffset(76, 0)
 	aura.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- "+X" just above the Aura number when drops are collected (white, like the number):
+	-- quick pickups add into it with a pop, then it floats up and fades.
+	local gain = Style.outlined(auraBox, "AuraGain", Color3.new(1, 1, 1), OUTLINE, 3)
+	gain.AnchorPoint = Vector2.new(0, 1)
+	gain.Position = UDim2.fromOffset(76, -2)
+	gain.Size = UDim2.fromOffset(220, 40)
+	gain.TextXAlignment = Enum.TextXAlignment.Left
+	gain.Visible = false
+	local gainStroke = gain:FindFirstChildOfClass("UIStroke") :: UIStroke
+	local gainPop = Instance.new("UIScale")
+	gainPop.Parent = gain
+	local gainTotal = 0
+	local gainSerial = 0
+	Remotes.event("DropCollected").OnClientEvent:Connect(function(amount: unknown)
+		if typeof(amount) ~= "number" then
+			return
+		end
+		gainSerial += 1
+		local serial = gainSerial
+		gainTotal = if gain.Visible then gainTotal + amount else amount
+		gain.Text = `+{Format.short(gainTotal)}`
+		gain.Position = UDim2.fromOffset(76, -2)
+		gain.TextTransparency = 0
+		gainStroke.Transparency = 0
+		gain.Visible = true
+		gainPop.Scale = 1.25
+		TweenService:Create(gainPop, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+			:Play()
+		task.delay(GAIN_HOLD, function()
+			if gainSerial ~= serial then
+				return
+			end
+			local fade = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			TweenService:Create(gain, fade, { Position = UDim2.fromOffset(76, -26), TextTransparency = 1 }):Play()
+			TweenService:Create(gainStroke, fade, { Transparency = 1 }):Play()
+			task.delay(0.5, function()
+				if gainSerial == serial then
+					gain.Visible = false
+				end
+			end)
+		end)
+	end)
 
 	-- Bottom left: big green Cash, the Cash multiplier beside it.
 	local cash = Style.outlined(gui, "Cash", CASH_GREEN, GREEN_DARK, 4)
@@ -96,7 +142,7 @@ function HudController:Start()
 	left.Name = "Left"
 	left.AnchorPoint = Vector2.new(0, 0.5)
 	left.Position = UDim2.new(0, 14, 0.5, -10)
-	left.Size = UDim2.fromOffset(240, 330)
+	left.Size = UDim2.fromOffset(240, 350)
 	left.BackgroundTransparency = 1
 	left.Parent = gui
 
@@ -114,23 +160,16 @@ function HudController:Start()
 	permanent.Rotation = -6
 	permanent.ZIndex = 3
 	local promoPrice = Style.outlined(left, "PromoPrice", Color3.new(1, 1, 1), OUTLINE, 3)
-	promoPrice.Size = UDim2.fromOffset(120, 32)
-	promoPrice.Position = UDim2.fromOffset(58, 96)
+	promoPrice.Size = UDim2.fromOffset(150, 38)
+	promoPrice.Position = UDim2.fromOffset(43, 94)
 
 	local packButtons: { [string]: { button: TextButton, amount: TextLabel } } = {}
 	for i, pack in PACKS do
 		local button, amount = Style.button(left, pack.name, GREEN, GREEN_DARK)
-		button.Size = UDim2.fromOffset(236, 54)
-		button.Position = UDim2.fromOffset(0, 138 + (i - 1) * 64)
+		button.Size = UDim2.fromOffset(236, 60)
+		button.Position = UDim2.fromOffset(0, 138 + (i - 1) * 70)
+		-- Only the amount, big (like Capybara Onsen's); Roblox's prompt shows the price.
 		amount.TextColor3 = LIME
-		amount.Size = UDim2.new(1, -84, 1, -14)
-		amount.TextXAlignment = Enum.TextXAlignment.Left
-		local price = Style.outlined(button, "Price", Color3.new(1, 1, 1), GREEN_DARK, 2)
-		price.AnchorPoint = Vector2.new(1, 0.5)
-		price.Position = UDim2.new(1, -8, 0.5, 0)
-		price.Size = UDim2.fromOffset(64, 22)
-		price.ZIndex = 2
-		price.Text = `R$ {Products.DevProducts[pack.name].robux}`
 		button.Activated:Connect(function()
 			buyProduct:FireServer(pack.name)
 		end)
@@ -141,12 +180,12 @@ function HudController:Start()
 	local premium = Style.outlined(gui, "Premium", Color3.new(1, 1, 1), OUTLINE, 2)
 	premium.AnchorPoint = Vector2.new(0, 1)
 	premium.Position = UDim2.new(0, 14, 1, -84)
-	premium.Size = UDim2.fromOffset(150, 28)
+	premium.Size = UDim2.fromOffset(200, 34)
 	premium.TextXAlignment = Enum.TextXAlignment.Left
 	local friends = Style.outlined(gui, "Friends", Color3.fromRGB(255, 222, 90), OUTLINE, 2)
 	friends.AnchorPoint = Vector2.new(0, 1)
-	friends.Position = UDim2.new(0, 170, 1, -84)
-	friends.Size = UDim2.fromOffset(120, 28)
+	friends.Position = UDim2.new(0, 222, 1, -84)
+	friends.Size = UDim2.fromOffset(150, 34)
 	friends.TextXAlignment = Enum.TextXAlignment.Left
 
 	-- Top centre: Home (cyan); IndexController puts Index (tan) right of it.

@@ -28,7 +28,9 @@ local Style = require(script.Parent.Parent.Style)
 local player = Players.LocalPlayer
 
 local HELD_SIZE = 3.6
-local HELD_FALLBACK = CFrame.new(1.5, 1, -2.5) -- from the root part when the hand can't be found
+local HELD_REACH = 0.5 -- studs between the body and the chest: it meets the outstretched hand
+local HELD_SIDE = 0.6 -- towards the right hand
+local HELD_HEIGHT = 0.4 -- above the root: hand height in the hold pose
 -- Roblox's default "holding a tool" animations (right arm straight out). The
 -- local player plays it on their own character; Roblox replicates it to others.
 local HOLD_ANIMATION_R15 = "rbxassetid://507768375"
@@ -103,24 +105,17 @@ local function setArmsUp(target: Player, up: boolean)
 	holdTrack = track
 end
 
--- Where the held chest sits: gripped by the outstretched right hand, like a
--- tool: in front of the hand at hand height (reference/lucky-block-held-tool-pose.png).
+-- Where the held chest sits: in front of the right shoulder at arm's length, where
+-- the outstretched hand of the hold pose is (reference/lucky-block-held-tool-pose.png).
+-- Placed from the body, not from the hand's direction: the hand's direction pointed
+-- sideways into the body on some avatars and the player ended up inside the chest.
 local function aboveHead(target: Player): CFrame?
 	local root = rootOf(target)
 	if not root then
 		return nil
 	end
-	local character = target.Character
-	local hand = character and (character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm"))
-	if not hand or not hand:IsA("BasePart") then
-		return root.CFrame * HELD_FALLBACK
-	end
-	-- The hand's -Y end is its fingertips; the box starts there and extends the
-	-- way the arm points, raised a little so the hand holds its lower half.
-	local armDirection = -hand.CFrame.UpVector
-	local tip = hand.Position + armDirection * (hand.Size.Y / 2)
-	local center = tip + armDirection * (HELD_SIZE / 2 - 0.3) + Vector3.new(0, HELD_SIZE * 0.2, 0)
-	return CFrame.new(center) * root.CFrame.Rotation
+	local forward = root.Size.Z / 2 + HELD_REACH + HELD_SIZE / 2
+	return root.CFrame * CFrame.new(HELD_SIDE, HELD_HEIGHT, -forward)
 end
 
 local function dropHeld(target: Player)

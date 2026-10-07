@@ -3,6 +3,7 @@
 -- the lucky block panel). Replaced by real models in Phase 6.
 
 local Props = require(script.Parent.Props)
+local Textures = require(script.Parent.Config.Textures)
 
 local Visuals = {}
 
@@ -35,6 +36,9 @@ local GLOW_RANK: { [string]: number } = {
 	Cosmic = 9,
 }
 local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
+local CHEST_STUDS_ACROSS = 8 -- studs drawn across a chest face
+local STUD_FACES =
+	{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top }
 local BEACON_FROM_RANK = 5 -- Diamond and rarer
 local BEACON_HEIGHT = 14
 
@@ -124,6 +128,21 @@ function Visuals.makeLuckyBlock(name: string, size: number): Model
 		body.Parent = chest
 		chest.PrimaryPart = body
 		Visuals.addGlow(body, name)
+		-- Small studs over the chest's panels, like Capybara Onsen's studded chests.
+		local stud = size / CHEST_STUDS_ACROSS
+		for _, part in chest:GetDescendants() do
+			if part:IsA("BasePart") and part ~= body and part.Size.X > stud and part.Size.Z > stud then
+				for _, face in STUD_FACES do
+					local texture = Instance.new("Texture")
+					texture.Texture = `rbxassetid://{Textures.studs.id}`
+					texture.Face = face
+					texture.StudsPerTileU = stud
+					texture.StudsPerTileV = stud
+					texture.Transparency = 0.35
+					texture.Parent = part
+				end
+			end
+		end
 		return chest
 	end
 

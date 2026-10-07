@@ -85,6 +85,7 @@ function IndexController:Start()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Index"
 	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true -- the Index button sits in the top bar row beside Home (HudController)
 	Style.autoScale(gui)
 
 	-- The Index button: tan and studded, right of Home (HudController).

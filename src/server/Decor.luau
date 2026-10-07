@@ -27,6 +27,12 @@ export type Options = {
 
 local WALL = Color3.fromRGB(190, 142, 88)
 local WALL_DARK = Color3.fromRGB(104, 70, 44)
+-- Tint for the studded stone tile on the wall's wood (posts, base, top rail): the grey
+-- tile times this reads as dark brown studded blocks (2026-10-06: the built-in
+-- WoodPlanks material read as dark bricks).
+local WALL_WOOD_TINT = Color3.fromRGB(150, 100, 62)
+local POST_BASE = Color3.fromRGB(196, 196, 200)
+local SCROLL_INK = Color3.fromRGB(196, 54, 46)
 local BLOSSOM_A = Color3.fromRGB(255, 170, 200)
 local CLIFF = Color3.fromRGB(172, 178, 186) -- light warm grey (2026-10-06, was blue-grey 140, 160, 182)
 local CLIFF_CAP = Color3.fromRGB(92, 172, 72)
@@ -59,6 +65,10 @@ local CANAL_WIDTH = 4
 local BRIDGE_WIDTH = 9
 local CANAL_WATER = Color3.fromRGB(70, 205, 240)
 local PATH_WIDTH = 6
+local TUFT_SPACING = 7 -- studs between grass tufts along the walls
+local BUSH_ROWS = { 128, 166, 196 } -- plot-local z of the bush clusters in the side strips
+local ENTRANCE_LANTERN_X = 5.5 -- stone lanterns either side of the entrance path...
+local ENTRANCE_LANTERN_Z = 26 -- ...a little way in from the gate
 -- On the +x side the front wall runs straight past the market board, then curves in
 -- to meet the +x side wall, cutting off the empty front corner. Plot-local (x, z).
 local CURVE = {
@@ -110,13 +120,13 @@ function Decor.steam(water: Part): Part
 	emitter.Color = ColorSequence.new(Color3.fromRGB(235, 245, 255))
 	emitter.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.2, 0.6),
+		NumberSequenceKeypoint.new(0.2, 0.4), -- more visible steam (2026-10-06, was 0.6)
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2.5), NumberSequenceKeypoint.new(1, 8) })
 	emitter.Lifetime = NumberRange.new(3, 5)
 	emitter.Speed = NumberRange.new(1.5, 3)
-	emitter.Rate = 4
+	emitter.Rate = 6
 	emitter.SpreadAngle = Vector2.new(15, 15)
 	emitter.EmissionDirection = Enum.NormalId.Top
 	emitter.LightEmission = 0.25
@@ -132,12 +142,12 @@ function Decor.foam(strip: Part)
 	emitter.Name = "Foam"
 	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
 	emitter.Color = ColorSequence.new(Color3.fromRGB(245, 252, 255))
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.4), NumberSequenceKeypoint.new(1, 0) })
 	emitter.Transparency =
 		NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 0.8) })
 	emitter.Lifetime = NumberRange.new(0.5, 0.9)
 	emitter.Speed = NumberRange.new(1.5, 3.5)
-	emitter.Rate = 14
+	emitter.Rate = 20 -- livelier splash (2026-10-06, was 14)
 	emitter.SpreadAngle = Vector2.new(40, 40)
 	emitter.EmissionDirection = Enum.NormalId.Top
 	emitter.Shape = Enum.ParticleEmitterShape.Box
@@ -253,38 +263,24 @@ local function wallRun(
 		Enum.Material.WoodPlanks
 	)
 	Skin.apply(panel, "pegboard")
-	part(
-		folder,
-		"WallBase",
-		Vector3.new(1.6, 1.0, length),
-		o.at(mx, top + 0.5, mz) * rotation,
-		WALL_DARK,
-		true,
-		Enum.Material.WoodPlanks
-	)
-	part(
-		folder,
-		"WallTop",
-		Vector3.new(2, 0.9, length),
-		o.at(mx, top + WALL_HEIGHT - 0.45, mz) * rotation,
-		WALL_DARK,
-		true,
-		Enum.Material.WoodPlanks
-	)
+	local function wood(name: string, size: Vector3, cf: CFrame): Part
+		local p = part(folder, name, size, cf, WALL_WOOD_TINT, true)
+		Skin.apply(p, "stone", WALL_WOOD_TINT)
+		return p
+	end
+	-- A skirting board along the bottom and a chunky rail along the top.
+	wood("WallBase", Vector3.new(1.8, 1.6, length), o.at(mx, top + 0.8, mz) * rotation)
+	wood("WallTop", Vector3.new(2.4, 1.2, length), o.at(mx, top + WALL_HEIGHT - 0.6, mz) * rotation)
 	local posts = math.max(1, math.floor(length / POST_SPACING))
 	for i = 0, posts do
 		local t = i / posts
 		local px, pz = x1 + dx * t, z1 + dz * t
-		part(
-			folder,
-			"WallPost",
-			Vector3.new(1.7, WALL_HEIGHT + 0.6, 1.7),
-			o.at(px, top + (WALL_HEIGHT + 0.6) / 2, pz),
-			WALL_DARK,
-			true,
-			Enum.Material.WoodPlanks
-		)
-		part(folder, "WallPostCap", Vector3.new(2.4, 0.7, 2.4), o.at(px, top + WALL_HEIGHT + 0.95, pz), WALL_DARK, true)
+		-- Light stone foot, dark studded post, stepped two-layer cap.
+		local foot = part(folder, "WallPostFoot", Vector3.new(2.6, 1.2, 2.6), o.at(px, top + 0.6, pz), POST_BASE, true)
+		Skin.apply(foot, "stone")
+		wood("WallPost", Vector3.new(1.8, WALL_HEIGHT + 0.4, 1.8), o.at(px, top + (WALL_HEIGHT + 0.4) / 2, pz))
+		wood("WallPostCap", Vector3.new(2.6, 0.6, 2.6), o.at(px, top + WALL_HEIGHT + 0.7, pz))
+		wood("WallPostCap", Vector3.new(1.6, 0.6, 1.6), o.at(px, top + WALL_HEIGHT + 1.3, pz))
 	end
 	-- Paper scrolls hanging on the inside face, facing into the plot.
 	local scrolls = math.floor(length / SCROLL_SPACING)
@@ -297,10 +293,18 @@ local function wallRun(
 		local px, pz = sx + inward.X * 0.7, sz + inward.Z * 0.7
 		local face = CFrame.lookAt(Vector3.zero, inward)
 		local cy = top + WALL_HEIGHT - 5.3
-		part(folder, "Scroll", Vector3.new(4, 5.6, 0.2), o.at(px, cy, pz) * face, PAPER)
+		local scroll = part(folder, "Scroll", Vector3.new(4, 5.6, 0.2), o.at(px, cy, pz) * face, PAPER)
 		part(folder, "ScrollRod", Vector3.new(4.6, 0.4, 0.5), o.at(px, cy + 2.9, pz) * face, WALL_DARK)
 		part(folder, "ScrollRod", Vector3.new(4.6, 0.4, 0.5), o.at(px, cy - 2.9, pz) * face, WALL_DARK)
-		part(folder, "ScrollStripe", Vector3.new(0.9, 3.6, 0.25), o.at(px, cy, pz) * face, Color3.fromRGB(70, 110, 170))
+		-- The hot-spring mark in red ink (was a plain blue stripe).
+		if Textures.onsen.id ~= 0 then
+			local mark = Instance.new("Decal")
+			mark.Name = "ScrollMark"
+			mark.Texture = `rbxassetid://{Textures.onsen.id}`
+			mark.Color3 = SCROLL_INK
+			mark.Face = Enum.NormalId.Front
+			mark.Parent = scroll
+		end
 	end
 end
 
@@ -751,6 +755,48 @@ function Decor.build(parent: Instance, o: Options)
 		for _, z in { 125, 165, 196 } do
 			sprig(folder, o, rng, side * (half - 5), z + rng:NextNumber(-3, 3))
 		end
+	end
+
+	-- Planted clusters, placed on purpose (2026-10-06: the plot looked bare after the
+	-- random scatter went): a bush with grass tufts and a few daisies in the side strips
+	-- between the trees and bamboo, and stone lanterns lining the entrance path.
+	for _, side in { -1, 1 } do
+		for _, z in BUSH_ROWS do
+			local x = side * (half - 3.5)
+			Props.place(
+				"Bush",
+				o.at(x, o.floorTop, z) * CFrame.Angles(0, math.rad(rng:NextInteger(0, 3) * 90), 0),
+				folder,
+				rng:NextNumber(0.8, 1)
+			)
+			sprig(folder, o, rng, x + side * -1.5, z + 2.5)
+			sprig(folder, o, rng, x, z - 3)
+			daisy(folder, o, rng, x - side * 2, z - 1.5)
+			daisy(folder, o, rng, x - side * 1.2, z + 1.2)
+		end
+		Props.place("StoneLantern", o.at(side * ENTRANCE_LANTERN_X, o.floorTop, ENTRANCE_LANTERN_Z), folder, 1.1)
+	end
+
+	-- Grass tufts along the foot of the side and back walls, like a lawn edge.
+	local function tuft(x: number, z: number)
+		Props.place(
+			"GrassTuft",
+			o.at(x, o.floorTop, z) * CFrame.Angles(0, math.rad(rng:NextInteger(0, 3) * 90), 0),
+			folder,
+			rng:NextNumber(0.9, 1.3)
+		)
+	end
+	for _, side in { -1, 1 } do
+		local z = Decor.FRONT_WALL_Z + 4
+		while z < o.depth - 4 do
+			tuft(side * (half - 1.8), z + rng:NextNumber(-1.5, 1.5))
+			z += TUFT_SPACING
+		end
+	end
+	local x = -half + 4
+	while x < half - 4 do
+		tuft(x + rng:NextNumber(-1.5, 1.5), o.depth - 2.8)
+		x += TUFT_SPACING
 	end
 
 	-- A few daisies on the verge outside the canal (clear of the torii).

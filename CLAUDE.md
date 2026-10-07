@@ -89,10 +89,12 @@ Module map:
 | `Controllers/SoundController` | Music playlist and cues (`Config/Sounds`); 3D water loops are placed by `Decor.ambient` |
 | `Controllers/HudController` | Home button, Aura / Cash / boosts / Total Brainrots, Cash pack buttons, Premium + friend boost, toasts and big popups (`Notify` kinds) |
 | `Controllers/DropController` | Animates drops and lucky blocks along their path, asks to collect, "+X" gain |
-| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath (whole model; brainrots otherwise stand still: the pack's idle animations are owned by its creator and Roblox refuses them here); pad-press animation |
+| `Controllers/BrainrotController`, `PadController` | Rise-from-the-bath and a gentle code-driven bob and sway in the water (the pack's idle animations are owned by its creator and Roblox refuses them here); pad-press animation |
 | `Controllers/MarketBoardController` | Draws the market boards |
 | `Controllers/LuckyBlockController` | Held chest + tool-hold animation, odds panel, on-screen unlock reveal |
 | `Controllers/IndexController` | Index button and grid |
+| `Controllers/CameraController` | Turns the camera toward the baths after spawning and after any teleport (Home) |
+| `Controllers/EffectsController` | Sparkle burst on Merge! when brainrots merge, gold coin burst on Collect Cash |
 | `Controllers/GuideController` | The tutorial guide under Home, shown only while the tutorial runs (gone after it, user decision 2026-10-04): step text, flashing map objects, beam + bobbing arrow, chime on each step, Skip |
 
 Conventions:

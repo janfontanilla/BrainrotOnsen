@@ -354,6 +354,52 @@ def bush():
     return v
 
 
+def grass_tuft():
+    """A clump of blocky grass blades (about 1.5 studs), for lawn edges (2026-10-06)."""
+    v = Vox(unit=0.25)
+    blades = [(-2, 0, 4, LEAF_A), (-1, -2, 5, LEAF_B), (0, 1, 6, LEAF_A), (1, -1, 4, LEAF_B), (2, 1, 5, LEAF_A), (-1, 2, 3, LEAF_B), (1, 2, 4, LEAF_B)]
+    for x, z, h, c in blades:
+        v.box(x, 0, z, x + 1, h, z + 1, c)
+    v.box(-2, 0, -2, 3, 1, 3, LEAF_A)                  # base
+    return v
+
+
+BUCKET_WOOD, BUCKET_BAND = rgb(196, 140, 84), rgb(120, 120, 130)
+TOWEL_A, TOWEL_B, TOWEL_C = rgb(250, 250, 252), rgb(140, 200, 255), rgb(255, 176, 196)
+DUCK_Y, DUCK_O = rgb(255, 220, 50), rgb(255, 140, 30)
+
+
+def wash_bucket():
+    """A blocky wooden onsen wash bucket with two metal bands and water (about 1.2 studs)."""
+    v = Vox(unit=0.2)
+    v.box(-3, 0, -3, 3, 5, 3, BUCKET_WOOD)
+    v.box(-3, 1, -3, 3, 2, 3, BUCKET_BAND)             # bands
+    v.box(-3, 3, -3, 3, 4, 3, BUCKET_BAND)
+    v.box(-2, 4, -2, 2, 5, 2, rgb(110, 210, 245))     # water
+    return v
+
+
+def towel_stack():
+    """Three folded towels in a stack (about 1.6 x 1 studs)."""
+    v = Vox(unit=0.2)
+    for i, c in enumerate((TOWEL_B, TOWEL_A, TOWEL_C)):
+        v.box(-4, i * 2, -2, 4, i * 2 + 2, 3, c)
+        v.box(-4, i * 2, 3, 4, i * 2 + 1, 4, darker(c, 20))   # the folded edge
+    return v
+
+
+def rubber_duck():
+    """A rubber duck for the baths (about 1.2 studs)."""
+    v = Vox(unit=0.2)
+    v.box(-3, 0, -2, 3, 3, 3, DUCK_Y)                  # body
+    v.box(-2, 3, -2, 1, 6, 1, DUCK_Y)                  # head
+    v.box(-2, 4, -3, 1, 5, -2, DUCK_O)                 # beak
+    v.set(-2, 5, -2, BLACK)
+    v.set(0, 5, -2, BLACK)
+    v.box(2, 2, 2, 4, 4, 4, DUCK_Y)                    # tail
+    return v
+
+
 def entrance_gate():
     """Dark wooden entrance gate (like Capybara Onsen's): two posts, a lintel the noren
     curtains hang from (code adds them and the wide name board above it) and a roof
@@ -589,38 +635,78 @@ def drop_golden_shoe():
 
 
 # Lucky block chests, one per block type (Config/LuckyBlocks): a 1-stud design
-# (unit 1/8) that code scales to the size it needs. Front (-z) carries the lock.
+# (unit 1/16) that code scales to the size it needs. Front (-z) carries the lock.
+# Redesigned 2026-10-06 after Capybara Onsen's chests: a frame along every edge,
+# recessed panels between the frame bars, a domed lid with a cross band, a lock plate
+# with a keyhole; rare types (Diamond and up) get a gold frame and glowing corner gems.
 CHEST_COLOURS = {
-    "Wood": (rgb(176, 120, 64), rgb(110, 70, 36)),
-    "Stone": (rgb(160, 162, 172), rgb(100, 102, 114)),
-    "Iron": (rgb(214, 220, 230), rgb(120, 126, 140)),
-    "Gold": (rgb(255, 206, 60), rgb(196, 140, 20)),
-    "Diamond": (rgb(120, 230, 255), rgb(40, 150, 200)),
-    "Emerald": (rgb(70, 220, 120), rgb(20, 130, 60)),
-    "Ruby": (rgb(236, 60, 90), rgb(140, 20, 40)),
-    "Rainbow": (rgb(255, 130, 220), rgb(120, 60, 200)),
-    "Cosmic": (rgb(140, 80, 255), rgb(50, 20, 110)),
+    # body, frame
+    "Wood": (rgb(178, 120, 66), rgb(104, 66, 34)),
+    "Stone": (rgb(150, 152, 162), rgb(84, 86, 98)),
+    "Iron": (rgb(214, 222, 232), rgb(112, 120, 136)),
+    "Gold": (rgb(255, 204, 64), rgb(176, 112, 18)),
+    "Diamond": (rgb(126, 228, 255), rgb(236, 180, 40)),
+    "Emerald": (rgb(72, 214, 124), rgb(236, 180, 40)),
+    "Ruby": (rgb(230, 58, 86), rgb(236, 180, 40)),
+    "Rainbow": (rgb(255, 136, 214), rgb(236, 180, 40)),
+    "Cosmic": (rgb(130, 76, 246), rgb(236, 180, 40)),
 }
+CHEST_RARE = {"Diamond", "Emerald", "Ruby", "Rainbow", "Cosmic"}
 LOCK = rgb(255, 214, 90)
+KEYHOLE = rgb(40, 30, 30)
+GEM = rgb(255, 255, 255)
 
 
-def make_chest(body, trim, rainbow=False, cosmic=False):
+def make_chest(name, body, trim):
+    rare = name in CHEST_RARE
+
     def build():
-        v = Vox(1 / 8, glow={LOCK} if cosmic else set())
-        v.box(-4, 0, -4, 4, 5, 4, body)                      # box
-        v.box(-4, 5, -4, 4, 8, 4, lighter(body, 30))        # lid
-        v.box(-4, 4, -4, 4, 5, 4, trim)                      # band under the lid
-        for x in (-4, 3):
-            for z in (-4, 3):
-                v.box(x, 0, z, x + 1, 8, z + 1, trim)        # corner trim
-        if rainbow:
-            for i, c in enumerate((rgb(255, 90, 90), rgb(255, 200, 60), rgb(90, 220, 110), rgb(80, 160, 255))):
-                v.box(-3, i, -4, 3, i + 1, -3, c)            # rainbow stripes on the front
-        if cosmic:
-            for x, y in ((-2, 1), (2, 2), (-1, 6), (2, 6)):
-                v.set(x, y, -4, LOCK)                        # stars
-        v.box(-1, 3, -5, 1, 6, -4, LOCK)                     # lock
+        lock_c = LOCK if rare or name == "Gold" else darker(trim, 10)
+        v = Vox(1 / 16, glow={GEM} if rare else set())
+        W, H_BODY, H = 16, 8, 14          # x/z span -8..7, body y 0..7, lid y 9..13
+        lo, hi = -8, 7
+        panel = body
+        lid = lighter(body, 18)
+        # Solid core, one voxel inside the shell: the panels show recessed behind the frame.
+        v.box(lo + 1, 0, lo + 1, hi, H, hi, panel)
+        # Lid one voxel lighter so it reads as a separate part.
+        v.box(lo + 1, 9, lo + 1, hi, H, hi, lid)
+        # Frame: the 12 edges of the body box and of the lid, 1 voxel proud of the panels.
+        def frame(y0, y1):
+            for x in (lo, hi):
+                for z in (lo, hi):
+                    v.box(x, y0, z, x + 1, y1, z + 1, trim)     # vertical corner bars
+            for y in (y0, y1 - 1):
+                v.box(lo, y, lo, hi + 1, y + 1, lo + 1, trim)   # front / back bars
+                v.box(lo, y, hi, hi + 1, y + 1, hi + 1, trim)
+                v.box(lo, y, lo, lo + 1, y + 1, hi + 1, trim)   # side bars
+                v.box(hi, y, lo, hi + 1, y + 1, hi + 1, trim)
+        frame(0, H_BODY + 1)    # body: y 0..8 (y 8 is the band under the lid)
+        frame(9, H)             # lid: y 9..13
+        # Domed lid: a raised middle and a cross band over the top.
+        v.box(lo + 3, H, lo + 3, hi - 2, H + 1, hi - 2, lid)
+        v.box(-1, H, lo, 1, H + 1, hi + 1, trim)
+        v.box(lo, H, -1, hi + 1, H + 1, 1, trim)
+        # Lock plate on the front, over the seam, with a keyhole.
+        v.box(-2, 5, lo - 1, 2, 11, lo, lock_c)
+        v.box(-1, 6, lo - 2, 1, 10, lo - 1, lock_c)
+        v.set(0, 8, lo - 2, KEYHOLE)
+        v.set(0, 7, lo - 2, KEYHOLE)
+        if name == "Rainbow":
+            for i, c in enumerate((rgb(255, 90, 90), rgb(255, 170, 60), rgb(250, 230, 70), rgb(90, 220, 110), rgb(80, 160, 255), rgb(170, 100, 255))):
+                v.box(lo + 1, 1 + i, lo, hi, 2 + i, lo + 1, c)   # stripes across the front panel
+            v.box(-2, 5, lo - 1, 2, 11, lo, lock_c)               # the lock stays on top
+        if name == "Cosmic":
+            for x, y in ((-5, 2), (4, 3), (-4, 11), (5, 11), (3, 6)):
+                v.set(x, y, lo, GEM)                              # stars on the front
+        if rare:
+            # A glowing gem on each top corner of the lid and the body.
+            for x in (lo, hi):
+                for z in (lo, hi):
+                    v.set(x, H, z, GEM)
+                    v.set(x, H_BODY, z, GEM)
         return v
+
     return build
 
 DROPS = [
@@ -642,12 +728,16 @@ PROPS = {
     "Bush": bush,
     "EntranceGate": entrance_gate,
     "Sprig": sprig,
+    "GrassTuft": grass_tuft,
+    "WashBucket": wash_bucket,
+    "TowelStack": towel_stack,
+    "RubberDuck": rubber_duck,
     "MarketBoardFrame": market_board_frame,
 }
 for _i, _build in enumerate(DROPS, start=1):
     PROPS[f"Drop{_i}"] = _build
 for _name, (_body, _trim) in CHEST_COLOURS.items():
-    PROPS[f"Chest{_name}"] = make_chest(_body, _trim, rainbow=_name == "Rainbow", cosmic=_name == "Cosmic")
+    PROPS[f"Chest{_name}"] = make_chest(_name, _body, _trim)
 
 
 # ----------------------------------------------------------------- output

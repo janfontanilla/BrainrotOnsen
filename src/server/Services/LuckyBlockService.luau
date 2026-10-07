@@ -88,24 +88,8 @@ local function findBlock(name: string): LuckyBlocks.Block?
 end
 
 local function makeBlock(name: string): Model
-	local model = Visuals.makeLuckyBlock(name, BLOCK_SIZE)
-	local gui = Instance.new("BillboardGui")
-	-- Small, and only up close: several chests can float at once and their labels
-	-- would otherwise stack into a wall of text over the pool.
-	gui.Size = UDim2.fromScale(6, 1.1) -- studs, so it shrinks with distance
-	gui.StudsOffset = Vector3.new(0, BLOCK_SIZE / 2 + 0.8, 0)
-	gui.MaxDistance = 25
-	gui.Parent = model.PrimaryPart
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Visuals.blockColor(name)
-	label.TextStrokeTransparency = 0.2
-	label.Text = `{name} Lucky Box`
-	label.Parent = gui
-	return model
+	-- No name tag (user, 2026-10-06): the chest's look and the odds panel say what it is.
+	return Visuals.makeLuckyBlock(name, BLOCK_SIZE)
 end
 
 -- Floats a block along `path` (a drop's path, or just a resting point) into the

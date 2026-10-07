@@ -43,16 +43,16 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Grass",
-          "ColorMap": "rbxassetid://140529279829797",
-          "StudsPerTile": 8
+          "ColorMap": "rbxassetid://118414939328361",
+          "StudsPerTile": 4
         }
       },
       "Onsen_stone": {
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Slate",
-          "ColorMap": "rbxassetid://105605227441855",
-          "StudsPerTile": 8
+          "ColorMap": "rbxassetid://78647811644718",
+          "StudsPerTile": 4
         }
       },
       "Onsen_pegboard": {
@@ -60,7 +60,7 @@
         "$properties": {
           "BaseMaterial": "WoodPlanks",
           "ColorMap": "rbxassetid://117506550117439",
-          "StudsPerTile": 8
+          "StudsPerTile": 4
         }
       },
       "Onsen_cliff": {

@@ -209,6 +209,8 @@ local WATER_FLOW_SPEED = 6 -- studs per second the river and channel textures dr
 -- Tints for textured parts (Skin multiplies the tile by these; white = the tile as drawn).
 local RIM_TINT = Color3.fromRGB(236, 238, 244) -- light grey rims (2026-10-06, was slate 200, 204, 216)
 local LANTERN_SCALE = 1.2 -- bath lanterns, a bit bigger than the prop (Capybara Onsen)
+local TOWEL_SCALE = 0.8 -- the towel stack, to fit the rim
+local DUCK_EVERY = 3 -- a rubber duck floats in every this-many-th bath
 local SLIDE_RAIL = 0.4 -- side rails on the slides (the water runs between them)
 local SLIDE_POST = 0.5 -- posts at the top of each slide
 local SLIDE_WATER_COLOR = Color3.fromRGB(170, 238, 255) -- the water running down each slide
@@ -444,6 +446,30 @@ local function buildPlot(root: Instance, index: number): Plot
 					at(side * corner[1], BATH_RIM_TOP, z + corner[2] * (PLATFORM_TOP_WIDTH - BATH_RIM) / 2),
 					geometry,
 					LANTERN_SCALE
+				)
+			end
+			-- Onsen things on the two free corners: a wash bucket at the far end on the river
+			-- side, a stack of towels at the channel end on the back side; and a rubber duck
+			-- floating in every third bath.
+			local rimZ = (PLATFORM_TOP_WIDTH - BATH_RIM) / 2
+			Props.place(
+				"WashBucket",
+				at(side * (bathNearX + bathLength - BATH_RIM / 2), BATH_RIM_TOP, z - rimZ)
+					* CFrame.Angles(0, math.rad(15), 0),
+				geometry
+			)
+			Props.place(
+				"TowelStack",
+				at(side * (bathNearX + BATH_RIM + 1.2), BATH_RIM_TOP, z + rimZ),
+				geometry,
+				TOWEL_SCALE
+			)
+			if (row * 2 + (side + 1) / 2) % DUCK_EVERY == 0 then
+				Props.place(
+					"RubberDuck",
+					at(side * (bathNearX + BATH_RIM + 1.4), BATH_WATER_TOP - 0.25, z)
+						* CFrame.Angles(0, math.rad(-side * 70), 0),
+					geometry
 				)
 			end
 		end

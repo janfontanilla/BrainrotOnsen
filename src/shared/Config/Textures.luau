@@ -6,18 +6,20 @@
 -- server applies the texture on the next start (server/Skin.luau).
 --
 -- studsPerTile is how many studs one 256px tile covers: one stud "cell" in the
--- image is a quarter of a tile, so 8 studs per tile = 2-stud cells.
+-- image is a quarter of a tile, so 8 studs per tile = 2-stud cells. Grass, stone and
+-- pegboard use 4 (1-stud cells, dense like Capybara Onsen's studs; 2026-10-06).
 
 export type Entry = { id: number, studsPerTile: number }
 
 local Textures: { [string]: Entry } = {
-	grass = { id = 140529279829797, studsPerTile = 8 }, -- plot floor and ground
+	grass = { id = 118414939328361, studsPerTile = 4 }, -- plot floor and ground
 	water = { id = 124963839053487, studsPerTile = 8 }, -- baths, rivers, channel, pool
-	stone = { id = 105605227441855, studsPerTile = 8 }, -- bath bases, rims, dividers, pool rim
-	pegboard = { id = 117506550117439, studsPerTile = 8 }, -- the tall wall
+	stone = { id = 78647811644718, studsPerTile = 4 }, -- bath bases, rims, dividers, pool rim
+	pegboard = { id = 117506550117439, studsPerTile = 4 }, -- the tall wall
 	cliff = { id = 129130191968990, studsPerTile = 16 }, -- the cliffs
 	arrow = { id = 77482197620211, studsPerTile = 6 }, -- floor arrows toward the pads (not placed yet)
 	planks = { id = 118670792677489, studsPerTile = 4 }, -- slides, bridge, stall wood
+	studs = { id = 116195014081230, studsPerTile = 1 }, -- translucent stud-edge tile (also the HUD buttons, client/Style); tiled on lucky chest faces
 	onsen = { id = 138167444057526, studsPerTile = 8 }, -- hot-spring mark (white on transparent) for noren banners; a decal, not a tile
 }
 

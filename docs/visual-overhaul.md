@@ -36,7 +36,7 @@ Numbers to change in `server/Plots`: `BATH_WATER_TOP` and `BATH_RIM_TOP` (raised
 
 ## Status
 
-- 2026-10-06: steps 1-3 done and seen in Studio: raised stepped bath platforms with 2 lanterns each and railed slides; calm grass and light grey stone tiles (re-uploaded); cliffs about half as tall and lighter; random daisies / sprigs cut. Then the same day: slides filled with flowing water; two crates of drop items on the deposit counter; Plaza end cliffs halved; cliff tile neutral warm grey; lucky chests glow (light + sparkles by rarity, a light beam from Diamond up). Still to do: the HUD pass (waiting on what the user dislikes in the UI), voxel brainrot models (later).
+- 2026-10-06: steps 1-3 done and seen in Studio: raised stepped bath platforms with 2 lanterns each and railed slides; calm grass and light grey stone tiles (re-uploaded); cliffs about half as tall and lighter; random daisies / sprigs cut. Then the same day: slides filled with flowing water; two crates of drop items on the deposit counter; Plaza end cliffs halved; cliff tile neutral warm grey; lucky chests glow (light + sparkles by rarity, a light beam from Diamond up). HUD pass done too (pack buttons amount-only and bigger, bigger promo price and boost labels, fixed-size chest tags). Still to do: voxel brainrot models (later), and whatever the user flags in play.
 
 ## Order of work
 

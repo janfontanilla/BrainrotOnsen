@@ -41,34 +41,35 @@ def bevel(d, box, face, light, dark, width=4, sunken=False):
 
 
 def grass(name):
-    # Calm lime with small, low-contrast studs (2026-10-06: was neon green with big,
-    # high-contrast squares, the loudest surface on screen; see docs/visual-overhaul.md).
-    base = (126, 196, 74)
-    img = Image.new("RGB", (SIZE, SIZE), base)
+    # Capybara Onsen's floor (2026-10-06): warm lime, every cell one big stud with only a
+    # thin seam between studs (small studs in big gaps read as a coarse tile grid).
+    seam = (128, 186, 58)
+    img = Image.new("RGB", (SIZE, SIZE), seam)
     d = ImageDraw.Draw(img)
     for cy in range(0, SIZE, CELL):
         for cx in range(0, SIZE, CELL):
-            bevel(d, [cx + 16, cy + 16, cx + CELL - 17, cy + CELL - 17], (134, 204, 82), (152, 216, 98), (112, 180, 64), width=3)
+            bevel(d, [cx + 4, cy + 4, cx + CELL - 5, cy + CELL - 5], (150, 206, 72), (168, 220, 92), (134, 190, 60), width=5)
     img.save(os.path.join(OUT, name))
 
 
 def stone(name):
-    # Light neutral grey blocks, soft edges, a small inset stud (2026-10-06: was dark
-    # blue-slate bricks with a big inset square; Capybara Onsen's stone is light grey).
-    base, mortar = (190, 190, 194), (160, 160, 166)
-    img = Image.new("RGB", (SIZE, SIZE), mortar)
+    # Studded grey blocks like Capybara Onsen's rims (2026-10-06): every cell is a raised
+    # 1-stud stud (the tile is used at 4 studs per tile), darker seams every 2 x 2 studs.
+    base, seam = (186, 186, 190), (150, 150, 156)
+    img = Image.new("RGB", (SIZE, SIZE), base)
     d = ImageDraw.Draw(img)
-    brick_w, brick_h = 128, 64
-    for row in range(SIZE // brick_h):
-        offset = (brick_w // 2) if row % 2 else 0
-        for col in range(-1, SIZE // brick_w + 1):
-            x0 = col * brick_w + offset
-            y0 = row * brick_h
-            for ox in (0, SIZE, -SIZE):
-                bx = x0 + ox
-                bevel(d, [bx + 2, y0 + 2, bx + brick_w - 3, y0 + brick_h - 3], base, (206, 206, 210), (168, 168, 174), width=3)
-                for sx in (bx + brick_w // 4, bx + 3 * brick_w // 4):
-                    bevel(d, [sx - 10, y0 + 22, sx + 9, y0 + brick_h - 23], (198, 198, 202), (212, 212, 216), (174, 174, 180), width=3)
+    for cy in range(0, SIZE, CELL):
+        for cx in range(0, SIZE, CELL):
+            bevel(d, [cx + 14, cy + 14, cx + CELL - 15, cy + CELL - 15], (194, 194, 198), (212, 212, 216), (166, 166, 172), width=4)
+    block = CELL * 2
+    for row in range(SIZE // block):
+        y0 = row * block
+        d.rectangle([0, y0, SIZE - 1, y0 + 2], fill=seam)
+        offset = block // 2 if row % 2 else 0
+        for col in range(-1, SIZE // block + 1):
+            x = col * block + offset
+            if 0 <= x < SIZE:
+                d.rectangle([x, y0, x + 2, y0 + block - 1], fill=seam)
     img.save(os.path.join(OUT, name))
 
 

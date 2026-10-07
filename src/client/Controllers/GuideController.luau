@@ -82,6 +82,7 @@ function GuideController:Start()
 	gui.Name = "Guide"
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = -1 -- under the Index and lucky block windows
+	gui.IgnoreGuiInset = true -- measured from the screen top, right under Home / Index
 	Style.autoScale(gui)
 
 	-- Under the Home / Index buttons, top centre.
