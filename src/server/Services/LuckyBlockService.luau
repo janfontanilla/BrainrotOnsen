@@ -40,7 +40,7 @@ type Plot = Plots.Plot
 local LuckyBlockService = {}
 
 local TICK = 0.25
-local BLOCK_SIZE = 3
+local BLOCK_SIZE = 2 -- 2026-10-09: 3 -> 2 (user: smaller)
 
 type Floating = {
 	name: string,
@@ -183,7 +183,7 @@ local function unlock(player: Player, paid: boolean?): boolean
 	if #discovered > 0 then
 		notify:FireClient(player, `New brainrot! {name}`, "newBrainrot")
 	else
-		notify:FireClient(player, `Unlocked {name}!`, "lucky")
+		notify:FireClient(player, `You got a {name}!`, "lucky") -- a repeat (new ones say "New brainrot!")
 	end
 	return true
 end

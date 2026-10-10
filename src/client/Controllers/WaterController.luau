@@ -26,8 +26,17 @@ local function track(instance: Instance)
 	local fz = (instance:GetAttribute("FlowZ") :: number?) or 0
 	for _, child in instance:GetChildren() do
 		if child:IsA("Texture") then
-			-- A growing offset moves the image along +U / +V (checked in Studio).
-			table.insert(flows, { texture = child, u = fx * speed * VISUAL_SPEED, v = fz * speed * VISUAL_SPEED })
+			-- A growing offset moves the image along +U / +V (checked in Studio). Layers
+			-- can scale the flow (FlowMul) and add a drift of their own (DriftU / DriftV,
+			-- studs per second): the ripple layer on every water top (server/Skin).
+			local mul = (child:GetAttribute("FlowMul") :: number?) or 1
+			local du = (child:GetAttribute("DriftU") :: number?) or 0
+			local dv = (child:GetAttribute("DriftV") :: number?) or 0
+			local u = fx * speed * VISUAL_SPEED * mul + du
+			local v = fz * speed * VISUAL_SPEED * mul + dv
+			if u ~= 0 or v ~= 0 then
+				table.insert(flows, { texture = child, u = u, v = v })
+			end
 		end
 	end
 end

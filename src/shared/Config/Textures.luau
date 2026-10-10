@@ -14,6 +14,7 @@ export type Entry = { id: number, studsPerTile: number }
 local Textures: { [string]: Entry } = {
 	grass = { id = 118414939328361, studsPerTile = 4 }, -- plot floor and ground
 	water = { id = 124963839053487, studsPerTile = 8 }, -- baths, rivers, channel, pool
+	waterRipple = { id = 71358014600700, studsPerTile = 18 }, -- caustic ripple layer drifting over water tops (2026-10-09)
 	stone = { id = 78647811644718, studsPerTile = 4 }, -- bath bases, rims, dividers, pool rim
 	pegboard = { id = 117506550117439, studsPerTile = 4 }, -- the tall wall
 	cliff = { id = 129130191968990, studsPerTile = 16 }, -- the cliffs

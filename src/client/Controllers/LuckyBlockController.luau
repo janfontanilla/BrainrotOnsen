@@ -1,11 +1,11 @@
 --!strict
 -- Lucky blocks on the client:
---   * Held block: every player whose LuckyBlock attribute is set gets a chest
---     resting on the end of their right hand (drawn locally, so it's smooth).
---     The holder's own client plays Roblox's tool-hold animation (right arm
---     straight out), which Roblox replicates to everyone else.
---   * Panel (owner only, right side): block picture, "<Name> / Lucky Box", odds
---     with each tier's name and number, the Cash cost, Unlock! and Discard.
+--   * Held block: every player whose LuckyBlock attribute is set carries the chest
+--     above their head, gently bobbing and turning (drawn locally, so it's smooth;
+--     2026-10-10, user: the arm-out hold looked off on many avatars).
+--   * Panel (owner only, right side; 2026-10-10 restyle, user: "polish this UI"): a
+--     studded header in the chest's colour with its picture and "<Name> Chest", the
+--     odds as dark rows edged in each tier's colour, the cost, Unlock and Discard.
 --     Odds and price come from the shared Config/LuckyBlocks; the server rolls.
 --   * Reveal: on LuckyBlockOpened the chest leaves the holder's hand. For the
 --     owner, a big chest drops into the middle of the screen, shakes, then pops
@@ -15,6 +15,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
 local LuckyBlocks = require(Shared.Config.LuckyBlocks)
@@ -24,17 +25,15 @@ local Remotes = require(Shared.Remotes)
 local Models = require(Shared.Models)
 local Visuals = require(Shared.Visuals)
 local Style = require(script.Parent.Parent.Style)
+local Sounds = require(Shared.Config.Sounds)
 
 local player = Players.LocalPlayer
 
-local HELD_SIZE = 3.6
-local HELD_REACH = 0.5 -- studs between the body and the chest: it meets the outstretched hand
-local HELD_SIDE = 0.6 -- towards the right hand
-local HELD_HEIGHT = 0.4 -- above the root: hand height in the hold pose
--- Roblox's default "holding a tool" animations (right arm straight out). The
--- local player plays it on their own character; Roblox replicates it to others.
-local HOLD_ANIMATION_R15 = "rbxassetid://507768375"
-local HOLD_ANIMATION_R6 = "rbxassetid://182393478"
+local HELD_SIZE = 2.4 -- 2026-10-09: 3.6 -> 2.4 (user: smaller)
+local HELD_GAP = 0.6 -- studs between the top of the head and the chest
+local HELD_BOB = 0.2 -- studs up and down
+local HELD_BOB_SPEED = 2.4
+local HELD_SPIN = math.rad(12) -- it turns gently back and forth
 local DROP_TIME = 0.5 -- chest drops into the middle of the screen
 local SHAKE_TIME = 1 -- then shakes
 local REVEAL_HOLD = 1.8 -- the brainrot stays on screen this long
@@ -42,10 +41,8 @@ local REVEAL_SIZE = 320 -- pixels
 
 local LuckyBlockController = {}
 
--- Player -> chest held in their right hand
+-- Player -> the chest they carry over their head
 local held: { [Player]: Model } = {}
--- The local player's hold animation while they carry a block
-local holdTrack: AnimationTrack? = nil
 
 local function findBlock(name: unknown): LuckyBlocks.Block?
 	if typeof(name) ~= "string" or name == "" then
@@ -68,54 +65,26 @@ local function rootOf(target: Player): BasePart?
 	return nil
 end
 
--- Holds the right arm out in front, or lowers it again. Only the local player's
--- own character is animated here; other players' poses arrive through
--- Roblox's animation replication.
-local function setArmsUp(target: Player, up: boolean)
-	if target ~= player then
-		return
-	end
-	if not up then
-		if holdTrack then
-			holdTrack:Stop(0.15)
-			holdTrack = nil
-		end
-		return
-	end
-	if holdTrack and holdTrack.IsPlaying then
-		return
-	end
-	local character = player.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
-		return
-	end
-	local animator = humanoid:FindFirstChildOfClass("Animator")
-	if not animator then
-		return
-	end
-	local animation = Instance.new("Animation")
-	animation.AnimationId = if humanoid.RigType == Enum.HumanoidRigType.R15
-		then HOLD_ANIMATION_R15
-		else HOLD_ANIMATION_R6
-	local track = animator:LoadAnimation(animation)
-	track.Priority = Enum.AnimationPriority.Action
-	track.Looped = true
-	track:Play(0.15)
-	holdTrack = track
-end
-
--- Where the held chest sits: in front of the right shoulder at arm's length, where
--- the outstretched hand of the hold pose is (reference/lucky-block-held-tool-pose.png).
--- Placed from the body, not from the hand's direction: the hand's direction pointed
--- sideways into the body on some avatars and the player ended up inside the chest.
+-- Where the held chest floats: centred over the character's head (the top of the
+-- Head part, or of the whole character when there is none), bobbing gently.
 local function aboveHead(target: Player): CFrame?
 	local root = rootOf(target)
-	if not root then
+	local character = target.Character
+	if not root or not character then
 		return nil
 	end
-	local forward = root.Size.Z / 2 + HELD_REACH + HELD_SIZE / 2
-	return root.CFrame * CFrame.new(HELD_SIDE, HELD_HEIGHT, -forward)
+	local head = character:FindFirstChild("Head")
+	local top: number
+	if head and head:IsA("BasePart") then
+		top = head.Position.Y + head.Size.Y / 2
+	else
+		local box, size = character:GetBoundingBox()
+		top = box.Position.Y + size.Y / 2
+	end
+	local t = os.clock()
+	local y = top + HELD_GAP + HELD_SIZE / 2 + math.sin(t * HELD_BOB_SPEED) * HELD_BOB
+	local flat = root.CFrame - root.CFrame.Position
+	return CFrame.new(root.Position.X, y, root.Position.Z) * flat * CFrame.Angles(0, math.sin(t * 1.3) * HELD_SPIN, 0)
 end
 
 local function dropHeld(target: Player)
@@ -124,7 +93,6 @@ local function dropHeld(target: Player)
 		model:Destroy()
 		held[target] = nil
 	end
-	setArmsUp(target, false)
 end
 
 local function refreshHeld(target: Player)
@@ -134,7 +102,6 @@ local function refreshHeld(target: Player)
 		return
 	end
 	dropHeld(target)
-	setArmsUp(target, true)
 	local model = Visuals.makeLuckyBlock(block.name, HELD_SIZE)
 	model.Parent = workspace
 	held[target] = model
@@ -242,6 +209,17 @@ local function playScreenReveal(blockName: string, tier: number)
 	local chest = Visuals.makeLuckyBlock(blockName, 4)
 	chest:PivotTo(CFrame.Angles(math.rad(-10), math.rad(-30), 0))
 	setRevealContent(chest)
+	-- A soft wooden creak as the chest starts opening (2026-10-10, user: subtle).
+	if Sounds.CHEST_OPEN ~= "" then
+		local creak = Instance.new("Sound")
+		creak.SoundId = Sounds.CHEST_OPEN
+		creak.Volume = Sounds.CHEST_OPEN_VOLUME
+		creak.Parent = SoundService
+		creak.Ended:Once(function()
+			creak:Destroy()
+		end)
+		creak:Play()
+	end
 	revealName.Text = ""
 	revealTier.Text = ""
 	revealView.Rotation = 0
@@ -278,6 +256,12 @@ local function playScreenReveal(blockName: string, tier: number)
 	pop:Play()
 	pop.Completed:Wait()
 	setRevealContent(brainrotModel(tier))
+	local jingle = Instance.new("Sound")
+	jingle.SoundId = Sounds.SPECIAL
+	jingle.Volume = Sounds.CUE_VOLUME
+	jingle.PlayOnRemove = true -- plays now, and cleans itself up
+	jingle.Parent = SoundService
+	jingle:Destroy()
 	revealName.Text = def.name
 	revealName.TextColor3 = Visuals.tierColor(tier)
 	revealTier.Text = `Tier {tier}`
@@ -310,68 +294,22 @@ local function reveal(target: Player, blockName: string, tier: number)
 	end
 end
 
-local function text(parent: Instance, value: string, color: Color3, size: UDim2, position: UDim2): TextLabel
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = color
-	label.Text = value
-	label.Size = size
-	label.Position = position
-	label.Parent = parent
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2
-	stroke.Color = Color3.fromRGB(30, 20, 10)
-	stroke.Parent = label
-	return label
+local INK = Color3.fromRGB(20, 20, 26)
+local BODY = Color3.fromRGB(34, 34, 40)
+local ROW = Color3.fromRGB(46, 46, 54)
+
+local function corner(parent: Instance, radius: number)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = parent
 end
 
-local function box(parent: Instance, color: Color3, size: UDim2, position: UDim2, radius: number): Frame
-	local frame = Instance.new("Frame")
-	frame.BackgroundColor3 = color
-	frame.Size = size
-	frame.Position = position
-	frame.Parent = parent
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius)
-	corner.Parent = frame
-	local border = Instance.new("UIStroke")
-	border.Thickness = 3
-	border.Color = Color3.fromRGB(40, 25, 10)
-	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	border.Parent = frame
-	return frame
-end
-
-local function button(parent: Instance, value: string, color: Color3, position: UDim2): TextButton
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(1, 0, 0, 60)
-	b.Position = position
-	b.BackgroundColor3 = color
-	b.Font = Enum.Font.FredokaOne
-	b.TextScaled = true
-	b.TextColor3 = Color3.new(1, 1, 1)
-	b.Text = value
+local function border(parent: Instance, thickness: number)
+	local b = Instance.new("UIStroke")
+	b.Color = INK
+	b.Thickness = thickness
+	b.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	b.Parent = parent
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = b
-	local border = Instance.new("UIStroke")
-	border.Thickness = 3
-	border.Color = Color3.fromRGB(30, 20, 10)
-	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	border.Parent = b
-	local textStroke = Instance.new("UIStroke")
-	textStroke.Thickness = 2
-	textStroke.Color = Color3.fromRGB(30, 20, 10)
-	textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-	textStroke.Parent = b
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.Parent = b
-	return b
 end
 
 local function buildPanel(): (ScreenGui, () -> ())
@@ -380,40 +318,110 @@ local function buildPanel(): (ScreenGui, () -> ())
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "LuckyBlock"
 	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	Style.autoScale(gui)
 
 	local root = Instance.new("Frame")
+	root.Name = "Panel"
 	root.AnchorPoint = Vector2.new(1, 0.5)
-	root.Position = UDim2.new(1, -16, 0.5, 0)
-	root.Size = UDim2.fromOffset(320, 560)
-	root.BackgroundTransparency = 1
+	root.Position = UDim2.new(1, -16, 0.5, 10)
+	root.Size = UDim2.fromOffset(330, 480)
+	root.BackgroundColor3 = BODY
 	root.Visible = false
 	root.Parent = gui
+	corner(root, 12)
+	border(root, 4)
 
-	-- Main card: picture + title, then the odds box.
-	local card = box(root, Color3.fromRGB(220, 170, 90), UDim2.new(1, 0, 0, 380), UDim2.new(), 12)
+	-- Header: studded, in the chest's colour, the chest picture poking out top left.
+	local header = Instance.new("Frame")
+	header.Name = "Header"
+	header.Size = UDim2.new(1, 0, 0, 74)
+	header.Parent = root
+	corner(header, 12)
+	local headerStroke = Instance.new("UIStroke")
+	headerStroke.Thickness = 3
+	headerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	headerStroke.Parent = header
+	local studs = Instance.new("ImageLabel")
+	studs.BackgroundTransparency = 1
+	studs.Size = UDim2.fromScale(1, 1)
+	studs.Image = Style.STUDS_IMAGE
+	studs.ScaleType = Enum.ScaleType.Tile
+	studs.TileSize = UDim2.fromOffset(32, 32)
+	studs.ImageTransparency = 0.45
+	studs.Parent = header
+	corner(studs, 12)
+
 	local viewport = Instance.new("ViewportFrame")
 	viewport.BackgroundTransparency = 1
-	viewport.Size = UDim2.fromOffset(110, 110)
-	viewport.Position = UDim2.fromOffset(4, -20)
-	viewport.Parent = card
+	viewport.AnchorPoint = Vector2.new(0, 0.5)
+	viewport.Size = UDim2.fromOffset(104, 104)
+	viewport.Position = UDim2.new(0, -14, 0.5, -10)
+	viewport.ZIndex = 3
+	viewport.Parent = header
 	local camera = Instance.new("Camera")
 	camera.FieldOfView = 40
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
-	local title = text(card, "", Color3.new(1, 1, 1), UDim2.new(1, -124, 0, 50), UDim2.fromOffset(118, 10))
-	text(card, "Lucky Box", Color3.new(1, 1, 1), UDim2.new(1, -124, 0, 34), UDim2.fromOffset(118, 60))
 
-	local odds = box(card, Color3.fromRGB(80, 60, 35), UDim2.new(1, -24, 0, 256), UDim2.fromOffset(12, 110), 10)
-	local cost = box(root, Color3.fromRGB(70, 60, 45), UDim2.new(1, 0, 0, 52), UDim2.fromOffset(0, 392), 10)
-	text(cost, "Cost:", Color3.new(1, 1, 1), UDim2.new(0.4, -12, 1, -12), UDim2.fromOffset(12, 6))
-	local price = text(cost, "", Color3.fromRGB(125, 255, 110), UDim2.new(0.6, -12, 1, -12), UDim2.new(0.4, 0, 0, 6))
+	local title = Style.outlined(header, "Title", Color3.new(1, 1, 1), INK, 3)
+	title.Position = UDim2.fromOffset(94, 6)
+	title.Size = UDim2.new(1, -104, 0, 40)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.ZIndex = 2
+	local subtitle = Style.outlined(header, "Subtitle", Color3.fromRGB(255, 240, 200), INK, 2)
+	subtitle.Text = "Lucky Chest"
+	subtitle.Position = UDim2.fromOffset(95, 44)
+	subtitle.Size = UDim2.new(1, -104, 0, 24)
+	subtitle.TextXAlignment = Enum.TextXAlignment.Left
+	subtitle.ZIndex = 2
+
+	-- The odds: one dark row per result, edged in the tier's colour.
+	local oddsTitle = Style.outlined(root, "OddsTitle", Color3.new(1, 1, 1), INK, 2)
+	oddsTitle.Text = "Chances"
+	oddsTitle.Position = UDim2.fromOffset(0, 80)
+	oddsTitle.Size = UDim2.new(1, 0, 0, 26)
+	local odds = Instance.new("Frame")
+	odds.Name = "Odds"
+	odds.BackgroundTransparency = 1
+	odds.Position = UDim2.fromOffset(14, 112)
+	odds.Size = UDim2.new(1, -28, 0, 236)
+	odds.Parent = root
+	local list = Instance.new("UIListLayout")
+	list.Padding = UDim.new(0, 8)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = odds
+
+	-- Cost, then the buttons.
+	local cost = Instance.new("Frame")
+	cost.Name = "Cost"
+	cost.BackgroundColor3 = ROW
+	cost.Position = UDim2.fromOffset(14, 356)
+	cost.Size = UDim2.new(1, -28, 0, 40)
+	cost.Parent = root
+	corner(cost, 8)
+	border(cost, 3)
+	local costKey = Style.outlined(cost, "Key", Color3.new(1, 1, 1), INK, 2)
+	costKey.Text = "Cost"
+	costKey.Position = UDim2.fromOffset(12, 6)
+	costKey.Size = UDim2.new(0.4, -12, 1, -12)
+	costKey.TextXAlignment = Enum.TextXAlignment.Left
+	local price = Style.outlined(cost, "Price", Color3.fromRGB(125, 255, 110), INK, 2)
+	price.AnchorPoint = Vector2.new(1, 0)
+	price.Position = UDim2.new(1, -12, 0, 6)
+	price.Size = UDim2.new(0.6, -12, 1, -12)
 	price.TextXAlignment = Enum.TextXAlignment.Right
 
-	local unlock = button(root, "🔓 Unlock!", Color3.fromRGB(110, 210, 50), UDim2.fromOffset(0, 454))
-	local discard = button(root, "🗑 Discard", Color3.fromRGB(230, 80, 40), UDim2.fromOffset(0, 520))
-	unlock.Size = UDim2.new(1, 0, 0, 58)
-	discard.Size = UDim2.new(1, 0, 0, 40)
+	local unlock, unlockLabel = Style.button(root, "Unlock", Color3.fromRGB(110, 210, 50), Color3.fromRGB(30, 90, 14))
+	unlock.Position = UDim2.fromOffset(14, 406)
+	unlock.Size = UDim2.new(0.62, -18, 0, 58)
+	local discard, discardLabel =
+		Style.button(root, "Discard", Color3.fromRGB(226, 70, 50), Color3.fromRGB(110, 20, 10))
+	discard.AnchorPoint = Vector2.new(1, 0)
+	discard.Position = UDim2.new(1, -14, 0, 406)
+	discard.Size = UDim2.new(0.38, -10, 0, 58)
+	discardLabel.Text = "Discard"
+
 	local buyProduct = Remotes.event("BuyProduct")
 	local robuxMode = false -- Cash is short: the button buys "Unlock Lucky Chest" (Robux)
 	unlock.Activated:Connect(function()
@@ -427,6 +435,55 @@ local function buildPanel(): (ScreenGui, () -> ())
 		action:FireServer("discard")
 	end)
 
+	local function row(
+		order: number,
+		name: string,
+		sub: string,
+		subColor: Color3,
+		color: Color3,
+		percent: string,
+		dim: boolean
+	)
+		local frame = Instance.new("Frame")
+		frame.LayoutOrder = order
+		frame.BackgroundColor3 = ROW
+		frame.Size = UDim2.new(1, 0, 0, 52)
+		frame.Parent = odds
+		corner(frame, 8)
+		border(frame, 3)
+		local edge = Instance.new("Frame")
+		edge.BackgroundColor3 = color
+		edge.BorderSizePixel = 0
+		edge.Size = UDim2.new(0, 8, 1, 0)
+		edge.Parent = frame
+		corner(edge, 6)
+		local nameLabel = Style.outlined(frame, "Name", color, INK, 2)
+		nameLabel.Text = name
+		nameLabel.Position = UDim2.fromOffset(18, 4)
+		nameLabel.Size = UDim2.new(1, -110, 0, 26)
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		local subLabel = Style.outlined(frame, "Tier", subColor, INK, 1.5)
+		subLabel.Text = sub
+		subLabel.Position = UDim2.fromOffset(18, 30)
+		subLabel.Size = UDim2.new(1, -110, 0, 17)
+		subLabel.TextXAlignment = Enum.TextXAlignment.Left
+		local pill = Instance.new("Frame")
+		pill.AnchorPoint = Vector2.new(1, 0.5)
+		pill.Position = UDim2.new(1, -8, 0.5, 0)
+		pill.Size = UDim2.fromOffset(80, 36)
+		pill.BackgroundColor3 = BODY
+		pill.Parent = frame
+		corner(pill, 18)
+		local percentLabel = Style.outlined(pill, "Percent", Color3.new(1, 1, 1), INK, 2)
+		percentLabel.Text = percent
+		percentLabel.Position = UDim2.fromOffset(6, 4)
+		percentLabel.Size = UDim2.new(1, -12, 1, -8)
+		if dim then
+			nameLabel.TextTransparency = 0.5
+			edge.BackgroundTransparency = 0.5
+		end
+	end
+
 	local function show()
 		local block = findBlock(player:GetAttribute("LuckyBlock"))
 		if not block then
@@ -434,9 +491,9 @@ local function buildPanel(): (ScreenGui, () -> ())
 			return
 		end
 		local color = Visuals.blockColor(block.name)
-		card.BackgroundColor3 = color:Lerp(Color3.fromRGB(220, 170, 90), 0.5)
-		title.Text = block.name
-		title.TextColor3 = color:Lerp(Color3.new(1, 1, 1), 0.5)
+		header.BackgroundColor3 = color
+		headerStroke.Color = color:Lerp(INK, 0.6)
+		title.Text = `{block.name} Chest`
 
 		for _, child in viewport:GetChildren() do
 			if child:IsA("Model") then
@@ -453,58 +510,36 @@ local function buildPanel(): (ScreenGui, () -> ())
 		camera.CFrame = CFrame.lookAt(Vector3.new(0, 2, -11), Vector3.zero)
 
 		for _, child in odds:GetChildren() do
-			if child:IsA("TextLabel") then
+			if child:IsA("Frame") then
 				child:Destroy()
 			end
 		end
-		-- The chest's own rows, as before. A result below the buy tier is still listed
-		-- with its odds, dimmed, with the tier it really turns into ("-> Lirili Larila"),
+		-- The chest's own rows. A result below the buy tier is still listed with its
+		-- odds, dimmed, with the tier it really turns into ("Tier 2 -> Frigo Camelo"),
 		-- so the shown odds stay exactly the real ones (Roblox paid random item rules).
 		local buyTier = player:GetAttribute("BuyTier")
 		local floorTier = math.min(if typeof(buyTier) == "number" then buyTier else 1, Tiers.MAX_TIER)
-		local rolls = block.rolls
-		local rowHeight = 236 / #rolls
-		for i, roll in rolls do
+		for i, roll in block.rolls do
 			local raised = roll.tier < floorTier
-			local y = 10 + (i - 1) * rowHeight
-			local tier = Tiers.get(roll.tier)
-			local nameLabel = text(
-				odds,
-				tier.name,
-				Visuals.tierColor(roll.tier),
-				UDim2.new(0.72, -12, 0, rowHeight * 0.55),
-				UDim2.fromOffset(12, y)
-			)
-			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-			local tierLabel = text(
-				odds,
+			row(
+				i,
+				Tiers.get(roll.tier).name,
 				if raised then `Tier {roll.tier} → {Tiers.get(floorTier).name}` else `Tier {roll.tier}`,
-				if raised then Color3.fromRGB(125, 255, 110) else Color3.new(1, 1, 1),
-				UDim2.new(0.72, -12, 0, rowHeight * 0.3),
-				UDim2.fromOffset(12, y + rowHeight * 0.55)
-			)
-			tierLabel.TextXAlignment = Enum.TextXAlignment.Left
-			local percent = text(
-				odds,
+				if raised then Color3.fromRGB(125, 255, 110) else Color3.fromRGB(220, 220, 230),
+				Visuals.tierColor(roll.tier),
 				`{roll.weight}%`,
-				Color3.new(1, 1, 1),
-				UDim2.new(0.28, -12, 0, rowHeight * 0.6),
-				UDim2.new(0.72, 0, 0, y + rowHeight * 0.1)
+				raised
 			)
-			percent.TextXAlignment = Enum.TextXAlignment.Right
-			if raised then
-				nameLabel.TextTransparency = 0.55
-				percent.TextTransparency = 0.3
-			end
 		end
 		local blockPrice = LuckyBlocks.priceFor(block, if typeof(buyTier) == "number" then buyTier else 1)
-		price.Text = `{Format.short(blockPrice)} Cash`
+		price.Text = `${Format.short(blockPrice)}`
 		local cash = player:GetAttribute("Cash")
-		robuxMode = typeof(cash) == "number" and cash < blockPrice and player:GetAttribute("PaidRandomItems") == true
-		unlock.Text = if robuxMode
-			then `🔓 Unlock for R$ {Products.DevProducts.LuckyUnlock.robux}`
-			else "🔓 Unlock!"
-		unlock.BackgroundColor3 = if robuxMode then Color3.fromRGB(60, 170, 90) else Color3.fromRGB(110, 210, 50)
+		local short = typeof(cash) == "number" and cash < blockPrice
+		robuxMode = short and player:GetAttribute("PaidRandomItems") == true
+		price.TextColor3 = if short then Color3.fromRGB(255, 110, 90) else Color3.fromRGB(125, 255, 110)
+		unlockLabel.Text = if robuxMode
+			then `{utf8.char(0xE002)} {Products.DevProducts.LuckyUnlock.robux}` -- the Robux glyph
+			else "Unlock!"
 		root.Visible = true
 	end
 
@@ -524,8 +559,7 @@ function LuckyBlockController:Start()
 		dropHeld(target)
 	end)
 
-	-- Keep every held chest on its holder's outstretched hand (still; it only shakes
-	-- while being unlocked).
+	-- Keep every held chest floating over its holder's head.
 	RunService.RenderStepped:Connect(function()
 		for target, model in held do
 			local place = aboveHead(target)

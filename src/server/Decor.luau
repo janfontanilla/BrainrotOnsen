@@ -9,13 +9,17 @@
 --
 -- Static and anchored. Only the wall, cliffs, front fence, kerbs, bridge and tree trunks collide.
 
+local CollectionService = game:GetService("CollectionService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Props = require(Shared.Props)
+local Models = require(Shared.Models)
 local Textures = require(Shared.Config.Textures)
 local Sounds = require(Shared.Config.Sounds)
 local Skin = require(script.Parent.Skin)
 
 local Decor = {}
+
+local FLOW_TAG = "FlowWater" -- matches Plaza.FLOW_TAG (Controllers/WaterController scrolls these)
 
 export type Options = {
 	at: (x: number, y: number, z: number) -> CFrame, -- plot-local -> world
@@ -23,6 +27,7 @@ export type Options = {
 	depth: number,
 	floorTop: number,
 	seed: number,
+	moatWaterTop: number?, -- world y of the moat outside the plot: the front canal pours into it
 }
 
 local WALL = Color3.fromRGB(190, 142, 88)
@@ -113,6 +118,264 @@ end
 -- ---------- Particles (Roblox built-in textures) ----------
 
 -- Steam rising off a bath's water.
+-- Waterfall look (2026-10-09, user: like Capybara Onsen's, "just change the water look
+-- and how it flows"; the boulders and rock framing are gone): a bright cyan sheet
+-- whose texture scrolls down (FlowWater), a glowing SurfaceGui on its face (white at
+-- the top fading down, soft white streaks of different widths), glowing mist along
+-- the top edge, spray down the face, and a foam band with mist where it lands.
+local FALL_GLOW = Color3.fromRGB(150, 236, 255)
+function Decor.waterfallDetail(sheet: BasePart, face: Enum.NormalId)
+	local parent = sheet.Parent :: Instance
+	sheet.Color = Color3.fromRGB(90, 220, 250)
+	sheet.Transparency = 0.1
+	sheet:SetAttribute("FlowX", 0)
+	sheet:SetAttribute("FlowZ", 1) -- the texture's V runs down a side face
+	sheet:SetAttribute("FlowSpeed", 14)
+	CollectionService:AddTag(sheet, FLOW_TAG)
+	local normal = Vector3.FromNormalId(face)
+	local widthAxis = if math.abs(normal.Z) > 0.5 then Vector3.xAxis else Vector3.zAxis
+	local size = sheet.Size
+	local width = if widthAxis == Vector3.xAxis then size.X else size.Z
+	local depth = math.abs(normal:Dot(size))
+	local height = size.Y
+	local rng = Random.new(math.floor(sheet.Position.X * 7 + sheet.Position.Z * 13))
+	local function piece(name: string, offset: Vector3, w: number, h: number, thick: number, color: Color3): Part
+		local along = widthAxis * w + Vector3.yAxis * h + Vector3.new(math.abs(normal.X), 0, math.abs(normal.Z)) * thick
+		local p =
+			part(parent, name, along, sheet.CFrame * CFrame.new(offset), color, false, Enum.Material.SmoothPlastic)
+		p.CastShadow = false
+		return p
+	end
+
+	-- The glow on the face: bright at the top, fading down, with soft white streaks.
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "FallGlow"
+	gui.Face = face
+	gui.LightInfluence = 0
+	gui.Brightness = 1.6
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 20
+	gui.Parent = sheet
+	local wash = Instance.new("Frame")
+	wash.BackgroundColor3 = Color3.new(1, 1, 1)
+	wash.Size = UDim2.fromScale(1, 1)
+	wash.BorderSizePixel = 0
+	wash.Parent = gui
+	local washGradient = Instance.new("UIGradient")
+	washGradient.Rotation = 90
+	washGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), FALL_GLOW)
+	washGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.05),
+		NumberSequenceKeypoint.new(0.25, 0.45),
+		NumberSequenceKeypoint.new(0.7, 0.75),
+		NumberSequenceKeypoint.new(1, 0.55),
+	})
+	washGradient.Parent = wash
+	local streaks = math.max(5, math.floor(width * 0.9))
+	for i = 1, streaks do
+		local streak = Instance.new("Frame")
+		streak.BackgroundColor3 = Color3.new(1, 1, 1)
+		streak.BorderSizePixel = 0
+		local w = rng:NextNumber(0.01, 0.045)
+		local top = rng:NextNumber(0, 0.25)
+		streak.Position = UDim2.fromScale((i - 0.5) / streaks + rng:NextNumber(-0.03, 0.03) - w / 2, top)
+		streak.Size = UDim2.fromScale(w, rng:NextNumber(0.5, 1 - top))
+		streak.Parent = gui
+		local g = Instance.new("UIGradient")
+		g.Rotation = 90
+		local peak = rng:NextNumber(0.15, 0.45)
+		g.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.15, peak),
+			NumberSequenceKeypoint.new(0.75, peak + 0.2),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		g.Parent = streak
+	end
+
+	-- Glowing mist along the top edge.
+	local crest = piece(
+		"WaterfallCrest",
+		Vector3.yAxis * (height / 2 - 0.5) + normal * (depth / 2 + 0.3),
+		width,
+		1,
+		0.4,
+		Color3.new(1, 1, 1)
+	)
+	crest.Transparency = 1
+	local crestMist = Instance.new("ParticleEmitter")
+	crestMist.Name = "CrestMist"
+	crestMist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	crestMist.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	crestMist.LightEmission = 0.8
+	crestMist.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.2, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	crestMist.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 4) })
+	crestMist.Lifetime = NumberRange.new(1, 1.8)
+	crestMist.Speed = NumberRange.new(0.5, 1.5)
+	crestMist.Acceleration = Vector3.new(0, -2, 0)
+	crestMist.Rate = math.clamp(width * 0.8, 5, 16)
+	crestMist.EmissionDirection = face
+	crestMist.Shape = Enum.ParticleEmitterShape.Box
+	crestMist.Parent = crest
+
+	-- Spray drifting down the face.
+	local spray = piece("WaterfallSpray", normal * (depth / 2 + 0.3), width, height, 0.2, Color3.new(1, 1, 1))
+	spray.Transparency = 1
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "Spray"
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Color = ColorSequence.new(Color3.fromRGB(240, 250, 255))
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0.9) })
+	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) })
+	emitter.Lifetime = NumberRange.new(0.6, 1.2)
+	emitter.Speed = NumberRange.new(2, 4)
+	emitter.Acceleration = Vector3.new(0, -18, 0)
+	emitter.Rate = math.clamp(width * height / 6, 8, 60)
+	emitter.SpreadAngle = Vector2.new(10, 10)
+	emitter.EmissionDirection = face
+	emitter.Shape = Enum.ParticleEmitterShape.Box
+	emitter.LightEmission = 0.4
+	emitter.Parent = spray
+
+	-- Foam and mist where it lands.
+	local foam = piece(
+		"WaterfallBaseFoam",
+		Vector3.yAxis * (-height / 2 + 0.3) + normal * (depth / 2 + 0.9),
+		width + 1.5,
+		0.9,
+		2.2,
+		Color3.fromRGB(240, 250, 255)
+	)
+	foam.Transparency = 0.15
+	local mist = Instance.new("ParticleEmitter")
+	mist.Name = "BaseMist"
+	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	mist.Color = ColorSequence.new(Color3.fromRGB(240, 250, 255))
+	mist.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.2, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	mist.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 6) })
+	mist.Lifetime = NumberRange.new(1.5, 2.5)
+	mist.Speed = NumberRange.new(1, 3)
+	mist.Rate = math.clamp(width, 6, 20)
+	mist.SpreadAngle = Vector2.new(30, 30)
+	mist.EmissionDirection = Enum.NormalId.Top
+	mist.Shape = Enum.ParticleEmitterShape.Box
+	mist.LightEmission = 0.3
+	mist.Parent = foam
+end
+
+-- A wooden hot tub (the HotTub prop) at `cf` (its foot centre) with water, steam
+-- and a brainrot of `tier` chilling in it, gently bobbing (2026-10-09, user's
+-- Capybara Onsen reference).
+local TUB_INNER_RADIUS = 2.4 -- studs: the water inside the staves
+local TUB_WATER_Y = 2.05 -- water top above the tub's foot
+local TUB_BRAINROT_SCALE = 0.85 -- the bather's size against its size in a bath
+function Decor.hotTub(parent: Instance, cf: CFrame, tier: number): Model
+	local tub = Props.place("HotTub", cf, parent)
+	local water = part(
+		parent,
+		"HotTubWater",
+		Vector3.new(0.3, TUB_INNER_RADIUS * 2, TUB_INNER_RADIUS * 2),
+		cf * CFrame.new(0, TUB_WATER_Y - 0.15, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		Color3.fromRGB(110, 215, 250),
+		false,
+		Enum.Material.Glass
+	)
+	water.Shape = Enum.PartType.Cylinder
+	water.Transparency = 0.15
+	Decor.steam(water)
+	local bather = Models.makeBrainrot(tier)
+	bather:ScaleTo(bather:GetScale() * TUB_BRAINROT_SCALE)
+	-- Sitting on the tub floor, the water up to its middle, turned a little.
+	bather:PivotTo(cf * CFrame.new(0, 0.5, 0) * CFrame.Angles(0, math.rad(200), 0))
+	bather.Parent = tub
+	return tub
+end
+
+-- A detailed wooden footbridge from `a` to `b` (world points at the walking level of
+-- each end; 2026-10-09, user: match the entrance bridge, more detailed): stone
+-- abutments at both ends, a plank deck arching up by `rise` in the middle, side
+-- beams, red top and middle rails on posts with dark caps.
+function Decor.bridge(parent: Instance, a: Vector3, b: Vector3, width: number, rise: number)
+	local folder = Instance.new("Model")
+	folder.Name = "Bridge"
+	folder.Parent = parent
+	local flat = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+	local along = flat.Unit
+	local across = Vector3.new(-along.Z, 0, along.X)
+	local length = flat.Magnitude
+	local mid = (a + b) / 2 + Vector3.new(0, rise, 0)
+	local cap = Color3.fromRGB(50, 40, 36)
+	-- Stone abutments under each end.
+	for _, p in { a, b } do
+		local abut = part(
+			folder,
+			"BridgeAbutment",
+			Vector3.new(width + 1.6, 1.4, 2.4),
+			CFrame.lookAt(p - Vector3.new(0, 0.8, 0), p - Vector3.new(0, 0.8, 0) + along),
+			Color3.fromRGB(150, 155, 168),
+			true
+		)
+		Skin.apply(abut, "stone", Color3.fromRGB(200, 204, 216))
+	end
+	-- Deck: two planked halves meeting at the crown, with darker side beams.
+	for _, half in { { a, mid }, { mid, b } } do
+		local p1, p2 = half[1], half[2]
+		local centre = (p1 + p2) / 2
+		local span = (p2 - p1).Magnitude + 0.3
+		local deck = part(
+			folder,
+			"BridgeDeck",
+			Vector3.new(width, 0.5, span),
+			CFrame.lookAt(centre - Vector3.new(0, 0.25, 0), p2 - Vector3.new(0, 0.25, 0)),
+			WOOD,
+			true
+		)
+		Skin.apply(deck, "planks")
+		for _, side in { -1, 1 } do
+			local offset = across * side * (width / 2 + 0.2)
+			part(
+				folder,
+				"BridgeBeam",
+				Vector3.new(0.5, 0.9, span),
+				CFrame.lookAt(centre + offset - Vector3.new(0, 0.45, 0), p2 + offset - Vector3.new(0, 0.45, 0)),
+				Color3.fromRGB(120, 76, 40),
+				true
+			)
+			-- Rails follow the deck: a top rail and a middle rail.
+			for _, h in { 2.5, 1.3 } do
+				part(
+					folder,
+					"BridgeRail",
+					Vector3.new(0.4, if h > 2 then 0.5 else 0.35, span),
+					CFrame.lookAt(centre + offset + Vector3.new(0, h, 0), p2 + offset + Vector3.new(0, h, 0)),
+					BRIDGE_RED,
+					true
+				)
+			end
+		end
+	end
+	-- Posts along both sides, every few studs, each with a dark cap.
+	local posts = math.max(2, math.floor(length / 3.5))
+	for i = 0, posts do
+		local t = i / posts
+		local y = a.Y + (b.Y - a.Y) * t + rise * (1 - math.abs(2 * t - 1))
+		for _, side in { -1, 1 } do
+			local base = Vector3.new(a.X, 0, a.Z) + flat * t + across * side * (width / 2 + 0.2)
+			part(folder, "BridgePost", Vector3.new(0.7, 3, 0.7), CFrame.new(base.X, y + 1.4, base.Z), BRIDGE_RED, true)
+			part(folder, "BridgePostCap", Vector3.new(0.9, 0.35, 0.9), CFrame.new(base.X, y + 3.05, base.Z), cap, true)
+		end
+	end
+	return folder
+end
+
 function Decor.steam(water: Part): Part
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Name = "Steam"
@@ -396,6 +659,7 @@ local function cliffs(folder: Folder, o: Options)
 		sheet.Transparency = 0.25
 		sheet.CastShadow = false
 		Skin.tile(sheet, "water", { Enum.NormalId.Front })
+		Decor.waterfallDetail(sheet, Enum.NormalId.Front)
 	end
 	fall("Waterfall", 12, midTop, nearTop, midFront - 0.5)
 	-- The pool on the near step, foaming where the upper drop lands.
@@ -466,6 +730,26 @@ local function frontage(folder: Folder, o: Options)
 	)
 	canal.Transparency = 0.1
 	Skin.tile(canal, "water")
+	-- The canal pours off both ends of the plot into the moat below (2026-10-09, user).
+	if o.moatWaterTop then
+		local canalTop = top + 0.4
+		local fallHeight = canalTop - o.moatWaterTop
+		for _, side in { -1, 1 } do
+			local sheet = part(
+				folder,
+				"CanalFall",
+				Vector3.new(0.6, fallHeight, CANAL_WIDTH),
+				o.at(side * (o.width / 2 + 0.6), (canalTop + o.moatWaterTop) / 2, z0 + KERB_WIDTH + CANAL_WIDTH / 2),
+				Color3.fromRGB(110, 215, 250),
+				false,
+				Enum.Material.Glass
+			)
+			sheet.CastShadow = false
+			local face = if side > 0 then Enum.NormalId.Right else Enum.NormalId.Left
+			Skin.tile(sheet, "water", { face })
+			Decor.waterfallDetail(sheet, face)
+		end
+	end
 
 	-- The big front wall on the inner kerb (same tall pegboard wall as the sides,
 	-- scrolls facing in), both sides of the bridge: the torii is the only way in.
@@ -774,7 +1058,8 @@ function Decor.build(parent: Instance, o: Options)
 			daisy(folder, o, rng, x - side * 2, z - 1.5)
 			daisy(folder, o, rng, x - side * 1.2, z + 1.2)
 		end
-		Props.place("StoneLantern", o.at(side * ENTRANCE_LANTERN_X, o.floorTop, ENTRANCE_LANTERN_Z), folder, 1.1)
+		-- The boxy glowing lantern from the baths, bigger (the grey stone ones looked plain).
+		Props.place("RimLantern", o.at(side * ENTRANCE_LANTERN_X, o.floorTop, ENTRANCE_LANTERN_Z), folder, 1.8)
 	end
 
 	-- Grass tufts along the foot of the side and back walls, like a lawn edge.
@@ -814,7 +1099,7 @@ function Decor.horizon(parent: Instance)
 	folder.Name = "Horizon"
 	folder.Parent = parent
 	local plane =
-		part(folder, "HorizonGround", Vector3.new(2048, 1, 2048), CFrame.new(0, -0.55, 0), Color3.fromRGB(112, 190, 74))
+		part(folder, "HorizonGround", Vector3.new(2048, 1, 2048), CFrame.new(0, -8.55, 0), Color3.fromRGB(112, 190, 74))
 	Skin.apply(plane, "grass")
 	local rng = Random.new(11)
 	for _, side in { -1, 1 } do

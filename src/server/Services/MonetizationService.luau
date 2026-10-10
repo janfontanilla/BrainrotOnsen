@@ -195,7 +195,7 @@ local function grantProduct(player: Player, name: string): boolean
 		if not data then
 			return false
 		end
-		local amount = Economy.cashPackAmount(DataService.auraPerSecond(data), "M")
+		local amount = Economy.cashPackAmount(data.buyTier, "M")
 		data.cash += amount
 		data.totalCashEarned += amount
 		DataService.sync(player)
@@ -207,7 +207,7 @@ local function grantProduct(player: Player, name: string): boolean
 	if not data or not size then
 		return false
 	end
-	local amount = Economy.cashPackAmount(DataService.auraPerSecond(data), size)
+	local amount = Economy.cashPackAmount(data.buyTier, size)
 	data.cash += amount
 	data.totalCashEarned += amount
 	DataService.sync(player)
@@ -401,13 +401,24 @@ function MonetizationService:Start()
 
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
 		function(player: Player, passId: number, purchased: boolean)
-			if not purchased then
-				return
-			end
 			for name, pass in Products.GamePasses do
 				if pass.id > 0 and pass.id == passId then
-					grantPass(player, name)
-					notify:FireClient(player, "Thank you for your purchase!", "good")
+					if purchased then
+						grantPass(player, name)
+						notify:FireClient(player, "Thank you for your purchase!", "good")
+					elseif not hasPass(player, name) then
+						-- Not bought now, but maybe owned already (Roblox answers "already
+						-- owned" and reports no purchase; or the join-time check failed):
+						-- ask again and grant it if so.
+						local ok, owns = pcall(function()
+							return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.id)
+						end)
+						local hidden = RunService:IsStudio() and Economy.STUDIO_IGNORE_OWNED_PASSES
+						if ok and owns and not hidden then
+							grantPass(player, name)
+							notify:FireClient(player, "You own this pass: it's on!", "good")
+						end
+					end
 				end
 			end
 		end

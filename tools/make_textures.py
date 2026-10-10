@@ -93,6 +93,33 @@ def water(name):
     img.save(os.path.join(OUT, name))
 
 
+def water_ripple(name):
+    """A transparent ripple layer laid over the water (2026-10-09, user: more realistic
+    water): a soft network of light lines like sunlight caustics, seamless (wrapped
+    Voronoi cell edges), white with varying alpha. Scrolls slowly on its own."""
+    size = 256
+    rng = random.Random(11)
+    pts = [(rng.random() * size, rng.random() * size) for _ in range(14)]
+    img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    px = img.load()
+    for y in range(size):
+        for x in range(size):
+            d1 = d2 = 1e9
+            for (sx, sy) in pts:
+                for ox in (-size, 0, size):
+                    for oy in (-size, 0, size):
+                        dx, dy = x - sx - ox, y - sy - oy
+                        dd = dx * dx + dy * dy
+                        if dd < d1:
+                            d1, d2 = dd, d1
+                        elif dd < d2:
+                            d2 = dd
+            edge = math.sqrt(d2) - math.sqrt(d1)
+            a = max(0.0, 1 - edge / 7.0)
+            px[x, y] = (255, 255, 255, int(150 * a * a))
+    img.save(os.path.join(OUT, name))
+
+
 def pegboard(name):
     base = (198, 152, 98)
     img = Image.new("RGB", (SIZE, SIZE), base)
@@ -191,10 +218,34 @@ def aura_icon(name):
     img.save(os.path.join(OUT, name))
 
 
+def friends_icon(name):
+    """The friend boost icon (2026-10-09, user's reference): two blocky yellow heads with
+    smiles and blue shirts, the back one offset up-right, dark outlines, 128 px RGBA."""
+    img = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    ink = (30, 30, 40, 255)
+
+    def person(x, y, s):
+        # shirt
+        d.rounded_rectangle([x - s * 0.55, y + s * 0.42, x + s * 0.55, y + s * 0.95], radius=int(s * 0.12), fill=(56, 120, 230, 255), outline=ink, width=4)
+        # head
+        d.rounded_rectangle([x - s * 0.45, y - s * 0.5, x + s * 0.45, y + s * 0.45], radius=int(s * 0.16), fill=(255, 214, 40, 255), outline=ink, width=4)
+        d.rectangle([x - s * 0.36, y - s * 0.42, x + s * 0.2, y - s * 0.32], fill=(255, 236, 120, 255))  # shine
+        # face
+        for ex in (-0.16, 0.16):
+            d.ellipse([x + s * ex - s * 0.05, y - s * 0.12, x + s * ex + s * 0.05, y + s * 0.0], fill=ink)
+        d.arc([x - s * 0.2, y - s * 0.05, x + s * 0.2, y + s * 0.27], start=20, end=160, fill=ink, width=4)
+
+    person(80, 46, 60)   # behind
+    person(50, 60, 64)   # front
+    img.save(os.path.join(OUT, name))
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     grass("grass.png")
     water("water.png")
+    water_ripple("water_ripple.png")
     stone("stone.png")
     pegboard("pegboard.png")
     cliff("cliff.png")
@@ -203,6 +254,7 @@ def main():
     onsen_symbol("onsen.png")
     ui_studs("ui_studs.png")
     aura_icon("aura_icon.png")
+    friends_icon("friends_icon.png")
     print("Wrote", sorted(os.listdir(OUT)))
 
 

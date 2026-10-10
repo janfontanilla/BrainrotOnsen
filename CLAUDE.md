@@ -32,7 +32,7 @@ Read it with the Claude Docs tools (never web-fetch it). If the doc and this fil
 - Cash multiplier game passes: x2 / x4 / x7 / x12 at 40 / 80 / 140 / 240 Robux (multiplier x 20; x12 added 2026-09-29, user request). Highest owned applies, no stacking between them.
 - Auto Collect game pass collects Aura drops, not Cash.
 - Finish Now dev product instantly processes the processor queue (with the same Cash multipliers).
-- Cash packs (S / M / L) give `CASH_PACK_HOURS` (1 / 6 / 24) hours of the player's brainrot income (at least `STARTING_CASH` x hours): a shortcut of at most a day at every stage.
+- Cash packs (S / M / L) give `CASH_PACK_SHARE` (10% / 50% / 150%) of the player's next Upgrade Buy Tier cost (at least `CASH_PACK_MIN` 1K / 5K / 15K): they grow only with the buy tier, never with the brainrots owned (user decision 2026-10-09).
 - Group reward: every 10 minutes (`GROUP_REWARD_INTERVAL` 600, user request 2026-10-04).
 - Boosts multiply: Aura = 2x pass x (1 + 10% Premium); processor Cash = highest Cash pass x (1 + friend boost). Auto Collect credits each drop straight to Aura (no floating drop, never hits the cap).
 - Total Brainrots counts brainrots obtained by buying or lucky block unlocks (not merges).

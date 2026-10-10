@@ -176,17 +176,38 @@ function HudController:Start()
 		packButtons[pack.name] = { button = button, amount = amount }
 	end
 
-	-- Premium and friend boost, small, above Cash.
-	local premium = Style.outlined(gui, "Premium", Color3.new(1, 1, 1), OUTLINE, 2)
-	premium.AnchorPoint = Vector2.new(0, 1)
-	premium.Position = UDim2.new(0, 14, 1, -84)
-	premium.Size = UDim2.fromOffset(200, 34)
-	premium.TextXAlignment = Enum.TextXAlignment.Left
-	local friends = Style.outlined(gui, "Friends", Color3.fromRGB(255, 222, 90), OUTLINE, 2)
-	friends.AnchorPoint = Vector2.new(0, 1)
-	friends.Position = UDim2.new(0, 222, 1, -84)
-	friends.Size = UDim2.fromOffset(150, 34)
-	friends.TextXAlignment = Enum.TextXAlignment.Left
+	-- Premium and friend boost above Cash (2026-10-09, user's reference): an icon over
+	-- a short label each, the Premium logo (Roblox's built-in U+E001 glyph) over
+	-- "Inactive" / "+10%", two yellow heads over the friend boost "0%".
+	local function boostColumn(name: string, x: number): (Frame, TextLabel)
+		local column = Instance.new("Frame")
+		column.Name = name
+		column.BackgroundTransparency = 1
+		column.AnchorPoint = Vector2.new(0, 1)
+		column.Position = UDim2.new(0, x, 1, -84)
+		column.Size = UDim2.fromOffset(110, 78)
+		column.Parent = gui
+		local label = Style.outlined(column, "Label", Color3.new(1, 1, 1), OUTLINE, 2)
+		label.AnchorPoint = Vector2.new(0.5, 1)
+		label.Position = UDim2.fromScale(0.5, 1)
+		label.Size = UDim2.new(1, 0, 0, 28)
+		return column, label
+	end
+	local premiumColumn, premium = boostColumn("Premium", 8)
+	local premiumIcon = Style.outlined(premiumColumn, "Icon", Color3.new(1, 1, 1), OUTLINE, 2)
+	premiumIcon.Text = utf8.char(0xE001) -- the Premium logo
+	premiumIcon.AnchorPoint = Vector2.new(0.5, 0)
+	premiumIcon.Position = UDim2.fromScale(0.5, 0)
+	premiumIcon.Size = UDim2.fromOffset(52, 50)
+	local friendsColumn, friends = boostColumn("Friends", 112)
+	local friendsIcon = Instance.new("ImageLabel")
+	friendsIcon.Name = "Icon"
+	friendsIcon.BackgroundTransparency = 1
+	friendsIcon.Image = Style.FRIENDS_ICON
+	friendsIcon.AnchorPoint = Vector2.new(0.5, 0)
+	friendsIcon.Position = UDim2.fromScale(0.5, 0)
+	friendsIcon.Size = UDim2.fromOffset(52, 52)
+	friendsIcon.Parent = friendsColumn
 
 	-- Top centre: Home (cyan); IndexController puts Index (tan) right of it.
 	local home, homeLabel = Style.button(gui, "Home", Color3.fromRGB(64, 196, 236), Color3.fromRGB(18, 66, 104))
@@ -289,20 +310,16 @@ function HudController:Start()
 			promoPrice.Text = `R$ {nextPass.robux}`
 		end
 
-		local auraPerSecond = number("AuraPerSecond")
+		local buyTier = math.max(1, number("BuyTier"))
 		for _, pack in PACKS do
 			local entry = packButtons[pack.name]
-			entry.amount.Text = "+$" .. Format.short(Economy.cashPackAmount(auraPerSecond, pack.size))
+			entry.amount.Text = "+$" .. Format.short(Economy.cashPackAmount(buyTier, pack.size))
 		end
 		local isPremium = player:GetAttribute("Premium") == true
-		premium.Text = if isPremium
-			then `Premium +{math.round(Economy.PREMIUM_AURA_BOOST * 100)}%`
-			else "Premium: Inactive"
-		friends.Text = `Friends {math.round(friendBoost * 100)}%`
+		premium.Text = if isPremium then `+{math.round(Economy.PREMIUM_AURA_BOOST * 100)}%` else "Inactive"
+		friends.Text = `{math.round(friendBoost * 100)}%`
 	end
-	for _, name in
-		{ "Aura", "Cash", "TotalBrainrots", "CashPass", "FriendBoost", "Premium", "HighestTier", "AuraPerSecond" }
-	do
+	for _, name in { "Aura", "Cash", "TotalBrainrots", "CashPass", "FriendBoost", "Premium", "HighestTier", "BuyTier" } do
 		player:GetAttributeChangedSignal(name):Connect(refresh)
 	end
 	refresh()
@@ -318,8 +335,15 @@ function HudController:Start()
 			return
 		end
 		local good = kind == "good"
-		toast.TextColor3 = if good then Color3.fromRGB(120, 250, 80) else Color3.fromRGB(255, 84, 64)
-		toastStroke.Color = if good then Color3.fromRGB(16, 70, 10) else Color3.fromRGB(80, 8, 0)
+		local warn = kind == "warn" -- orange: a heads-up, not an error (market crash)
+		toast.TextColor3 = if good
+			then Color3.fromRGB(120, 250, 80)
+			elseif warn then Color3.fromRGB(255, 170, 50)
+			else Color3.fromRGB(255, 84, 64)
+		toastStroke.Color = if good
+			then Color3.fromRGB(16, 70, 10)
+			elseif warn then Color3.fromRGB(90, 40, 0)
+			else Color3.fromRGB(80, 8, 0)
 		toastSerial += 1
 		local serial = toastSerial
 		toast.Text = message

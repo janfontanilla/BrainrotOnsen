@@ -54,10 +54,13 @@ function ConfigCheck.run()
 		assert(cost > lastCost, `Upgrade Buy Tier cost must rise every tier (tier {tier})`)
 		lastCost = cost
 	end
-	assert(
-		Economy.CASH_PACK_HOURS.S < Economy.CASH_PACK_HOURS.M and Economy.CASH_PACK_HOURS.M < Economy.CASH_PACK_HOURS.L,
-		"Cash packs must grow S < M < L"
-	)
+	for tier = 1, Tiers.MAX_TIER do
+		assert(
+			Economy.cashPackAmount(tier, "S") < Economy.cashPackAmount(tier, "M")
+				and Economy.cashPackAmount(tier, "M") < Economy.cashPackAmount(tier, "L"),
+			`Cash packs must grow S < M < L (buy tier {tier})`
+		)
+	end
 
 	for _, block in LuckyBlocks.list do
 		local total = 0

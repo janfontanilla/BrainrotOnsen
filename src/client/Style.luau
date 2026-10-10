@@ -1,12 +1,13 @@
 --!strict
 -- HUD building blocks in Capybara Onsen's style: blocky studded buttons with a
 -- thick dark border, and big text with a thick dark outline and no background.
--- Image IDs are uploaded from assets/textures (ui_studs.png, aura_icon.png).
+-- Image IDs are uploaded from assets/textures (ui_studs.png, aura_icon.png, friends_icon.png).
 
 local Style = {}
 
 Style.STUDS_IMAGE = "rbxassetid://116195014081230" -- translucent stud tile laid over buttons
 Style.AURA_ICON = "rbxassetid://105037500567475"
+Style.FRIENDS_ICON = "rbxassetid://85467253576318" -- friends_icon.png: two yellow heads (2026-10-09)
 Style.FONT = Enum.Font.FredokaOne
 
 -- Big text with a thick outline and no box.

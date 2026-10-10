@@ -31,7 +31,7 @@ Economy.STARTING_CASH = 1_000
 Economy.STUDIO_STARTING_CASH = 0 -- user test 2026-10-04: real new-player start (1,000); was 500_000
 -- Studio-only: appended to the profile key, so a new suffix plays as a brand-new player
 -- without touching the real save. "" = the real profile.
-Economy.STUDIO_PROFILE_SUFFIX = "_fresh2" -- user test 2026-10-04: a fresh profile; "" = the real save
+Economy.STUDIO_PROFILE_SUFFIX = "_fresh6" -- user test 2026-10-04: a fresh profile; "" = the real save
 -- Studio-only: a brand-new profile gets this many of every tier (model checks). 0 = off.
 Economy.STUDIO_GIVE_EACH_TIER = 0
 -- Studio-only: restart the new-player tutorial on every join (TutorialService). false = off.
@@ -60,6 +60,9 @@ Economy.MARKET_MIN = 0.5
 Economy.MARKET_MAX = 1.5
 Economy.MARKET_INTERVAL = 30 -- seconds between rerolls
 Economy.MARKET_HISTORY = 20 -- rolls shown on the board graph
+-- A message to everyone when the market rolls above / below these (2026-10-09, user).
+Economy.MARKET_ALERT_HIGH = 1.4
+Economy.MARKET_ALERT_LOW = 0.6
 
 -- Processor
 Economy.PROCESSOR_BASE_RATE = 20 -- Aura per second at level 1 (2026-09-30: 10 -> 20)
@@ -75,7 +78,7 @@ Economy.PREMIUM_AURA_BOOST = 0.10 -- applies to Aura from drops
 -- Robux pad or button is used (session only, no receipt), so purchases can be tested for free.
 Economy.STUDIO_SIMULATE_PURCHASES = true
 -- Studio-only: treat the account's owned game passes as not owned (play as a free player). false = off.
-Economy.STUDIO_IGNORE_OWNED_PASSES = true -- user test 2026-10-04: free-player play-test
+Economy.STUDIO_IGNORE_OWNED_PASSES = false -- 2026-10-09 off: hiding owned passes made pass purchases look broken (Roblox answers "already owned")
 -- Studio-only: act as if this player's country forbids paid random items (hides the
 -- Robux chest unlock). false = off.
 Economy.STUDIO_PAID_RANDOM_RESTRICTED = false
@@ -95,12 +98,12 @@ Economy.LUCKY_BLOCK_PICKUP_RANGE = 5 -- studs, horizontal; walking this close pi
 -- Studio-only fixed spawn interval (seconds) so blocks can be tested quickly. 0 = off.
 Economy.STUDIO_LUCKY_BLOCK_INTERVAL = 0
 
--- Cash packs (dev products): amount = this many hours of the player's brainrot income
--- (Aura per second x 3600 x hours; at least STARTING_CASH x hours for brand-new players).
--- 2026-10-04: was base price of the highest tier x 50 / 2,500 / 125,000, which skipped
--- weeks late on; hours keep every pack a shortcut of at most a day, better value per
--- Robux the bigger the pack (29 / 149 / 499 Robux).
-Economy.CASH_PACK_HOURS = { S = 1, M = 6, L = 24 }
+-- Cash packs (dev products): amount = a share of the player's next Upgrade Buy Tier
+-- cost (at tier 20, of the last upgrade's), at least CASH_PACK_MIN. Grows only with the
+-- buy tier, not with the brainrots owned (2026-10-09, user; was 1 / 6 / 24 hours of
+-- brainrot income). Better value per Robux the bigger the pack (29 / 149 / 499 Robux).
+Economy.CASH_PACK_SHARE = { S = 0.1, M = 0.5, L = 1.5 }
+Economy.CASH_PACK_MIN = { S = 1_000, M = 5_000, L = 15_000 }
 
 -- Group reward (the pad in front of the "Join the group + Like" sign): members can
 -- claim Cash every GROUP_REWARD_INTERVAL seconds. A helper, not income: the amount
@@ -155,9 +158,9 @@ function Economy.friendBoost(friendsInServer: number): number
 end
 
 -- `auraPerSecond` = what the player's brainrots make (DataService.auraPerSecond).
-function Economy.cashPackAmount(auraPerSecond: number, size: "S" | "M" | "L"): number
-	local hours = Economy.CASH_PACK_HOURS[size]
-	return math.floor(math.max(auraPerSecond * 3600, Economy.STARTING_CASH) * hours)
+function Economy.cashPackAmount(buyTier: number, size: "S" | "M" | "L"): number
+	local upgrade = Economy.buyTierUpgradeCost(math.min(buyTier, Tiers.MAX_TIER - 1)) or 0
+	return math.floor(math.max(upgrade * Economy.CASH_PACK_SHARE[size], Economy.CASH_PACK_MIN[size]))
 end
 
 return Economy

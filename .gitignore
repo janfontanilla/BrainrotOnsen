@@ -7,3 +7,5 @@ DevPackages/
 *.rbxlx.lock
 sourcemap.json
 .claude/settings.local.json
+
+__pycache__/

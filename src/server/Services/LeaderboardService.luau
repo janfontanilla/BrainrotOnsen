@@ -315,6 +315,8 @@ function LeaderboardService:Start()
 					stat.cash.Value = Format.short(data.cash)
 					stat.total.Value = math.floor(data.totalBrainrots)
 					data.playtime += LEADERSTAT_INTERVAL
+					player:SetAttribute("Playtime", data.playtime) -- the Profile page
+					player:SetAttribute("NetWorth", data.totalCashEarned)
 				end
 			end
 		end

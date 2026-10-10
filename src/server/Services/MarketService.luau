@@ -5,10 +5,12 @@
 --   Multiplier  current value
 --   NextRollAt  server time of the next reroll (workspace:GetServerTimeNow())
 --   History     last Economy.MARKET_HISTORY values, oldest first, comma-separated
+-- Above Economy.MARKET_ALERT_HIGH / below MARKET_ALERT_LOW everyone gets a Notify.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
+local Remotes = require(Shared.Remotes)
 
 local MarketService = {}
 
@@ -30,6 +32,13 @@ local function roll()
 	folder:SetAttribute("Multiplier", current)
 	folder:SetAttribute("History", table.concat(parts, ","))
 	folder:SetAttribute("NextRollAt", workspace:GetServerTimeNow() + Economy.MARKET_INTERVAL)
+	-- Tell everyone when the market is unusually good or bad.
+	local shown = string.format("%.2f", current)
+	if current > Economy.MARKET_ALERT_HIGH then
+		Remotes.event("Notify"):FireAllClients(`Aura Market is high: x{shown}`, "good")
+	elseif current < Economy.MARKET_ALERT_LOW then
+		Remotes.event("Notify"):FireAllClients(`Aura Market is low: x{shown}`, "warn")
+	end
 end
 
 function MarketService.multiplier(): number

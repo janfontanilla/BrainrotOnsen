@@ -21,15 +21,40 @@ local Plaza = {}
 
 Plaza.FLOW_TAG = "FlowWater" -- matches Controllers/WaterController
 
-local LAKE_HALF_LENGTH = 200 -- along x; the plot rows span about +-207
+local LAKE_HALF_LENGTH = 200 -- along x; the plot rows span about +-225
 local LAKE_HALF_WIDTH = 40 -- along z
 local LANE_WIDTH = 10 -- each long stream; the island (60 wide, walkable) fills the rest
+-- Island ground cover (prop, weight), how many, how far apart; the middle (|x| <
+-- ISLAND_CLEAR_X, round the leaderboard pavilions) stays clear.
+local ISLAND_COVER: { { any } } = {
+	{ "GrassTuft", 10 },
+	{ "Sprig", 3 },
+	{ "BambooShoot", 2 },
+	{ "Flower1", 2 },
+	{ "Flower2", 2 },
+	{ "Flower3", 1 },
+	{ "Flower4", 2 },
+}
+local ISLAND_COVER_MAX = 320
+local ISLAND_COVER_TRIES = 4000
+local ISLAND_COVER_GAP = 3.5
+local ISLAND_CLEAR_X = 50
+-- Hot tubs on the island: x, z, the tier chilling in each.
+local ISLAND_TUBS: { { number } } =
+	{ { -140, -20, 5 }, { -60, -18, 9 }, { 60, 18, 12 }, { 130, 20, 16 }, { -100, 18, 20 } }
 local END_WIDTH = 10 -- the turning streams at both ends
 local FLOW_SPEED = 28 -- studs per second (walking is 16)
 local GROUND_TOP = 0.5
+-- The flowing lake stays shallow, on the ground (2026-10-09, user: not the lake that
+-- carries players; the deep water is the plot moats, server/Plots). Players wade
+-- across to the island (no bridges, user 2026-10-09).
 local WATER_TOP = GROUND_TOP + 0.3
-local KERB_TOP = WATER_TOP + 0.4 -- low enough to step over
-local ISLAND_TOP = WATER_TOP + 1.8 -- a raised walkway on a stone retaining wall
+local BED_TOP = GROUND_TOP - 0.2 -- where kerbs, the island and the end cliffs start
+local KERB_TOP = WATER_TOP + 0.4
+-- The promenades stand above the water so the lake and the plot moats sit sunk
+-- between walls (2026-10-09, user: "sink the lake so we're on a higher part").
+local PROMENADE_TOP = GROUND_TOP + 1.7
+local ISLAND_TOP = GROUND_TOP + 2.1 -- a raised walkway on a stone retaining wall
 Plaza.ISLAND_TOP = ISLAND_TOP -- the leaderboard pavilions stand on it
 local END_CLIFF_FRONT = 206 -- |x| where the cliffs at both ends of the lake start
 local KERB_WIDTH = 1.4
@@ -111,8 +136,8 @@ local function kerb(parent: Instance, x1: number, z1: number, x2: number, z2: nu
 	local k = part(
 		parent,
 		"LakeKerb",
-		Vector3.new(math.abs(x2 - x1), top - GROUND_TOP + 0.2, math.abs(z2 - z1)),
-		Vector3.new((x1 + x2) / 2, (top + GROUND_TOP - 0.2) / 2, (z1 + z2) / 2),
+		Vector3.new(math.abs(x2 - x1), top - BED_TOP, math.abs(z2 - z1)),
+		Vector3.new((x1 + x2) / 2, (top + BED_TOP) / 2, (z1 + z2) / 2),
 		STONE
 	)
 	Skin.apply(k, "stone", STONE_TINT)
@@ -120,7 +145,14 @@ end
 
 -- A grey-green cliff block from the ground up with a grass ledge on top.
 local function cliffBlock(parent: Instance, center: Vector3, size: Vector3)
-	local rock = part(parent, "EndCliff", size, Vector3.new(center.X, GROUND_TOP + size.Y / 2, center.Z), CLIFF)
+	local depthBelow = GROUND_TOP - BED_TOP -- down into the basin
+	local rock = part(
+		parent,
+		"EndCliff",
+		size + Vector3.new(0, depthBelow, 0),
+		Vector3.new(center.X, GROUND_TOP + (size.Y - depthBelow) / 2, center.Z),
+		CLIFF
+	)
 	rock.CastShadow = true
 	Skin.apply(rock, "cliff")
 	local cap = part(
@@ -156,6 +188,7 @@ local function endCliffs(parent: Instance, side: number)
 	fall.Material = Enum.Material.Glass
 	fall.Transparency = 0.15
 	Skin.tile(fall, "water", { if side > 0 then Enum.NormalId.Left else Enum.NormalId.Right })
+	Decor.waterfallDetail(fall, if side > 0 then Enum.NormalId.Left else Enum.NormalId.Right)
 	local foam = part(
 		parent,
 		"EndWaterfallFoam",
@@ -167,6 +200,11 @@ local function endCliffs(parent: Instance, side: number)
 	mist(foam)
 	Decor.ambient(foam, Sounds.WATERFALL, Sounds.WATERFALL_VOLUME, 160)
 end
+
+-- How far the promenades reach from the middle of the road (|z|): the plot moats
+-- (server/Plots) start here.
+Plaza.OUTER_Z = LAKE_HALF_WIDTH + KERB_WIDTH + PROMENADE_WIDTH
+Plaza.PROMENADE_TOP = PROMENADE_TOP
 
 function Plaza.build(parent: Instance)
 	local folder = Instance.new("Folder")
@@ -190,18 +228,30 @@ function Plaza.build(parent: Instance)
 	flowSegment(folder, -L, island, -inner, W, X)
 
 	-- Outer kerbs.
-	kerb(folder, -L - KERB_WIDTH, W, L + KERB_WIDTH, W + KERB_WIDTH)
-	kerb(folder, -L - KERB_WIDTH, -W - KERB_WIDTH, L + KERB_WIDTH, -W)
-	kerb(folder, L, -W, L + KERB_WIDTH, W)
-	kerb(folder, -L - KERB_WIDTH, -W, -L, W)
+	local C = END_CLIFF_FRONT
+	kerb(folder, -C, W, C, W + KERB_WIDTH, PROMENADE_TOP)
+	kerb(folder, -C, -W - KERB_WIDTH, C, -W, PROMENADE_TOP)
+	-- Still pools from the lake's ends to the cliffs, under the waterfalls.
+	for _, side in { -1, 1 } do
+		local pool = part(
+			folder,
+			"LakePool",
+			Vector3.new(C - L, 0.4, 2 * W),
+			Vector3.new(side * (L + C) / 2, WATER_TOP - 0.2, 0),
+			WATER
+		)
+		pool.Material = Enum.Material.Glass
+		pool.Transparency = 0.1
+		Skin.tile(pool, "water")
+	end
 
 	-- The island: raised grass inside a stone kerb, with trees, bamboo and lanterns.
 	local islandHalf = inner - KERB_WIDTH
 	local grass = part(
 		folder,
 		"Island",
-		Vector3.new(2 * islandHalf, ISLAND_TOP - GROUND_TOP + 0.2, 2 * (island - KERB_WIDTH)),
-		Vector3.new(0, (ISLAND_TOP + GROUND_TOP - 0.2) / 2, 0),
+		Vector3.new(2 * islandHalf, ISLAND_TOP - BED_TOP, 2 * (island - KERB_WIDTH)),
+		Vector3.new(0, (ISLAND_TOP + BED_TOP) / 2, 0),
 		Color3.fromRGB(112, 190, 74)
 	)
 	grass.CastShadow = true
@@ -229,7 +279,85 @@ function Plaza.build(parent: Instance)
 	end
 	for i, x in { -140, -100, -60, 60, 100, 140 } do -- bushes between the trees
 		local z = if i % 2 == 0 then -12 else 12
-		Props.place("Sprig", CFrame.new(x, islandTop, z), folder, 1.4)
+		Props.place("Bush", CFrame.new(x, islandTop, z), folder, 0.8)
+	end
+
+	-- Stepping stones down the middle of the island, around the leaderboard pavilions.
+	for x = -184, 184, 3.5 do
+		if math.abs(x) > ISLAND_CLEAR_X then
+			local stone = part(
+				folder,
+				"SteppingStone",
+				Vector3.new(2.4, 0.25, 2.8),
+				Vector3.new(x, islandTop + 0.1, rng:NextNumber(-0.4, 0.4)),
+				STONE
+			)
+			stone.CFrame *= CFrame.Angles(0, math.rad(rng:NextNumber(-12, 12)), 0)
+			Skin.apply(stone, "stone", STONE_TINT)
+		end
+	end
+
+	-- Ground cover over the island's grass (2026-10-09, user: "make the middle place
+	-- more grassy and detailed"): tufts, sprigs, flowers and bamboo shoots, clear of
+	-- the pavilions, the path, the trees and the lanterns.
+	local keepOut: { Vector3 } = {} -- (x, z, radius)
+	for i, x in { -160, -120, -80, -40, 40, 80, 120, 160 } do
+		table.insert(keepOut, Vector3.new(x, if i % 2 == 0 then 16 else -16, 5))
+	end
+	for x = -180, 180, 80 do
+		table.insert(keepOut, Vector3.new(x, -25, 2.5))
+		table.insert(keepOut, Vector3.new(x, 25, 2.5))
+	end
+	for i, x in { -140, -100, -60, 60, 100, 140 } do
+		table.insert(keepOut, Vector3.new(x, if i % 2 == 0 then -12 else 12, 4))
+	end
+	table.insert(keepOut, Vector3.new(-178, 0, 5))
+	for _, tub in ISLAND_TUBS do
+		Decor.hotTub(folder, CFrame.new(tub[1], islandTop, tub[2]) * CFrame.Angles(0, math.rad(tub[1]), 0), tub[3])
+		table.insert(keepOut, Vector3.new(tub[1], tub[2], 5))
+	end
+	table.insert(keepOut, Vector3.new(178, 0, 5))
+	local placed: { Vector2 } = {}
+	local total = 0
+	for _, entry in ISLAND_COVER do
+		total += entry[2]
+	end
+	local zHalf = island - KERB_WIDTH - 1.2
+	for _ = 1, ISLAND_COVER_TRIES do
+		if #placed >= ISLAND_COVER_MAX then
+			break
+		end
+		local x = rng:NextNumber(-islandHalf + 1.5, islandHalf - 1.5)
+		local z = rng:NextNumber(-zHalf, zHalf)
+		local ok = math.abs(z) > 2.5 and not (math.abs(x) < ISLAND_CLEAR_X and math.abs(z) < 6)
+		for _, k in keepOut do
+			if ok and (Vector2.new(k.X - x, k.Y - z)).Magnitude < k.Z then
+				ok = false
+			end
+		end
+		for _, other in placed do
+			if ok and (other - Vector2.new(x, z)).Magnitude < ISLAND_COVER_GAP then
+				ok = false
+			end
+		end
+		if ok then
+			local pick = rng:NextNumber(0, total)
+			local name = ISLAND_COVER[1][1]
+			for _, entry in ISLAND_COVER do
+				pick -= entry[2]
+				if pick <= 0 then
+					name = entry[1]
+					break
+				end
+			end
+			Props.place(
+				name,
+				CFrame.new(x, islandTop, z) * CFrame.Angles(0, math.rad(rng:NextInteger(0, 359)), 0),
+				folder,
+				rng:NextNumber(1, 1.45)
+			)
+			table.insert(placed, Vector2.new(x, z))
+		end
 	end
 
 	-- Cliffs with a waterfall at both ends of the lake, like the end of Capybara
@@ -244,8 +372,8 @@ function Plaza.build(parent: Instance)
 		local walk = part(
 			folder,
 			"Promenade",
-			Vector3.new(2 * (L + KERB_WIDTH), 0.2, PROMENADE_WIDTH),
-			Vector3.new(0, GROUND_TOP + 0.1, z),
+			Vector3.new(2 * (L + KERB_WIDTH), PROMENADE_TOP - GROUND_TOP + 0.2, PROMENADE_WIDTH),
+			Vector3.new(0, (PROMENADE_TOP + GROUND_TOP - 0.2) / 2, z),
 			STONE
 		)
 		Skin.apply(walk, "stone")

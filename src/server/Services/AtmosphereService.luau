@@ -52,7 +52,7 @@ function AtmosphereService:Init()
 	bloom.Threshold = 1.2
 
 	local correction = ensure("ColorCorrectionEffect") :: ColorCorrectionEffect
-	correction.Saturation = 0.2
+	correction.Saturation = 0.12 -- 2026-10-06: 0.2 read neon from above
 	correction.Contrast = 0.08
 	correction.Brightness = 0.02
 	correction.TintColor = Color3.fromRGB(255, 251, 242)

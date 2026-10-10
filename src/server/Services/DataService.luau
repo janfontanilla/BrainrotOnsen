@@ -213,6 +213,8 @@ function DataService.sync(player: Player)
 	end
 	player:SetAttribute("Discovered", table.concat(discovered))
 	player:SetAttribute("TotalBrainrots", data.totalBrainrots)
+	player:SetAttribute("NetWorth", data.totalCashEarned) -- the Profile page
+	player:SetAttribute("Playtime", data.playtime)
 	player:SetAttribute("HighestTier", data.highestTier)
 	player:SetAttribute("BuyTier", data.buyTier)
 	player:SetAttribute("AuraPerSecond", DataService.auraPerSecond(data))

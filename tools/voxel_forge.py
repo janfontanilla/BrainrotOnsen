@@ -159,39 +159,74 @@ TRUNK, TRUNK_D = rgb(112, 78, 50), rgb(82, 56, 36)
 
 
 def cherry_tree():
-    v = Vox(unit=1.0, solid=True)
+    """A cherry tree (2026-10-09 redrawn in more detail, user): unit 0.5 (was 1), a
+    flared trunk with roots and darker bark streaks, five branches stepping out, and
+    blossom clouds built as stacked rounded tiers: a darker underside, the main body,
+    lighter top tiers, white-pink highlights and hanging blossoms. About 22 studs."""
+    v = Vox(unit=0.5, solid=True)
     rng = random.Random(21)
-    # trunk: flared base, tall stem, then stair-stepped branches to the clumps
-    v.box(-2, 0, -2, 2, 2, 2, TRUNK)
-    v.box(-1, 2, -1, 1, 11, 1, TRUNK)
-    for i in range(4):  # right branch
-        v.box(1 + i, 9 + i, -1, 2 + i, 10 + i, 1, TRUNK)
-    for i in range(3):  # left branch
-        v.box(-2 - i, 10 + i, -1, -1 - i, 11 + i, 1, TRUNK)
-    for i in range(3):  # back branch
-        v.box(-1, 9 + i, -2 - i, 1, 10 + i, -1 - i, TRUNK)
+    # Roots and trunk.
+    v.box(-5, 0, -1, 6, 1, 2, TRUNK_D)
+    v.box(-1, 0, -5, 2, 1, 6, TRUNK_D)
+    v.box(-3, 0, -3, 4, 4, 4, TRUNK)
+    v.box(-2, 4, -2, 3, 16, 3, TRUNK)
+    v.box(-1, 16, -1, 3, 24, 3, TRUNK)                    # leans a little to +x
+    for y in range(1, 23, 2):                              # bark streaks
+        x = rng.choice([-2, 2, -1, 1])
+        v.set(x, y, -2 if y < 16 else -1, TRUNK_D)
+        v.set(2 if y < 16 else 2, y, rng.choice([-1, 0, 1]), TRUNK_D)
 
-    def clump(cx, cy, cz, w, h, colour):
-        """A rounded block of blossom with lighter top, nubs and a few hanging petals."""
-        x0, z0 = cx - w // 2, cz - w // 2
-        v.box(x0 + 1, cy, z0, x0 + w - 1, cy + h, z0 + w, colour)
-        v.box(x0, cy, z0 + 1, x0 + w, cy + h, z0 + w - 1, colour)
-        v.box(x0 + 1, cy + h, z0 + 1, x0 + w - 1, cy + h + 1, z0 + w - 1, colour)
-        for _ in range(1):  # nub
-            nx = rng.randint(x0 + 1, x0 + w - 3)
-            nz = rng.randint(z0 + 1, z0 + w - 3)
-            v.box(nx, cy + h + 1, nz, nx + 2, cy + h + 2, nz + 2, lighter(colour, 22))
-        for _ in range(2):  # hanging blossoms
-            hx = rng.randint(x0 + 1, x0 + w - 2)
-            hz = rng.choice([z0 - 0, z0 + w - 1])
-            v.box(hx, cy - 2, hz, hx + 1, cy, hz + 1, PINK_C)
+    def branch(x, y, z, dx, dz, length, rise):
+        for k in range(length):
+            v.box(x, y, z, x + 2, y + 2, z + 2, TRUNK)
+            x, z = x + dx, z + dz
+            if k % 2 == 1:
+                y += rise
+        return x, y, z
 
-    clump(0, 15, 0, 11, 4, PINK_A)      # top centre
-    clump(8, 13, 1, 9, 4, PINK_B)       # right
-    clump(-7, 14, 1, 8, 4, PINK_C)      # left
-    clump(0, 12, -8, 8, 3, PINK_B)      # back
-    clump(3, 11, 7, 7, 3, PINK_A)       # front, lower
+    ends = [
+        branch(1, 20, 0, 1, 0, 9, 1),     # right
+        branch(-1, 21, 0, -1, 0, 8, 1),   # left
+        branch(0, 19, -1, 0, -1, 7, 1),   # back
+        branch(1, 18, 1, 1, 1, 6, 1),     # front right
+        branch(0, 22, 1, -1, 1, 6, 1),    # front left
+    ]
+
+    def clump(cx, cy, cz, w, h):
+        """Stacked rounded tiers: underside, body (chamfered), two lighter top tiers."""
+        def tier(y0, y1, half, colour, chamfer=1):
+            v.box(cx - half + chamfer, y0, cz - half, cx + half - chamfer, y1, cz + half, colour)
+            v.box(cx - half, y0, cz - half + chamfer, cx + half, y1, cz + half - chamfer, colour)
+        half = w // 2
+        tier(cy - 1, cy, half - 2, PINK_D)                  # darker underside
+        tier(cy, cy + h, half, PINK_B, 2)                   # body
+        tier(cy + h, cy + h + 1, half - 1, PINK_A, 2)       # lighter top tiers
+        tier(cy + h + 1, cy + h + 2, half - 3, PINK_C, 1)
+        for _ in range(3):                                  # highlight specks on top
+            hx = rng.randint(cx - half + 3, cx + half - 4)
+            hz = rng.randint(cz - half + 3, cz + half - 4)
+            v.box(hx, cy + h + 2, hz, hx + 2, cy + h + 3, hz + 2, PINK_W)
+        for _ in range(3):                                  # hanging blossoms
+            hx = rng.randint(cx - half + 2, cx + half - 3)
+            hz = rng.choice([cz - half + 1, cz + half - 2])
+            v.box(hx, cy - 3, hz, hx + 1, cy - 1, hz + 1, PINK_C)
+
+    clump(1, 29, 1, 20, 5)                                 # crown
+    (rx, ry, rz) = ends[0]
+    clump(rx + 2, ry + 1, rz, 15, 4)
+    (lx, ly, lz) = ends[1]
+    clump(lx - 1, ly + 2, lz, 14, 4)
+    (bx, by, bz) = ends[2]
+    clump(bx, by + 1, bz - 2, 13, 4)
+    (fx, fy, fz) = ends[3]
+    clump(fx + 1, fy, fz + 2, 12, 4)
+    (gx, gy, gz) = ends[4]
+    clump(gx - 1, gy + 1, gz + 2, 12, 3)
     return v
+
+
+PINK_D, PINK_W = rgb(226, 116, 160), rgb(255, 232, 240)
+TRUNK_D = rgb(76, 50, 30)
 
 
 STONE, STONE_D, STONE_L = rgb(150, 150, 158), rgb(118, 118, 128), rgb(176, 176, 184)
@@ -364,6 +399,84 @@ def grass_tuft():
     return v
 
 
+def bamboo_shoot():
+    """A little clump of young bamboo shoots with pale nodes and a leaf (about 2 studs),
+    scattered over the lawns (2026-10-09, user: more ground detail)."""
+    v = Vox(unit=0.25)
+    stalks = [(0, 0, 8), (2, 1, 6), (-1, 2, 5), (1, -2, 4)]
+    for x, z, h in stalks:
+        v.box(x, 0, z, x + 1, h, z + 1, BAMBOO_G)
+        for y in range(2, h, 3):
+            v.set(x, y, z, BAMBOO_N)                        # nodes
+        v.set(x, h, z, BAMBOO_L)                            # pale tip
+    v.box(1, 7, 0, 3, 8, 1, LEAF_B)                         # leaves
+    v.box(-2, 5, 2, 0, 6, 3, LEAF_A)
+    v.box(-1, 0, -1, 3, 1, 3, LEAF_A)                       # grassy base
+    return v
+
+
+def hot_tub():
+    """A round wooden hot tub (2026-10-09, user's Capybara Onsen reference): plank
+    staves in two shades, a cream band, a lighter rim, on a dark stone foot ring.
+    Unit 0.25: about 6.5 studs across, 2.5 tall. Water, steam and a brainrot are added
+    in code (Decor.hotTub)."""
+    import math as _m
+    v = Vox(unit=0.25, solid=True)
+    for x in range(-13, 13):
+        for z in range(-13, 13):
+            d = _m.hypot(x + 0.5, z + 0.5)
+            if d > 13:
+                continue
+            if d > 11.6:
+                v.set(x, 0, z, TUB_STONE)                       # stone foot ring
+            if d <= 11.6:
+                v.set(x, 0, z, TUB_FLOOR)
+            if 9.6 < d <= 11.6:
+                stave = int((_m.atan2(z + 0.5, x + 0.5) + _m.pi) / (2 * _m.pi) * 18) % 2
+                for y in range(1, 10):
+                    c = TUB_A if stave == 0 else TUB_B
+                    if y in (4, 5):
+                        c = TUB_BAND
+                    if y == 9:
+                        c = TUB_RIM
+                    v.set(x, y, z, c)
+            elif d <= 9.6:
+                v.set(x, 1, z, TUB_FLOOR)                       # inside floor
+    return v
+
+
+TUB_A, TUB_B, TUB_BAND = rgb(200, 140, 70), rgb(184, 124, 58), rgb(244, 228, 196)
+TUB_RIM, TUB_FLOOR, TUB_STONE = rgb(214, 156, 86), rgb(140, 92, 50), rgb(96, 100, 116)
+
+
+def make_flower(petal, centre):
+    """A little flower: stem with two leaves, a cross of petals round a centre."""
+    def build():
+        v = Vox(unit=0.2)
+        v.box(0, 0, 0, 1, 5, 1, LEAF_A)                     # stem
+        v.box(1, 1, 0, 3, 2, 1, LEAF_B)                     # leaves
+        v.box(-2, 2, 0, 0, 3, 1, LEAF_B)
+        v.box(-1, 5, 0, 2, 6, 1, petal)                     # petals
+        v.box(0, 5, -1, 1, 6, 2, petal)
+        v.box(-1, 6, -1, 2, 7, 2, petal)
+        v.box(0, 7, 0, 1, 8, 1, centre)                     # centre on top
+        v.set(0, 6, -2, petal)
+        v.set(0, 6, 2, petal)
+        v.set(-2, 6, 0, petal)
+        v.set(2, 6, 0, petal)
+        return v
+    return build
+
+
+BAMBOO_G, BAMBOO_N, BAMBOO_L = rgb(92, 186, 72), rgb(150, 220, 110), rgb(196, 236, 150)
+FLOWERS = {
+    "Flower1": make_flower(rgb(255, 150, 196), rgb(255, 220, 80)),   # pink
+    "Flower2": make_flower(rgb(250, 250, 255), rgb(255, 200, 40)),   # white daisy
+    "Flower3": make_flower(rgb(140, 160, 255), rgb(255, 240, 160)),  # blue
+    "Flower4": make_flower(rgb(255, 214, 60), rgb(230, 120, 40)),    # yellow
+}
+
+
 BUCKET_WOOD, BUCKET_BAND = rgb(196, 140, 84), rgb(120, 120, 130)
 TOWEL_A, TOWEL_B, TOWEL_C = rgb(250, 250, 252), rgb(140, 200, 255), rgb(255, 176, 196)
 DUCK_Y, DUCK_O = rgb(255, 220, 50), rgb(255, 140, 30)
@@ -398,6 +511,182 @@ def rubber_duck():
     v.set(0, 5, -2, BLACK)
     v.box(2, 2, 2, 4, 4, 4, DUCK_Y)                    # tail
     return v
+
+
+def planter():
+    """A wooden flower box with bamboo shoots and flowers, for beside the stations
+    (about 3 x 1.5 x 3 studs, 2026-10-06)."""
+    v = Vox(unit=0.25)
+    v.box(-6, 0, -3, 6, 4, 3, BUCKET_WOOD)                # box
+    v.box(-6, 3, -3, 6, 4, -2, darker(BUCKET_WOOD, 30))   # rim, front
+    v.box(-6, 3, 2, 6, 4, 3, darker(BUCKET_WOOD, 30))     # rim, back
+    v.box(-5, 4, -2, 5, 5, 2, LEAF_A)                     # leaves over the soil
+    for x, h in ((-4, 9), (-1, 12), (3, 10)):
+        v.box(x, 5, -1, x + 1, 5 + h, 0, rgb(96, 196, 70))   # bamboo shoots
+        v.box(x - 1, 4 + h, -1, x + 2, 5 + h, 0, LEAF_B)
+    for x, z, c in ((-3, -2, FLOWER_P), (1, 1, FLOWER_W), (4, -2, FLOWER_P), (-5, 1, FLOWER_W)):
+        v.box(x, 5, z, x + 1, 6, z + 1, c)
+    return v
+
+
+TUNG_WOOD, TUNG_BARK, TUNG_CUT = rgb(206, 150, 92), rgb(140, 92, 52), rgb(236, 200, 146)
+TUNG_EYE, TUNG_PUPIL, TUNG_NOSE = rgb(255, 255, 255), rgb(36, 28, 24), rgb(236, 120, 70)
+TUNG_GRAIN, BAT_WOOD = rgb(176, 124, 74), rgb(150, 98, 52)
+
+
+def tung_host():
+    """Tung Tung Tung Sahur for the tutorial host (2026-10-09 redesign from the user's
+    cartoon references): a tall rounded wooden log with vertical wood grain and a wavy
+    top, small round black eyes with a shine, a round orange nose and a smile, stick
+    arms and legs with little feet. His right arm holding the bat up is TungHostArm
+    (it waves). Unit 0.2."""
+    v = Vox(unit=0.2)
+    for x in (-2, 2):                                          # stick legs
+        v.box(x, 1, 0, x + 1, 7, 1, TUNG_BARK)
+    v.box(-3, 0, -2, -1, 1, 1, TUNG_BARK)                      # feet
+    v.box(2, 0, -2, 4, 1, 1, TUNG_BARK)
+    v.box(-5, 7, -3, 6, 27, 4, TUNG_WOOD)                      # the log
+    for x, z in ((-5, -3), (5, -3), (-5, 3), (5, 3)):          # rounded edges
+        for y in range(7, 27):
+            v.v.pop((x, y, z), None)
+    v.box(-4, 27, -2, 5, 28, 3, TUNG_CUT)                      # wavy top
+    for x, z in ((-2, 0), (1, -1), (3, 1), (0, 2)):
+        v.set(x, 28, z, TUNG_CUT)
+    for x, z, y0, y1 in ((-3, -3, 8, 18), (3, -3, 9, 19), (-1, -3, 8, 12), (1, -3, 9, 12),
+                         (-2, -3, 23, 26), (2, -3, 23, 26),
+                         (-5, -1, 8, 26), (-5, 1, 9, 24), (5, -1, 10, 25), (5, 1, 8, 23), (-4, -3, 10, 24), (4, -3, 9, 22),
+                         (-2, 3, 8, 26), (0, 3, 9, 25), (2, 3, 8, 24)):
+        v.box(x, y0, z, x + 1, y1, z + 1, TUNG_GRAIN)          # wood grain
+    f = -4                                                     # face plane, in front of the log
+    for ex in (-3, 2):
+        v.box(ex, 19, f, ex + 2, 22, f + 1, TUNG_PUPIL)        # round black eyes
+        v.set(ex, 21, f, TUNG_EYE)                             # shine
+    v.box(0, 16, -5, 1, 18, -3, TUNG_NOSE)                     # round nose
+    v.box(-1, 13, f, 2, 14, f + 1, TUNG_PUPIL)                 # smile
+    v.set(-2, 14, f, TUNG_PUPIL)
+    v.set(2, 14, f, TUNG_PUPIL)
+    v.box(6, 11, 0, 7, 19, 1, TUNG_WOOD)                       # left stick arm (viewer's right)
+    v.set(6, 10, 0, TUNG_BARK)
+    return v
+
+
+def tung_host_arm():
+    """Tung's right stick arm, the shoulder at the top, holding his bat up in front of
+    it; the host rotates it about the shoulder to wave."""
+    v = Vox(unit=0.2)
+    v.box(0, 0, 0, 1, 8, 1, TUNG_WOOD)                         # arm
+    v.set(0, -1, 0, TUNG_BARK)                                 # hand
+    v.box(0, -3, -1, 1, 4, 0, BAT_WOOD)                        # bat handle in the hand
+    v.box(-1, 4, -2, 1, 15, 0, BAT_WOOD)                       # bat barrel, pointing up
+    v.box(-1, 15, -2, 1, 16, 0, darker(BAT_WOOD, 20))
+    return v
+
+
+KOI_WHITE, KOI_RED, KOI_DARK = rgb(246, 246, 250), rgb(232, 70, 52), rgb(40, 36, 40)
+STATUE_STONE = rgb(170, 172, 180)
+
+
+def koi_statue():
+    """A fountain koi (2026-10-09, user reference "Spitting Koi Fish Fountain"; more
+    detail the same day): a white koi with red patches leaping up out of its fanned
+    tail on a two-step stone pedestal, leaning forward, big open mouth at the front
+    (-z) top where server/Plots adds the water spout. Unit 0.2, about 2 x 4.5 studs."""
+    v = Vox(unit=0.2)
+    lip = rgb(255, 150, 70)
+    eye_ring = rgb(255, 255, 255)
+    stone_d = darker(STATUE_STONE, 24)
+    # pedestal: wide step, narrower top with a darker edge
+    v.box(-5, 0, -5, 5, 2, 5, stone_d)
+    v.box(-4, 2, -4, 4, 3, 4, STATUE_STONE)
+    # tail fanned out on the pedestal, behind (+z)
+    v.box(-4, 3, 1, 4, 4, 5, KOI_RED)
+    v.box(-3, 4, 2, 3, 5, 4, KOI_WHITE)
+    v.box(-5, 3, 3, -3, 5, 5, KOI_RED)
+    v.box(3, 3, 3, 5, 5, 5, KOI_RED)
+    # body: narrow at the tail, thick in the middle, leaning forward as it rises
+    v.box(-2, 3, -1, 2, 7, 2, KOI_WHITE)
+    v.box(-3, 7, -2, 3, 12, 2, KOI_WHITE)
+    v.box(-3, 12, -3, 3, 15, 1, KOI_WHITE)
+    # head, forward and up, with a big open mouth and orange lips
+    v.box(-3, 15, -5, 3, 19, 0, KOI_WHITE)
+    v.box(-2, 16, -6, 2, 19, -5, lip)                 # lips
+    v.box(-1, 17, -6, 1, 18, -5, KOI_DARK)            # the open mouth
+    v.box(-1, 17, -5, 1, 18, -4, KOI_DARK)
+    for x in (-3, 2):
+        v.box(x, 16, -4, x + 1, 18, -2, eye_ring)       # eyes
+        v.set(x + (0 if x < 0 else 0), 17, -3, KOI_DARK)
+    # red patches, a little irregular
+    v.box(-3, 9, -2, -2, 12, 1, KOI_RED)
+    v.box(2, 8, -1, 3, 10, 2, KOI_RED)
+    v.box(-1, 18, -3, 2, 19, 0, KOI_RED)              # cap patch on the head
+    v.box(-3, 13, -2, -2, 15, 0, KOI_RED)
+    # dorsal fin along the back, pectoral fins on the sides
+    v.box(-1, 9, 2, 1, 15, 3, KOI_RED)
+    v.box(-1, 11, 3, 1, 14, 4, KOI_RED)
+    v.box(-5, 9, -1, -3, 10, 1, KOI_RED)
+    v.box(3, 9, -1, 5, 10, 1, KOI_RED)
+    v.box(-4, 8, -1, -3, 9, 1, KOI_WHITE)
+    v.box(3, 8, -1, 4, 9, 1, KOI_WHITE)
+    return v
+
+
+def make_koi(base, patch, patches, fin):
+    """A swimming koi seen from above (2026-10-09, user: the block fish looked bad):
+    rounded head with pink lips and eyes at the front (-z), a plump body tapering to
+    a fanned two-lobed tail, side fins and a dorsal fin, patches of a second colour.
+    Unit 0.125: about 0.9 x 2.4 studs. KoiController swims them round the pond."""
+    def build():
+        v = Vox(unit=0.125)
+        v.box(-1, 0, -10, 1, 2, -9, rgb(240, 150, 150))      # lips
+        v.box(-2, 0, -9, 2, 3, -7, base)                       # head
+        v.box(-3, 0, -7, 3, 3, 1, base)                        # body
+        v.box(-2, 3, -6, 2, 4, 0, base)                        # rounded back
+        v.box(-2, 0, 1, 2, 3, 4, base)
+        v.box(-1, 0, 4, 1, 2, 6, base)                         # tail root
+        for x0, y0, z0, x1, y1, z1 in patches:
+            v.box(x0, y0, z0, x1, y1, z1, patch)
+        v.box(-2, 1, 6, 2, 2, 7, fin)                          # tail fan
+        v.box(-3, 1, 7, 3, 2, 9, fin)
+        for x in (-3, 2):                                      # eyes
+            v.set(x if x < 0 else x - 1, 2, -8, KOI_DARK)
+        v.box(-5, 0, -5, -3, 1, -2, fin)                       # side fins
+        v.box(3, 0, -5, 5, 1, -2, fin)
+        v.box(-6, 0, -4, -5, 1, -2, fin)
+        v.box(5, 0, -4, 6, 1, -2, fin)
+        v.box(0, 4, -3, 1, 5, 1, fin)                          # dorsal fin
+        # notch between the tail lobes
+        for z in (8,):
+            for x in (-1, 0):
+                v.v.pop((x, 1, z), None)
+        return v
+    return build
+
+
+KOI_ORANGE, KOI_GOLD = rgb(255, 128, 40), rgb(255, 196, 60)
+KOI_FIN = rgb(255, 236, 228)
+KOIS = {
+    # kohaku: white with red patches
+    "Koi1": make_koi(KOI_WHITE, KOI_RED, [(-2, 2, -9, 2, 3, -7), (-2, 2, -5, 1, 4, -1), (0, 2, 0, 2, 3, 3)], KOI_FIN),
+    # orange with white patches
+    "Koi2": make_koi(KOI_ORANGE, KOI_WHITE, [(-1, 2, -8, 2, 3, -6), (-2, 2, -2, 2, 4, 1)], rgb(255, 210, 170)),
+    # gold
+    "Koi3": make_koi(KOI_GOLD, rgb(255, 240, 160), [(-1, 3, -5, 1, 4, 0)], rgb(255, 232, 170)),
+    # sanke: white, red and black spots
+    "Koi4": make_koi(KOI_WHITE, KOI_RED, [(-2, 2, -6, 0, 4, -3), (1, 2, -1, 2, 3, 2)], KOI_FIN),
+}
+
+
+_sanke_base = KOIS["Koi4"]
+
+
+def _sanke():
+    v = _sanke_base()
+    for x, y, z in ((1, 3, -4), (-2, 2, 1), (2, 2, -6), (0, 3, -1)):
+        v.set(x, y, z, KOI_DARK)
+    return v
+
+
+KOIS["Koi4"] = _sanke
 
 
 def entrance_gate():
@@ -441,195 +730,384 @@ def market_board_frame():
 
 
 # ------------------------------------------------------------- drop items
-# The 20 tier drop items (Config/Tiers item names), chunky voxels in the map's
-# style: about 2 studs across (unit 0.25, 8 voxels), few colours so they merge to
-# a handful of boxes each (up to 50 float per plot).
+# The 20 tier drop items (Config/Tiers item names) in the map's voxel style: about
+# 2 studs across at unit 0.125 (16 voxels; 2026-10-09 redrawn in more detail, user:
+# "they just look like blocks"), with highlights and small details. Up to 50 float
+# per plot, so keep each to a few dozen boxes.
 
-DU = 0.25
-YEL, YEL_D = rgb(255, 214, 60), rgb(222, 164, 30)
-ORG, ORG_L = rgb(255, 128, 60), rgb(255, 176, 120)
-BLK, GRY = rgb(44, 44, 52), rgb(150, 150, 160)
-WHT, CYN, CYN_L = rgb(245, 248, 255), rgb(120, 220, 255), rgb(200, 244, 255)
-RED, GRN, GRN_D = rgb(232, 60, 60), rgb(96, 196, 70), rgb(58, 140, 44)
-BRN, BRN_D, BRN_L = rgb(140, 88, 50), rgb(96, 58, 32), rgb(196, 140, 90)
-BLU, GOLD, GOLD_L = rgb(70, 130, 240), rgb(255, 196, 40), rgb(255, 236, 140)
+DU = 0.125  # 16 voxels = 2 studs
+YEL, YEL_D, YEL_L = rgb(255, 210, 60), rgb(214, 156, 28), rgb(255, 236, 140)
+ORG, ORG_L, ORG_D = rgb(255, 128, 60), rgb(255, 184, 130), rgb(214, 86, 34)
+BLK, BLK_L, GRY, GRY_L = rgb(40, 40, 48), rgb(78, 78, 90), rgb(150, 150, 162), rgb(212, 214, 222)
+WHT, CYN, CYN_L, CYN_D = rgb(248, 250, 255), rgb(120, 214, 250), rgb(206, 244, 255), rgb(76, 170, 222)
+RED, RED_D, GRN, GRN_D, GRN_L = rgb(234, 58, 58), rgb(176, 30, 40), rgb(96, 196, 70), rgb(52, 136, 44), rgb(160, 230, 110)
+BRN, BRN_D, BRN_L = rgb(140, 88, 50), rgb(92, 56, 30), rgb(200, 146, 94)
+BLU, BLU_D, GOLD, GOLD_L, GOLD_D = rgb(70, 130, 240), rgb(40, 84, 190), rgb(255, 192, 40), rgb(255, 238, 150), rgb(206, 140, 20)
 PNK = rgb(255, 150, 190)
 
 
-def rounded(v, r, y0, h, c):
-    """A chunky rounded cube of half-width r from y0 up h voxels: three crossed boxes
-    (cheap: 3 boxes, where a voxel sphere would split into 20+)."""
-    v.box(-r, y0 + 1, -r + 1, r, y0 + h - 1, r - 1, c)
-    v.box(-r + 1, y0 + 1, -r, r - 1, y0 + h - 1, r, c)
-    v.box(-r + 1, y0, -r + 1, r - 1, y0 + h, r - 1, c)
+def ell(v, cx, cy, cz, rx, ry, rz, c):
+    """Ellipsoid centred on (cx, cy, cz) (voxel centres), radii in voxels."""
+    for x in range(int(cx - rx) - 1, int(cx + rx) + 2):
+        for y in range(int(cy - ry) - 1, int(cy + ry) + 2):
+            for z in range(int(cz - rz) - 1, int(cz + rz) + 2):
+                if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rz) ** 2 <= 1:
+                    v.v[(x, y, z)] = c
+
+
+def disc_z(v, cx, cy, z0, z1, r, c):
+    """A disc facing the front (axis along z), z0..z1-1."""
+    for x in range(int(cx - r) - 1, int(cx + r) + 2):
+        for y in range(int(cy - r) - 1, int(cy + r) + 2):
+            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                for z in range(z0, z1):
+                    v.v[(x, y, z)] = c
+
+
+def light_top(v, c_from, c_to):
+    """Recolours the exposed top voxels of colour c_from (a highlight)."""
+    for (x, y, z), c in list(v.v.items()):
+        if c == c_from and (x, y + 1, z) not in v.v:
+            v.v[(x, y, z)] = c_to
+
+
+def front(v, c_from, c_to):
+    """Recolours the frontmost (-z) voxels of colour c_from."""
+    for (x, y, z), c in list(v.v.items()):
+        if c == c_from and (x, y, z - 1) not in v.v:
+            v.v[(x, y, z)] = c_to
 
 
 def drop_cheese():
+    """A wedge with a pale rind on top, holes on every face."""
     v = Vox(DU)
-    v.box(-4, 0, -3, 4, 5, 3, YEL)
-    for x, y in ((-2, 3), (1, 1), (2, 3)):
-        v.set(x, y, -3, YEL_D)          # holes on the front face
+    for z in range(-6, 7):
+        w = 7 - (z + 6) // 2
+        v.box(-w, 0, z, w + 1, 9, z + 1, YEL)
+    light_top(v, YEL, YEL_L)
+    for x, y, z in ((-4, 6, -6), (2, 3, -6), (4, 7, -6), (-1, 2, -6), (-3, 3, -5), (3, 8, -1), (-2, 8, 2), (5, 5, -4)):
+        for dx in (0, 1):
+            for dy in (0, 1):
+                v.v.pop((x + dx, y + dy, z), None)      # carve the hole
+                v.v[(x + dx, y + dy, z + 1)] = YEL_D    # its shadowed back
     return v
 
 
 def drop_shrimp():
+    """A curled shrimp: banded body along an arc, fanned tail, eye, antennae, legs."""
     v = Vox(DU)
-    for i, (x, y) in enumerate(((-3, 0), (-1, 1), (1, 2), (2, 4))):
-        v.box(x, y, -2, x + 3, y + 3, 2, ORG if i % 2 == 0 else ORG_L)
-    v.box(-5, 0, -2, -3, 2, 2, ORG_L)   # tail fan
+    import math as _m
+    for i in range(9):
+        a = _m.radians(200 - i * 26)
+        cx, cy = _m.cos(a) * 5, _m.sin(a) * 5 + 6
+        r = 3.2 - i * 0.22
+        ell(v, cx, cy, 0, r, r, 2.6, ORG if i % 2 == 0 else ORG_L)
+    for dx, dy in ((5, 1), (6, 0), (6, 2), (7, 1)):          # tail fan
+        v.box(dx, dy, -2, dx + 1, dy + 1, 3, ORG_D)
+    v.box(-6, 8, -3, -5, 9, -2, BLK)                          # eye
+    v.box(-5, 9, -3, -4, 10, -2, WHT)
+    for i in range(6):                                        # antennae
+        v.set(-7 - i // 2, 10 + i, -1, ORG_D)
+        v.set(-6 - i // 2, 11 + i, 1, ORG_D)
+    for x in (-3, -1, 1):                                     # little legs
+        v.box(x, 1, -2, x + 1, 3, -1, ORG_D)
     return v
 
 
 def drop_tire():
+    """A standing tyre: black ring with tread blocks, silver rim, hub and bolts."""
     v = Vox(DU)
-    v.cylinder(0, 0, 0, 3, 4, BLK)
-    v.cylinder(0, 0, 0, 3, 1.6, GRY)
+    disc_z(v, 0, 7, -3, 3, 7.5, BLK)
+    import math as _m
+    for k in range(12):                                       # tread blocks round the outside
+        a = k * _m.pi / 6
+        x, y = round(_m.cos(a) * 7.5), round(_m.sin(a) * 7.5) + 7
+        v.box(x, y, -3, x + 1, y + 1, 3, BLK_L)
+    disc_z(v, 0, 7, -4, -3, 4.6, GRY)                         # rim (front)
+    disc_z(v, 0, 7, -4, -3, 3.2, GRY_L)
+    disc_z(v, 0, 7, -5, -4, 1.4, GRY)                         # hub
+    for x, y in ((-2, 7), (2, 7), (0, 9), (0, 5)):
+        v.set(x, y, -4, BLK_L)                                # bolts
     return v
 
 
 def drop_ice():
+    """An ice cube: pale bevelled edges, a shine streak, a bubble or two."""
     v = Vox(DU)
-    v.box(-3, 0, -3, 3, 6, 3, CYN)
-    v.box(-3, 5, -3, 3, 6, 3, CYN_L)
-    v.box(-3, 0, -3, -2, 6, -2, CYN_L)
+    v.box(-5, 0, -5, 6, 11, 6, CYN)
+    for x in (-5, 5):                                         # bevel the vertical edges
+        for z in (-5, 5):
+            for y in range(0, 11):
+                v.v.pop((x, y, z), None)
+    light_top(v, CYN, CYN_L)
+    for y in range(1, 10):
+        v.set(-4, y, -5, CYN_L)                               # front-left edge highlight
+    for i in range(5):
+        v.set(-2 + i, 3 + i, -5, WHT)                         # diagonal shine
+        v.set(-1 + i, 3 + i, -5, WHT)
+    for x, y in ((3, 2), (2, 4)):
+        v.set(x, y, -5, CYN_D)                                # bubbles
     return v
 
 
 def drop_clock():
+    """An alarm clock: red body, white face with marks and hands, twin bells, legs."""
     v = Vox(DU)
-    v.cylinder(0, 0, 0, 2, 4, RED)
-    v.cylinder(0, 0, 2, 3, 3.2, WHT)
-    v.box(0, 3, -2, 1, 4, 1, BLK)       # hands
-    v.box(0, 3, 0, 2, 4, 1, BLK)
+    disc_z(v, 0, 7, -2, 3, 6.5, RED)
+    disc_z(v, 0, 7, -3, -2, 5.2, WHT)
+    for x, y in ((0, 11), (0, 3), (-4, 7), (4, 7)):
+        v.set(x, y, -3, BLK)                                  # 12 / 6 / 9 / 3
+    v.box(0, 7, -4, 1, 11, -3, BLK)                           # minute hand
+    v.box(1, 7, -4, 3, 8, -3, BLK)                            # hour hand
+    v.set(0, 7, -4, RED_D)
+    ell(v, -4, 13, 0, 2.2, 1.6, 2.2, GOLD)                    # bells
+    ell(v, 4, 13, 0, 2.2, 1.6, 2.2, GOLD)
+    v.box(-1, 13, 0, 2, 14, 1, GOLD_D)                        # hammer
+    for x in (-4, 4):
+        v.box(x, -1, -1, x + 1, 1, 1, BLK)                    # legs
+    light_top(v, RED, rgb(255, 110, 110))
     return v
 
 
 def drop_banana():
+    """A curved banana with a brown stem and tip and a ridge line."""
     v = Vox(DU)
-    for x, y in ((-4, 3), (-2, 1), (0, 0), (2, 1), (3, 3)):
-        v.box(x, y, -1, x + 2, y + 2, 1, YEL)
-    v.box(4, 5, -1, 5, 6, 0, BRN_D)
+    import math as _m
+    for i in range(13):
+        a = _m.radians(200 + i * 11.5)
+        cx, cy = _m.cos(a) * 8, _m.sin(a) * 8 + 10
+        ell(v, cx, cy, 0, 2.2, 2.2, 2.2, YEL)
+    light_top(v, YEL, YEL_L)
+    import math as _m2
+    for i in range(1, 12):
+        a = _m2.radians(200 + i * 11.5)
+        v.set(round(_m2.cos(a) * 8), round(_m2.sin(a) * 8 + 10), -2, YEL_D)   # ridge
+    v.box(6, 6, -1, 8, 9, 1, BRN)                             # stem
+    v.box(-8, 6, -1, -7, 7, 1, BRN_D)                         # tip
     return v
 
 
 def drop_leaf():
+    """A pointed leaf, lighter on one half, with a vein and side veins, and a stem."""
     v = Vox(DU)
-    for i, w in enumerate((1, 2, 3, 3, 2, 1)):
-        v.box(-w, 0, -3 + i, w, 1, -2 + i, GRN)
-    v.box(0, 1, -3, 1, 2, 3, GRN_D)     # vein
+    for z in range(-7, 8):
+        w = int(round(5 * (1 - (z / 7.5) ** 2)))
+        v.box(-w, 0, z, w + 1, 2, z + 1, GRN)
+        v.box(0, 1, z, w + 1, 2, z + 1, GRN_L)                # lit half
+    v.box(0, 2, -6, 1, 3, 8, GRN_D)                           # vein
+    for z, s in ((-3, 1), (0, -1), (2, 1), (4, -1), (-1, 1)):
+        for k in range(1, 4):
+            v.set(s * k, 2, z + k, GRN_D)                     # side veins
+    v.box(0, 1, 8, 1, 2, 10, BRN)                             # stem
     return v
 
 
 def drop_feather():
+    """A curved feather: white vane with blue tips, barb lines, grey quill."""
     v = Vox(DU)
-    for i, w in enumerate((1, 2, 2, 2, 1)):
-        v.box(-w, i, -1, w, i + 1, 0, WHT if i < 4 else CYN_L)
-    v.box(0, -2, -1, 1, 0, 0, GRY)      # quill
-    v.box(-2, 1, -1, 2, 5, 0, WHT)
+    for y in range(0, 15):
+        bend = (y * y) // 40
+        w = 1 if y < 2 else (3 if y < 12 else 2)
+        if y >= 2:
+            v.box(-w + bend, y, -1, w + 1 + bend, y + 1, 1, WHT if y < 12 else CYN)
+            if y % 3 == 0:
+                v.set(-w + bend, y, -1, CYN_L)                # barb lines
+                v.set(w + bend, y, -1, CYN_L)
+        v.set(bend, y, -2, GRY)                               # the shaft
+    v.box(0, -2, -2, 1, 2, -1, GRY_L)                         # quill
     return v
 
 
 def drop_bean():
+    """A coffee bean: glossy brown oval with its S-shaped groove."""
     v = Vox(DU)
-    rounded(v, 3, 0, 5, BRN)
-    v.box(-1, 4, -3, 1, 5, 3, BRN_D)     # the split
+    ell(v, 0, 5, 0, 6, 5, 4.5, BRN)
+    light_top(v, BRN, BRN_L)
+    for z in range(-5, 6):
+        x = round(1.2 * (1 if z > 1 else (-1 if z < -1 else 0)))
+        v.set(x, 10, z, BRN_D)
+        v.set(x, 9, z, BRN_D)
+    v.set(-3, 9, -2, rgb(240, 200, 150))                      # shine
     return v
 
 
 def drop_cup():
+    """A cappuccino: white cup on a saucer, coffee with a cream heart, handle, steam."""
     v = Vox(DU)
-    rounded(v, 3, 0, 6, WHT)
-    v.box(-2, 5, -2, 2, 6, 2, BRN)
-    v.box(3, 2, -1, 5, 5, 1, WHT)       # handle
+    for y in range(0, 2):                                     # saucer
+        for x in range(-8, 9):
+            for z in range(-8, 9):
+                if x * x + z * z <= 60:
+                    v.v[(x, y, z)] = GRY_L
+    v.cylinder(0, 0, 2, 10, 5.5, WHT)                         # cup
+    v.cylinder(0, 0, 9, 10, 4.5, BRN)                         # coffee
+    for x, z in ((-1, 0), (1, 0), (-2, -1), (2, -1), (-1, -1), (0, -1), (1, -1), (0, 1), (-2, -2), (-1, -2), (1, -2), (2, -2)):
+        v.set(x, 9, z, rgb(250, 230, 200))                    # cream heart
+    v.box(6, 4, -1, 7, 8, 1, WHT)                             # handle
+    v.box(5, 7, -1, 7, 8, 1, WHT)
+    v.box(5, 4, -1, 7, 5, 1, WHT)
+    for i, (x, z) in enumerate(((0, 0), (1, 0), (0, 0), (-1, 0))):
+        v.set(x, 11 + i, z, GRY_L)                            # steam
     return v
 
 
 def drop_bomb():
-    v = Vox(DU, glow={ORG})
-    rounded(v, 3, 0, 6, BLK)
-    v.box(-1, 6, -1, 1, 7, 1, GRY)
-    v.box(0, 7, 0, 1, 9, 1, ORG)        # lit fuse
+    """A cartoon bomb: black ball with a shine, grey cap, curly fuse, glowing spark."""
+    v = Vox(DU, glow={YEL, ORG})
+    ell(v, 0, 6, 0, 6.5, 6.5, 6.5, BLK)
+    for x, y in ((-3, 9), (-4, 8), (-3, 8), (-2, 10)):
+        v.set(x, y, -5, BLK_L)                                # shine
+    v.cylinder(0, 0, 12, 14, 2, GRY)
+    for i, (x, y) in enumerate(((0, 14), (1, 15), (2, 16), (2, 17))):
+        v.set(x, y, 0, BRN)                                   # fuse
+    v.set(3, 18, 0, ORG)                                      # spark
+    v.set(2, 18, 0, YEL)
+    v.set(3, 17, 0, YEL)
+    v.set(4, 18, 0, YEL)
+    v.set(3, 19, 0, YEL)
     return v
 
 
+def _sneaker(v, upper, upper_d, trim, sole):
+    v.box(-8, 0, -3, 8, 2, 3, sole)                           # sole
+    v.box(-8, 2, -3, 3, 7, 3, upper)                          # body
+    v.box(3, 2, -3, 8, 4, 3, upper)                           # toe
+    v.box(5, 2, -3, 8, 3, 3, trim)                            # toe cap
+    v.box(-8, 7, -2, -4, 9, 2, upper)                         # collar / heel
+    v.box(-8, 5, -3, -7, 9, 3, upper_d)                       # heel tab
+    for x in (-3, -1, 1):
+        v.box(x, 7, -2, x + 1, 8, 2, trim)                    # laces
+    for x in range(-6, 3):                                    # side stripe
+        v.set(x, 3 + (x + 6) // 3, -3, trim)
+        v.set(x, 3 + (x + 6) // 3, 2, trim)
+    light_top(v, upper, lighter(upper, 30))
+
+
 def drop_shoe():
+    """A blue sneaker: white sole and toe cap, stripe, laces, heel tab."""
     v = Vox(DU)
-    v.box(-4, 0, -2, 4, 1, 2, WHT)      # sole
-    v.box(-4, 1, -2, 1, 4, 2, BLU)      # upper
-    v.box(1, 1, -2, 4, 2, 2, BLU)       # toe
-    v.box(-2, 3, -1, 1, 4, 1, WHT)      # laces
+    _sneaker(v, BLU, BLU_D, WHT, WHT)
     return v
 
 
 def drop_stick():
+    """Tung Tung Tung Sahur's wooden bat: knob, thin handle, thick barrel, grain."""
     v = Vox(DU)
-    v.box(-1, 0, -5, 1, 2, 5, BRN)
-    v.box(-1, 0, 5, 1, 2, 6, BRN_L)     # cut end
-    v.box(1, 1, -2, 3, 2, -1, BRN)      # twig
+    v.box(-1, 0, -9, 1, 2, -8, BRN_D)                         # knob
+    v.box(-1, 0, -8, 1, 2, -2, BRN)                           # handle
+    v.box(-2, 0, -2, 2, 3, 9, BRN)                            # barrel
+    v.box(-2, -1, 1, 2, 4, 9, BRN)
+    light_top(v, BRN, BRN_L)
+    for z in (0, 3, 6):
+        v.box(-1, 4, z, 1, 4 + 1, z + 2, BRN_D)               # grain
+    v.box(-2, -1, 9, 2, 4, 10, BRN_L)                         # cut end
     return v
 
 
 def drop_milk():
+    """A milk carton: gable top with a spout, blue label with a white drop."""
     v = Vox(DU)
-    v.box(-2, 0, -2, 2, 6, 2, WHT)
-    v.box(-2, 6, -2, 2, 8, 2, BLU)      # gable top
-    v.box(-2, 3, -2, 2, 4, -1, BLU)     # label band
+    v.box(-4, 0, -4, 5, 11, 5, WHT)
+    for i in range(4):                                        # gable roof
+        v.box(-4 + i, 11 + i, -4, 5 - i, 12 + i, 5, BLU)
+    v.box(0, 15, -4, 1, 16, 5, BLU_D)                         # fold
+    v.box(-4, 3, -4, 5, 8, -3, BLU)                           # label
+    v.box(0, 4, -5, 1, 7, -4, WHT)                            # milk drop
+    v.box(-1, 4, -5, 2, 6, -4, WHT)
     return v
 
 
 def drop_fruit():
+    """An orange: dimpled skin, highlight, stem and a leaf."""
     v = Vox(DU)
-    rounded(v, 3, 0, 6, ORG)
-    v.box(0, 6, 0, 1, 7, 1, BRN_D)
-    v.box(1, 6, -1, 3, 7, 1, GRN)
+    ell(v, 0, 6, 0, 6.5, 6.2, 6.5, ORG)
+    v.box(-3, 8, -6, -1, 10, -5, ORG_L)                       # highlight
+    for x, y, z in ((-3, 3, -6), (2, 5, -6), (4, 2, -5), (-1, 8, -6), (5, 7, -4), (-5, 6, -4)):
+        if (x, y, z) in v.v:
+            v.v[(x, y, z)] = ORG_D                            # dimples
+    v.box(0, 12, 0, 1, 14, 1, BRN)                            # stem
+    v.box(1, 13, -1, 4, 14, 2, GRN)                           # leaf
+    v.box(2, 14, 0, 4, 15, 1, GRN_D)
     return v
 
 
 def drop_coconut():
+    """A coconut: hairy brown shell (two tones), three eyes, a crack of white."""
     v = Vox(DU)
-    rounded(v, 3, 0, 6, BRN)
-    for x in (-1, 1):
-        v.set(x, 4, -3, BRN_D)          # the coconut's eyes
-    v.set(0, 3, -3, BRN_D)
+    ell(v, 0, 6, 0, 6.5, 6.5, 6.5, BRN)
+    for (x, y, z), c in list(v.v.items()):
+        if x % 3 == 0 and (x, y, z - 1) not in v.v and z < 0:
+            v.v[(x, y, z)] = BRN_D                            # fibre stripes on the front
+    for x, y in ((-2, 9), (2, 9), (0, 6)):
+        v.set(x, y, -7, rgb(60, 36, 20))                      # the eyes
     return v
 
 
 def drop_bell():
+    """A golden bell with a flared lip, top loop, clapper and a red bow."""
     v = Vox(DU, glow={GOLD_L})
-    v.cylinder(0, 0, 0, 2, 3.5, GOLD)
-    v.cylinder(0, 0, 2, 5, 2.5, GOLD)
-    v.box(-1, 5, -1, 1, 7, 1, GOLD)
-    v.box(0, -1, 0, 1, 0, 1, GOLD_L)    # clapper
+    for y in range(0, 12):
+        r = 6.5 if y < 2 else max(2.5, 6 - (y - 2) * 0.35)
+        v.cylinder(0, 0, y, y + 1, r, GOLD)
+    v.cylinder(0, 0, 0, 1, 6.5, GOLD_D)                       # lip shadow
+    v.box(-1, 12, 0, 2, 15, 1, GOLD_D)                        # loop
+    v.box(0, -2, 0, 1, 0, 1, GOLD_L)                          # clapper
+    v.box(-3, 10, -4, 4, 12, -2, RED)                         # bow
+    v.box(-1, 9, -5, 2, 13, -4, RED_D)
     return v
 
 
 def drop_star():
+    """A thick five-pointed star, lit facets, glowing centre."""
     v = Vox(DU, glow={GOLD_L})
-    v.box(-4, 2, -1, 4, 4, 1, GOLD)
-    v.box(-1, 0, -1, 1, 7, 1, GOLD)
-    v.box(-3, 0, -1, -2, 2, 1, GOLD)
-    v.box(2, 0, -1, 3, 2, 1, GOLD)
-    v.box(-1, 2, -1, 1, 4, 1, GOLD_L)   # bright centre
+    import math as _m
+    pts = []
+    for k in range(10):
+        a = _m.pi / 2 + k * _m.pi / 5
+        r = 8 if k % 2 == 0 else 3.4
+        pts.append((_m.cos(a) * r, _m.sin(a) * r + 8))
+
+    def inside(x, y):
+        n, ok = len(pts), False
+        j = n - 1
+        for i in range(n):
+            xi, yi = pts[i]
+            xj, yj = pts[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                ok = not ok
+            j = i
+        return ok
+
+    for x in range(-9, 10):
+        for y in range(0, 17):
+            if inside(x + 0.5, y + 0.5):
+                v.box(x, y, -2, x + 1, y + 1, 2, GOLD)
+                if x >= 0 and y >= 8:
+                    v.set(x, y, -2, GOLD_D)                   # shaded facet
+    v.box(-2, 6, -3, 2, 10, -2, GOLD_L)                       # glowing centre
     return v
 
 
 def drop_watermelon():
+    """A watermelon slice: red flesh, seeds, white band, striped green rind."""
     v = Vox(DU)
-    for i, w in enumerate((4, 3, 2, 1)):
-        v.box(-w, i + 1, -1, w, i + 2, 1, RED)
-    v.box(-4, 0, -1, 4, 1, 1, GRN_D)    # rind
-    v.box(-4, 1, -1, 4, 2, 1, WHT)
-    for x in (-2, 0, 2):
-        v.set(x, 2, -1, BLK)            # seeds
+    for x in range(-8, 9):
+        for y in range(0, 9):
+            d = (x * x + (y + 0.5) ** 2) ** 0.5 if y >= 0 else 99
+            if d <= 8.5 and y >= 0:
+                c = RED if d < 6.5 else (WHT if d < 7.5 else GRN)
+                if c == GRN and x % 3 == 0:
+                    c = GRN_D
+                v.box(x, 8 - y, -2, x + 1, 9 - y, 2, c)
+    for x, y in ((-3, 6), (0, 5), (3, 6), (-1, 3), (2, 3)):
+        v.set(x, y, -3, BLK)                                  # seeds
     return v
 
 
 def drop_golden_shoe():
+    """The golden sneaker: gold upper, bright trim, glowing."""
     v = Vox(DU, glow={GOLD_L})
-    v.box(-4, 0, -2, 4, 1, 2, GOLD_L)
-    v.box(-4, 1, -2, 1, 4, 2, GOLD)
-    v.box(1, 1, -2, 4, 2, 2, GOLD)
-    v.box(-2, 3, -1, 1, 4, 1, GOLD_L)
+    _sneaker(v, GOLD, GOLD_D, GOLD_L, GOLD_L)
     return v
 
 
@@ -732,6 +1210,14 @@ PROPS = {
     "WashBucket": wash_bucket,
     "TowelStack": towel_stack,
     "RubberDuck": rubber_duck,
+    "Planter": planter,
+    "TungHost": tung_host,
+    "TungHostArm": tung_host_arm,
+    "KoiStatue": koi_statue,
+    "BambooShoot": bamboo_shoot,
+    "HotTub": hot_tub,
+    **FLOWERS,
+    **KOIS,
     "MarketBoardFrame": market_board_frame,
 }
 for _i, _build in enumerate(DROPS, start=1):

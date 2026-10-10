@@ -69,8 +69,7 @@ local function advance(player: Player, step: number)
 	counts[player] = 0
 	publish(player, data.tutorialStep)
 	if data.tutorialStep == Tutorial.DONE then
-		notify:FireClient(player, "Tutorial complete! Keep merging and upgrading", "newBrainrot")
-		return
+		return -- GuideController's Tung Tung Tung Sahur says Tutorial.FINISH
 	end
 	local nextId = Tutorial.STEPS[data.tutorialStep].id
 	if nextId == "merge" then

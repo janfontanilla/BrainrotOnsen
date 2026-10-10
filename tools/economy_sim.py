@@ -51,8 +51,11 @@ def load_config() -> dict:
         (n, int(u), int(w))
         for n, u, w in re.findall(r'name = "(\w+)", unlockTier = (\d+), weight = (\d+)', blocks)
     ]
-    m = re.search(r"CASH_PACK_HOURS = \{ S = ([0-9_.]+), M = ([0-9_.]+), L = ([0-9_.]+)", (CONFIG / "Economy.luau").read_text())
-    cfg["PACK_HOURS"] = {k: float(v) for k, v in zip("SML", m.groups())} if m else {}
+    econ = (CONFIG / "Economy.luau").read_text()
+    m = re.search(r"CASH_PACK_SHARE = \{ S = ([0-9_.]+), M = ([0-9_.]+), L = ([0-9_.]+)", econ)
+    cfg["PACK_SHARE"] = {k: float(v) for k, v in zip("SML", m.groups())} if m else {}
+    m = re.search(r"CASH_PACK_MIN = \{ S = ([0-9_.]+), M = ([0-9_.]+), L = ([0-9_.]+)", econ)
+    cfg["PACK_MIN"] = {k: float(v.replace("_", "")) for k, v in zip("SML", m.groups())} if m else {}
     # Upgrade Buy Tier cost growth per tier between TIER_GROWTH_FROM and _TO (1.0 = none).
     cfg.setdefault("BUY_TIER_UPGRADE_GROWTH", 1.0)
     cfg.setdefault("TIER_GROWTH_FROM", 1)
@@ -538,7 +541,7 @@ def milestone_table(res: Result):
 
 
 def packs_table(cfg: dict, res_by_name: dict):
-    print("\n=== Cash packs (hours of brainrot income) at each buy tier, vs the step to the next tier ===")
+    print("\n=== Cash packs (share of the next Upgrade Buy Tier cost) at each buy tier, vs the step to the next tier ===")
     print("| buy tier | S | M | L | that step takes (x7 / free, real time) |")
     print("|---|---|---|---|---|")
     for t in (2, 5, 10, 12, 15, 18):
@@ -548,10 +551,17 @@ def packs_table(cfg: dict, res_by_name: dict):
             ms = res_by_name[name].milestones
             a, b = ms.get(f"buy tier {t}"), ms.get(f"buy tier {t + 1}")
             steps.append(f"{(b['day'] - a['day']) * 24:.1f} h" if a and b else "-")
-        x7 = res_by_name["x7"].milestones.get(f"buy tier {t}")
-        raw = x7["income_h"] / 7 if x7 else 0  # raw Aura per hour, before the x7 pass
+        aura = cfg["AURA"]
+        tt = min(t, cfg["MAX_TIER"] - 1)
+        growth = max(0, min(tt, cfg["TIER_GROWTH_TO"]) - cfg["TIER_GROWTH_FROM"])
+        upgrade = (
+            aura[tt + 1]
+            * cfg["BASE_PRICE_MULTIPLIER"]
+            * cfg["BUY_TIER_UPGRADE_MULTIPLIER"]
+            * cfg["BUY_TIER_UPGRADE_GROWTH"] ** growth
+        )
         for size in "SML":
-            cells.append(fmt_num(max(raw, cfg["STARTING_CASH"]) * cfg["PACK_HOURS"][size]))
+            cells.append(fmt_num(max(upgrade * cfg["PACK_SHARE"][size], cfg["PACK_MIN"][size])))
         print(f"| {t} | " + " | ".join(cells) + f" | {' / '.join(steps)} |")
 
 
