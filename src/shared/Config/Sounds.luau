@@ -26,10 +26,15 @@ Sounds.CASH = "rbxassetid://134810204798705" -- "Cash Register" cha-ching: Colle
 Sounds.GOOD = "rbxassetid://72264591133889" -- bought brainrots, merges, rewards: "ui-pop-sound" (2026-10-06, was electronicpingshort)
 Sounds.SPECIAL = "rbxassetid://4612374036" -- new brainrot, lucky chest unlock: "bling_big_diamond_pickup" (2026-10-06)
 Sounds.PICKUP = "rbxassetid://7381723507" -- walking over an Aura drop: "pick_up" (2026-10-09; the bubble pop with a rising pitch sounded wonky)
-Sounds.MERGE = "rbxassetid://135968996204345" -- brainrots merged: "sparkle magic sound"
+Sounds.MERGE = "rbxassetid://72264591133889" -- brainrots merged: the "ui-pop-sound" as before (2026-10-10, user: the sparkle that replaced it was ugly)
 Sounds.LEVEL_UP = "rbxassetid://105193542038988" -- Upgrade Buy Tier: "Cute level up"
-Sounds.CHEST_OPEN = "rbxassetid://9120873624" -- the chest starts opening: "Wooden Chest Open Close Cedar Box 5" (Pro Sound Effects), soft
-Sounds.CHEST_OPEN_VOLUME = 0.6
+-- Lucky chest opening (2026-10-10, user: "a swish like you're shaking the chest, then it
+-- opens", quiet): soft swishes while it shakes (Pro Sound Effects "Swoosh Pack High
+-- End", three variations taken in turn), then a light pop as it bursts open.
+Sounds.CHEST_SWISH = { "rbxassetid://9119739861", "rbxassetid://9119740226", "rbxassetid://9119738189" }
+Sounds.CHEST_SWISH_VOLUME = 0.45
+Sounds.CHEST_POP = "rbxassetid://6586979979" -- the pad "cartoon_pop"
+Sounds.CHEST_POP_VOLUME = 0.4
 Sounds.ERROR = "rbxassetid://87519554692663" -- red toasts (not enough Cash, ...): "ui-simple-negative-error"
 Sounds.CUE_VOLUME = 0.6
 Sounds.PICKUP_VOLUME = 0.35

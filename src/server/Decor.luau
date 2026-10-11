@@ -108,9 +108,10 @@ local function part(
 	p.Size = size
 	p.CFrame = cf
 	p.Color = color
-	p.Material = material or Enum.Material.SmoothPlastic
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
+	-- Studded plastic everywhere (2026-10-10, user: the pads' Lego studs on everything in the
+	-- world except the brainrots); water, glow and skinned tiles override it after.
+	p.Material = material or Enum.Material.Plastic
+	p.MaterialVariant = "Onsen_lego" -- round Lego studs on every face (MaterialService.Onsen_lego); ignored once the material changes
 	p.Parent = parent
 	return p
 end

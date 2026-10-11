@@ -43,7 +43,7 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Grass",
-          "ColorMap": "rbxassetid://118414939328361",
+          "ColorMap": "rbxassetid://129068877312899",
           "StudsPerTile": 4
         }
       },
@@ -51,7 +51,7 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Slate",
-          "ColorMap": "rbxassetid://78647811644718",
+          "ColorMap": "rbxassetid://76484393964952",
           "StudsPerTile": 4
         }
       },
@@ -59,7 +59,7 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "WoodPlanks",
-          "ColorMap": "rbxassetid://117506550117439",
+          "ColorMap": "rbxassetid://123061829666071",
           "StudsPerTile": 4
         }
       },
@@ -67,15 +67,23 @@
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Rock",
-          "ColorMap": "rbxassetid://129130191968990",
+          "ColorMap": "rbxassetid://75834433704986",
           "StudsPerTile": 16
+        }
+      },
+      "Onsen_lego": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "Plastic",
+          "ColorMap": "rbxassetid://133713155800868",
+          "StudsPerTile": 4
         }
       },
       "Onsen_planks": {
         "$className": "MaterialVariant",
         "$properties": {
           "BaseMaterial": "Wood",
-          "ColorMap": "rbxassetid://118670792677489",
+          "ColorMap": "rbxassetid://114164033279032",
           "StudsPerTile": 4
         }
       }

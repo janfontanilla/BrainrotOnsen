@@ -12,15 +12,16 @@
 export type Entry = { id: number, studsPerTile: number }
 
 local Textures: { [string]: Entry } = {
-	grass = { id = 118414939328361, studsPerTile = 4 }, -- plot floor and ground
+	grass = { id = 129068877312899, studsPerTile = 4 }, -- plot floor and ground
 	water = { id = 124963839053487, studsPerTile = 8 }, -- baths, rivers, channel, pool
 	waterRipple = { id = 71358014600700, studsPerTile = 18 }, -- caustic ripple layer drifting over water tops (2026-10-09)
-	stone = { id = 78647811644718, studsPerTile = 4 }, -- bath bases, rims, dividers, pool rim
-	pegboard = { id = 117506550117439, studsPerTile = 4 }, -- the tall wall
-	cliff = { id = 129130191968990, studsPerTile = 16 }, -- the cliffs
+	stone = { id = 76484393964952, studsPerTile = 4 }, -- bath bases, rims, dividers, pool rim
+	pegboard = { id = 123061829666071, studsPerTile = 4 }, -- the tall wall
+	cliff = { id = 75834433704986, studsPerTile = 16 }, -- the cliffs
 	arrow = { id = 77482197620211, studsPerTile = 6 }, -- floor arrows toward the pads (not placed yet)
-	planks = { id = 118670792677489, studsPerTile = 4 }, -- slides, bridge, stall wood
+	planks = { id = 114164033279032, studsPerTile = 4 }, -- slides, bridge, stall wood
 	studs = { id = 116195014081230, studsPerTile = 1 }, -- translucent stud-edge tile (also the HUD buttons, client/Style); tiled on lucky chest faces
+	lego = { id = 133713155800868, studsPerTile = 4 }, -- round Lego studs for every other part and prop (2026-10-10, user)
 	onsen = { id = 138167444057526, studsPerTile = 8 }, -- hot-spring mark (white on transparent) for noren banners; a decal, not a tile
 }
 

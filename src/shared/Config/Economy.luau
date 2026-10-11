@@ -41,6 +41,10 @@ Economy.STUDIO_FORCE_TUTORIAL = false
 Economy.BUY_AMOUNTS = { 1, 5, 25, 100 }
 Economy.AUTO_MERGE_BUY_AMOUNT = 100 -- only this buy size auto-merges
 Economy.BASE_PRICE_MULTIPLIER = 20 -- base price = aura per drop x this
+-- Standing on a buy pad keeps buying (2026-10-10, user): first repeat after this, then
+-- one buy every BUY_REPEAT_INTERVAL seconds until the player steps off or can't buy.
+Economy.BUY_REPEAT_DELAY = 0.6
+Economy.BUY_REPEAT_INTERVAL = 0.35
 Economy.PRICE_GROWTH = 1.08 -- unit price x this per brainrot bought at the current buy tier (2026-10-04: 1.005 -> 1.08, keeps the best brainrot ~3 tiers ahead of the pads)
 -- Upgrade Buy Tier cost = next tier's base price x MULTIPLIER x GROWTH ^ tierGrowthSteps(buy tier).
 -- An expanding curve (2026-10-04, tools/economy_sim.py): fast at the start, each step

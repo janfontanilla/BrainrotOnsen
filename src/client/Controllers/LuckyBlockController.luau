@@ -201,6 +201,22 @@ local function brainrotModel(tier: number): Model
 end
 
 -- Owner's screen: chest drops in, shakes, opens into the brainrot.
+-- Plays a sound once (2D) and cleans it up.
+local function cueOnce(id: string, volume: number, pitch: number)
+	if id == "" then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = id
+	sound.Volume = volume
+	sound.PlaybackSpeed = pitch
+	sound.Parent = SoundService
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	sound:Play()
+end
+
 local function playScreenReveal(blockName: string, tier: number)
 	revealSerial += 1
 	local serial = revealSerial
@@ -209,17 +225,6 @@ local function playScreenReveal(blockName: string, tier: number)
 	local chest = Visuals.makeLuckyBlock(blockName, 4)
 	chest:PivotTo(CFrame.Angles(math.rad(-10), math.rad(-30), 0))
 	setRevealContent(chest)
-	-- A soft wooden creak as the chest starts opening (2026-10-10, user: subtle).
-	if Sounds.CHEST_OPEN ~= "" then
-		local creak = Instance.new("Sound")
-		creak.SoundId = Sounds.CHEST_OPEN
-		creak.Volume = Sounds.CHEST_OPEN_VOLUME
-		creak.Parent = SoundService
-		creak.Ended:Once(function()
-			creak:Destroy()
-		end)
-		creak:Play()
-	end
 	revealName.Text = ""
 	revealTier.Text = ""
 	revealView.Rotation = 0
@@ -235,17 +240,26 @@ local function playScreenReveal(blockName: string, tier: number)
 	):Play()
 	task.wait(DROP_TIME)
 
-	-- Shake, harder towards the end.
+	-- Shake, harder towards the end, with a soft swish on the swings (closer together
+	-- and a little higher as it shakes harder).
 	local start = os.clock()
+	local nextSwish = 0
+	local swish = 0
 	while os.clock() - start < SHAKE_TIME do
 		if revealSerial ~= serial then
 			return
 		end
 		local t = os.clock() - start
 		revealView.Rotation = math.sin(t * 45) * (4 + 10 * t / SHAKE_TIME)
+		if t >= nextSwish and #Sounds.CHEST_SWISH > 0 then
+			swish = swish % #Sounds.CHEST_SWISH + 1
+			cueOnce(Sounds.CHEST_SWISH[swish], Sounds.CHEST_SWISH_VOLUME, 1 + 0.25 * t / SHAKE_TIME)
+			nextSwish = t + 0.3 - 0.14 * t / SHAKE_TIME
+		end
 		RunService.RenderStepped:Wait()
 	end
 	revealView.Rotation = 0
+	cueOnce(Sounds.CHEST_POP, Sounds.CHEST_POP_VOLUME, 1)
 
 	-- Open: the chest pops away and the brainrot pops in.
 	local pop = TweenService:Create(

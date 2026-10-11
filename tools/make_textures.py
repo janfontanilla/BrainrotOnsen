@@ -241,6 +241,39 @@ def friends_icon(name):
     img.save(os.path.join(OUT, name))
 
 
+def add_studs(path, cell):
+    """Stamps a round Lego stud on every `cell` x `cell` square of the tile at `path`
+    (2026-10-10, user: "literally everything should have lego studs"): a soft shadow
+    down-right, the stud face a shade lighter than the cell, a highlight up-left. The
+    tile stays seamless (studs sit inside their cells)."""
+    img = Image.open(path).convert("RGB")
+    d = ImageDraw.Draw(img, "RGBA")
+    r = cell * 0.30
+    for cy in range(0, SIZE, cell):
+        for cx in range(0, SIZE, cell):
+            mx, my = cx + cell / 2, cy + cell / 2
+            base = img.getpixel((int(cx + cell * 0.12), int(cy + cell * 0.12)))
+            sh = max(1, cell // 16)
+            d.ellipse([mx - r + sh * 2, my - r + sh * 2, mx + r + sh * 2, my + r + sh * 2], fill=shade(base, -38) + (200,))
+            d.ellipse([mx - r, my - r, mx + r, my + r], fill=shade(base, 14))
+            d.ellipse([mx - r, my - r, mx + r, my + r], outline=shade(base, -22), width=max(1, cell // 32))
+            hr = r * 0.62
+            d.arc([mx - hr, my - hr, mx + hr, my + hr], 190, 280, fill=shade(base, 46), width=max(1, cell // 14))
+    img.save(path)
+
+
+def lego(name):
+    """A plain studded tile for every other surface (parts and props): near-white so the
+    part's Color tints it, one stud per stud (used at 4 studs per tile)."""
+    img = Image.new("RGB", (SIZE, SIZE), (226, 226, 226))
+    d = ImageDraw.Draw(img)
+    for cy in range(0, SIZE, CELL):
+        for cx in range(0, SIZE, CELL):
+            bevel(d, [cx, cy, cx + CELL - 1, cy + CELL - 1], (228, 228, 228), (240, 240, 240), (206, 206, 206), width=2)
+    img.save(os.path.join(OUT, name))
+    add_studs(os.path.join(OUT, name), CELL)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     grass("grass.png")
@@ -254,6 +287,10 @@ def main():
     onsen_symbol("onsen.png")
     ui_studs("ui_studs.png")
     aura_icon("aura_icon.png")
+    lego("lego.png")
+    # Lego studs on the map tiles (cell = studs per tile -> one stud per stud).
+    for tile, cell in (("grass.png", CELL), ("stone.png", CELL), ("planks.png", CELL), ("pegboard.png", CELL), ("cliff.png", SIZE // 16)):
+        add_studs(os.path.join(OUT, tile), cell)
     friends_icon("friends_icon.png")
     print("Wrote", sorted(os.listdir(OUT)))
 

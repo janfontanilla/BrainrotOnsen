@@ -28,13 +28,18 @@ local function build(name: string): Model
 		part.CanQuery = data.solid
 		part.CanTouch = false
 		part.CastShadow = math.max(box[4], box[5], box[6]) >= SHADOW_MIN_SIZE -- small boxes: no shadow (cheaper)
+		-- Studded tops like the pads (2026-10-10, user: Lego studs on everything but
+		-- the brainrots); glowing boxes stay smooth Neon.
 		part.TopSurface = Enum.SurfaceType.Smooth
 		part.BottomSurface = Enum.SurfaceType.Smooth
 		part.Size = Vector3.new(box[4], box[5], box[6])
 		part.CFrame = CFrame.new(box[1], box[2], box[3])
 		local color = data.colors[box[7]]
 		part.Color = Color3.fromRGB(color[1], color[2], color[3])
-		part.Material = if glow[box[7]] then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		part.Material = if glow[box[7]] then Enum.Material.Neon else Enum.Material.Plastic
+		if not glow[box[7]] then
+			part.MaterialVariant = "Onsen_lego" -- round Lego studs on every face (MaterialService)
+		end
 		part.Parent = model
 	end
 	model.WorldPivot = CFrame.new()

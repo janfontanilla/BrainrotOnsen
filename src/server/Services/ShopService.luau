@@ -124,18 +124,18 @@ local function afterChange(player: Player, plot: Plot, data: Data)
 	end
 end
 
-local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: number)
+local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: number): boolean
 	local after = table.clone(data.counts)
 	after[data.buyTier] += amount
 	ShopService.mergeCounts(after)
 	if total(after) > Economy.MAX_SPOTS then
 		notify:FireClient(player, `Not enough room, even after merging ({Economy.MAX_SPOTS} spots)`)
-		return
+		return false
 	end
 	local cost = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, amount)
 	if not DataService.spendCash(player, cost) then
 		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
-		return
+		return false
 	end
 	data.boughtAtBuyTier += amount
 	data.totalBrainrots += amount
@@ -148,16 +148,17 @@ local function buyAndMerge(player: Player, plot: Plot, data: Data, amount: numbe
 		TutorialService.record(player, "merge")
 	end
 	notify:FireClient(player, `Bought {amount} {Tiers.get(data.buyTier).name}!`, "good")
+	return true
 end
 
-local function buy(player: Player, plot: Plot, amount: number)
+-- Returns whether something was bought (a held buy pad keeps going while it is true).
+local function buy(player: Player, plot: Plot, amount: number): boolean
 	local data = DataService.get(player)
 	if not data then
-		return
+		return false
 	end
 	if amount == Economy.AUTO_MERGE_BUY_AMOUNT then
-		buyAndMerge(player, plot, data, amount)
-		return
+		return buyAndMerge(player, plot, data, amount)
 	end
 	local before = table.clone(data.counts)
 	ShopService.makeRoom(data, amount)
@@ -169,13 +170,13 @@ local function buy(player: Player, plot: Plot, amount: number)
 			player,
 			`Your bathhouse is full ({Economy.MAX_SPOTS}/{Economy.MAX_SPOTS}) and nothing can merge`
 		)
-		return
+		return false
 	end
 	local cost = Economy.bulkPrice(data.buyTier, data.boughtAtBuyTier, count)
 	if not DataService.spendCash(player, cost) then
 		data.counts = before
 		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
-		return
+		return false
 	end
 	data.boughtAtBuyTier += count
 	data.counts[data.buyTier] += count
@@ -186,7 +187,9 @@ local function buy(player: Player, plot: Plot, amount: number)
 	TutorialService.record(player, "buy")
 	if count < amount then
 		notify:FireClient(player, `Only room for {count}: bought {count}`)
+		return false -- full now: stop repeating
 	end
+	return true
 end
 
 local function merge(player: Player, plot: Plot)
@@ -232,8 +235,8 @@ function ShopService:Start()
 	for _, plot in Plots.all() do
 		for _, pad in plot.pads do
 			Plots.onStep(plot, pad, function(player)
-				buy(player, plot, pad.amount)
-			end)
+				return buy(player, plot, pad.amount)
+			end, Economy.BUY_REPEAT_INTERVAL, Economy.BUY_REPEAT_DELAY)
 		end
 		Plots.onStep(plot, plot.stations.merge, function(player)
 			merge(player, plot)

@@ -339,9 +339,10 @@ local function makePart(parent: Instance, name: string, size: Vector3, cframe: C
 	part.Size = size
 	part.CFrame = cframe
 	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
+	-- Studded plastic everywhere (2026-10-10, user: the pads' Lego studs on everything in the
+	-- world except the brainrots); water, glow and skinned tiles override it after.
+	part.Material = Enum.Material.Plastic
+	part.MaterialVariant = "Onsen_lego" -- round Lego studs on every face (MaterialService.Onsen_lego); ignored once the material changes
 	part.Parent = parent
 	return part
 end
@@ -1305,6 +1306,7 @@ local function buildPlot(root: Instance, index: number): Plot
 		-- One school circling the same way: two rings, spread round the circle.
 		local swim = POND_RADIUS - 1.5 - (i % 2) * 1.6
 		koi:SetAttribute("RadiusX", swim)
+		koi:SetAttribute("PondRadius", POND_RADIUS) -- KoiController keeps a dragged fish inside it
 		koi:SetAttribute("RadiusZ", swim)
 		koi:SetAttribute("Phase", i * (2 * math.pi / KOI_COUNT))
 		koi:SetAttribute("Speed", KOI_SPEED / swim) -- the same pace in studs per second on both rings
@@ -1558,11 +1560,13 @@ local function buildMoats(root: Instance): { Rect }
 					RIM_TINT
 				)
 			end
-			-- A bridge from the promenade to the second front step.
+			-- A bridge from the promenade over the front steps right onto the plot floor, so
+			-- it walks up without a ledge at either end (2026-10-10, user: had to jump).
 			Decor.bridge(
 				folder,
-				Vector3.new(cx, Plaza.PROMENADE_TOP, z(near + 0.6)),
-				Vector3.new(cx, MAP_GROUND_TOP + slab * 2 / STEP_COUNT, z(plotFront + 1.5)),
+				-- Both ends sit a hair below the surface they meet, so no wood edge shows.
+				Vector3.new(cx, Plaza.PROMENADE_TOP - 0.1, z(near + 0.6)),
+				Vector3.new(cx, FLOOR_TOP - 0.1, z(ROAD_WIDTH / 2 + 0.6)),
 				MOAT_BRIDGE_WIDTH,
 				MOAT_BRIDGE_RISE
 			)
@@ -1660,7 +1664,11 @@ end
 -- Calls `onStep(player)` when the plot's owner steps onto `pad`: once per step,
 -- not once per Touched event. While they stand on it the pad has Pressed = true
 -- (clients animate it).
-function Plots.onStep(plot: Plot, pad: Pad, onStep: (Player) -> ())
+-- Calls `onStep` when the owner steps onto `pad` (once per step). With `repeatEvery`,
+-- it calls again every `repeatEvery` seconds (after `repeatDelay`) while they stay on
+-- the pad, re-pressing it each time, until they step off or `onStep` returns false
+-- (2026-10-10, user: keep buying while standing on a buy pad).
+function Plots.onStep(plot: Plot, pad: Pad, onStep: (Player) -> boolean?, repeatEvery: number?, repeatDelay: number?)
 	local occupied = false
 	local limit = pad.part.Size.X / 2 + 1.5
 	pad.part.Touched:Connect(function(hit: BasePart)
@@ -1670,10 +1678,23 @@ function Plots.onStep(plot: Plot, pad: Pad, onStep: (Player) -> ())
 		end
 		occupied = true
 		pad.part:SetAttribute("Pressed", true)
+		-- Buy pads report each result: BuyFlash counts purchases (the client flashes the
+		-- pad), Denied turns it red until the player steps off (2026-10-10, user).
+		local function run(): boolean
+			local result = onStep(player)
+			if result == true then
+				pad.part:SetAttribute("BuyFlash", ((pad.part:GetAttribute("BuyFlash") :: number?) or 0) + 1)
+			elseif result == false then
+				pad.part:SetAttribute("Denied", true)
+			end
+			return result ~= false
+		end
+		local repeating = run() and repeatEvery ~= nil
 		task.spawn(function()
 			local center = pad.part.Position
+			local nextRepeat = os.clock() + (repeatDelay or repeatEvery or 0)
 			while true do
-				task.wait(0.15)
+				task.wait(0.05)
 				local root = Plots.rootPart(player)
 				if not root or player.Parent == nil then
 					break
@@ -1682,11 +1703,18 @@ function Plots.onStep(plot: Plot, pad: Pad, onStep: (Player) -> ())
 				if math.abs(offset.X) > limit or math.abs(offset.Z) > limit or math.abs(offset.Y) > 8 then
 					break
 				end
+				if repeating and repeatEvery and os.clock() >= nextRepeat then
+					nextRepeat = os.clock() + repeatEvery
+					-- Re-press the pad: the press animation and click play again.
+					pad.part:SetAttribute("Pressed", false)
+					pad.part:SetAttribute("Pressed", true)
+					repeating = run()
+				end
 			end
 			occupied = false
 			pad.part:SetAttribute("Pressed", false)
+			pad.part:SetAttribute("Denied", false)
 		end)
-		onStep(player)
 	end)
 end
 
