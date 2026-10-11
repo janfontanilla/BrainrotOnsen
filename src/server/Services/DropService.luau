@@ -84,6 +84,11 @@ local function spawnDrop(plot: Plot, spotIndex: number, tier: number, value: num
 	part:PivotTo(CFrame.new(path[#path]))
 	part:SetAttribute("Tier", tier)
 	DropPath.write(part, path, flowAt)
+	if part:IsA("Model") then
+		-- Stream the drop whole: pieces arriving after the client started moving it would land
+		-- at the server's resting spot and fly about offset from the rest (2026-10-11, user).
+		part.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	end
 
 	part.Parent = plot.dropFolder
 
@@ -127,8 +132,12 @@ local function produce(plot: Plot, now: number)
 			end
 		end
 	end
-	for i = #tiers + 1, #plotTimers do
-		plotTimers[i] = nil
+	-- Spots can have gaps (PoolService keeps brainrots in place): free the timers of
+	-- every empty spot.
+	for i in plotTimers do
+		if tiers[i] == nil then
+			plotTimers[i] = nil
+		end
 	end
 end
 

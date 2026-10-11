@@ -14,8 +14,9 @@
 -- make room the block keeps waiting. Unlocking fires LuckyBlockOpened to all
 -- clients for the open-up reveal. Discard throws it away.
 --
--- data.luckyBlock saves the held block, data.luckyWaiting the floating ones; after a
--- rejoin the floating ones rest in the pool again.
+-- data.luckyBlock / data.luckyWaiting track the held and floating blocks during a
+-- session; leaving clears them (2026-10-11, user: chests should not stay after a
+-- rejoin), so every visit starts with an empty pool.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -104,6 +105,9 @@ local function floatDown(player: Player, plot: Plot, name: string, path: { Vecto
 	model:PivotTo(CFrame.new(path[#path]))
 	model:SetAttribute("Lucky", true)
 	DropPath.write(model, path, flowAt)
+	-- Stream the drop whole: pieces arriving after the client started moving it would land
+	-- at the server's resting spot and fly about offset from the rest (2026-10-11, user).
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	model.Parent = plot.dropFolder
 	table.insert(state.floating, { name = name, model = model, path = path, flowAt = flowAt })
 	saveWaiting(state, data)
@@ -200,7 +204,7 @@ local function onAction(player: Player, action: unknown)
 end
 
 -- Called by PlotService once the player has a plot and data.
-function LuckyBlockService.onAssigned(player: Player, plot: Plot)
+function LuckyBlockService.onAssigned(player: Player, _plot: Plot)
 	local state: State = { floating = {}, held = false, nextAt = nextInterval(), pending = false, debugReason = nil }
 	states[player] = state
 	player:SetAttribute("LuckyBlock", "")
@@ -208,18 +212,9 @@ function LuckyBlockService.onAssigned(player: Player, plot: Plot)
 	if not data then
 		return
 	end
-	-- Blocks that were floating (and one that was held) rest in the pool again.
-	local waiting = table.clone(data.luckyWaiting)
-	if data.luckyBlock ~= "" then
-		table.insert(waiting, data.luckyBlock)
-		data.luckyBlock = ""
-	end
+	-- Chests from an earlier visit (floating or held) are gone: a fresh pool each visit.
+	data.luckyBlock = ""
 	data.luckyWaiting = {}
-	for _, name in waiting do
-		if findBlock(name) then
-			floatDown(player, plot, name, { Plots.poolPoint(plot, random) }, workspace:GetServerTimeNow())
-		end
-	end
 end
 
 function LuckyBlockService.onRemoving(player: Player)

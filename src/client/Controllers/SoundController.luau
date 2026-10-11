@@ -121,16 +121,28 @@ local function watchPad(instance: Instance)
 		return
 	end
 	local pad = instance
-	pad:GetAttributeChangedSignal("Pressed"):Connect(function()
-		if pad:GetAttribute("Pressed") ~= true then
-			return
-		end
+	local lastClick = 0
+	local function click()
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if root and root:IsA("BasePart") and (root.Position - pad.Position).Magnitude <= PAD_HEAR_RANGE then
+		local now = os.clock()
+		if
+			now - lastClick > 0.15 -- the step and its first purchase arrive together: one click
+			and root
+			and root:IsA("BasePart")
+			and (root.Position - pad.Position).Magnitude <= PAD_HEAR_RANGE
+		then
+			lastClick = now
 			cue(Sounds.PAD)
 		end
+	end
+	pad:GetAttributeChangedSignal("Pressed"):Connect(function()
+		if pad:GetAttribute("Pressed") == true then
+			click()
+		end
 	end)
+	-- Every purchase on a held buy pad clicks again (BuyFlash counts them; 2026-10-11, user).
+	pad:GetAttributeChangedSignal("BuyFlash"):Connect(click)
 end
 
 local function number(name: string): number

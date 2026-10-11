@@ -205,7 +205,15 @@ local function displayName(userId: number): string
 	return result
 end
 
-local function setRows(board: Board, entries: { { key: string, value: number } })
+local function setRows(board: Board, all: { { key: string, value: number } })
+	-- Studio test players (Player1, Player2: negative user ids) never show (2026-10-11,
+	-- user); older saves of them are skipped here, new ones are never written.
+	local entries = {}
+	for _, entry in all do
+		if (tonumber(entry.key) or 0) > 0 then
+			table.insert(entries, entry)
+		end
+	end
 	for i, row in board.rows do
 		-- The rows list holds each face's rows in order: front rows, then back rows.
 		local rank = (i - 1) % TOP_COUNT + 1
@@ -230,6 +238,9 @@ local function fail(board: Board, message: string)
 end
 
 local function save(player: Player, data: Data)
+	if player.UserId <= 0 then
+		return -- a Studio test player
+	end
 	for _, board in boards do
 		local ok, err = pcall(function()
 			board.store:SetAsync(tostring(player.UserId), board.def.score(data))
@@ -250,7 +261,8 @@ local function refreshBoards()
 	end
 	for _, board in boards do
 		local ok, result = pcall(function()
-			local pages = board.store:GetSortedAsync(false, TOP_COUNT)
+			-- A few extra in case some are test players (skipped in setRows).
+			local pages = board.store:GetSortedAsync(false, TOP_COUNT + 5)
 			return pages:GetCurrentPage()
 		end)
 		if ok then

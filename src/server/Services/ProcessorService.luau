@@ -115,15 +115,16 @@ local function collectCash(player: Player, plot: Plot)
 	TutorialService.record(player, "collectCash")
 end
 
-local function upgrade(player: Player, plot: Plot)
+-- Returns whether it upgraded (a held pad keeps upgrading while it is true).
+local function upgrade(player: Player, plot: Plot): boolean
 	local data = DataService.get(player)
 	if not data then
-		return
+		return false
 	end
 	local cost = Economy.processorUpgradeCost(data.processorLevel)
 	if not DataService.spendCash(player, cost) then
 		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
-		return
+		return false
 	end
 	data.processorLevel += 1
 	ProcessorService.refresh(plot)
@@ -133,6 +134,7 @@ local function upgrade(player: Player, plot: Plot)
 		`Processor Lv {data.processorLevel}: {Format.short(Economy.processorRate(data.processorLevel))} per second`,
 		"good"
 	)
+	return true
 end
 
 local function process(plot: Plot, dt: number)
@@ -174,9 +176,10 @@ function ProcessorService:Start()
 		Plots.onStep(plot, stations.collectCash, function(player)
 			collectCash(player, plot)
 		end)
+		-- Hold to keep upgrading, like the buy pads (2026-10-11, user).
 		Plots.onStep(plot, stations.upgradeProcessor, function(player)
-			upgrade(player, plot)
-		end)
+			return upgrade(player, plot)
+		end, Economy.BUY_REPEAT_INTERVAL, Economy.BUY_REPEAT_DELAY)
 		ProcessorService.refresh(plot)
 	end
 

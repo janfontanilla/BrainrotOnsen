@@ -8,7 +8,9 @@
 --                    already owns, instantly; refused only if the result won't fit
 --   Merge!           merges every triple, cascading upward, silently. The pad is
 --                    lit when something can merge and grey when nothing can.
---   Upgrade Buy Tier raises the tier the buy pads sell and resets price scaling
+--   Upgrade Buy Tier raises the tier the buy pads sell and resets price scaling;
+--                    then merges what can merge and promotes every leftover below
+--                    the new buy tier to it (no popup)
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Tiers = require(Shared.Config.Tiers)
@@ -219,7 +221,18 @@ local function upgradeBuyTier(player: Player, plot: Plot)
 	end
 	data.buyTier += 1
 	data.boughtAtBuyTier = 0
+	-- Leftovers below the new buy tier can never be completed (the pads don't sell
+	-- them any more): merge what can merge, then promote the rest to the buy tier,
+	-- silently (2026-10-11, user).
+	ShopService.mergeCounts(data.counts)
+	for tier = 1, data.buyTier - 1 do
+		data.counts[data.buyTier] += data.counts[tier]
+		data.counts[tier] = 0
+	end
+	ShopService.mergeIfFull(data)
+	DataService.markOwned(data)
 	DataService.sync(player)
+	PoolService.render(plot, data)
 	ShopService.refreshPads(plot)
 	Analytics.cash(player, "sink", cost, data.cash, "Gameplay", "UpgradeBuyTier")
 	Analytics.buyTier(player, data.buyTier)

@@ -9,6 +9,7 @@
 -- LuckyBlockAction client -> server ("unlock" | "discard")  buttons on the held block's panel
 -- LuckyBlockOpened server -> all clients (player, blockName, tier)  play the open-up reveal
 -- TutorialAction client -> server ("skip")         Skip button on the tutorial line (TutorialService)
+-- OfflineEarnings server -> client (aura: number, cash: number, seconds: number)  the Welcome Back window
 -- Notify       server -> client  (message: string, kind: string?)  HUD message:
 --              "deposit" / "cash" / "away" / "lucky" / "newBrainrot" = big popup; "good" = green toast; nil = red toast
 
@@ -23,6 +24,7 @@ export type Name =
 	| "LuckyBlockAction"
 	| "LuckyBlockOpened"
 	| "Notify"
+	| "OfflineEarnings"
 	| "TutorialAction"
 
 local FOLDER_NAME = "Remotes"

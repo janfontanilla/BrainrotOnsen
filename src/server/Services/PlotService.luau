@@ -6,7 +6,6 @@
 local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
-local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Plots = require(script.Parent.Parent.Plots)
 local DataService = require(script.Parent.DataService)
@@ -69,11 +68,9 @@ local function onPlayerAdded(player: Player)
 		-- Give the client a moment to load its HUD.
 		task.delay(3, function()
 			if player.Parent == Players then
-				Remotes.event("Notify"):FireClient(
-					player,
-					`While you were away: +{Format.short(awayAura)} Aura, +{Format.short(awayCash)} Cash`,
-					"away"
-				)
+				-- The Welcome Back window (WelcomeBackController; 2026-10-11, user: the old
+				-- quick popup was easy to miss). Already credited: the window only shows it.
+				Remotes.event("OfflineEarnings"):FireClient(player, awayAura, awayCash, os.time() - awaySince)
 			end
 		end)
 	end

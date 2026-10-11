@@ -689,32 +689,46 @@ local function buildPlot(root: Instance, index: number): Plot
 	)
 	flows(channel, 1, 0) -- toward the pool
 
-	-- Where the channel pours over the step into the lower pool: a short sheet of
-	-- falling water with foam at its foot.
+	-- Where the channel pours over the step into the lower pool: a little waterfall
+	-- (2026-10-11, user: the edges looked unfinished) with the same look as the big
+	-- ones (water scrolling down, glow, streaks, crest mist, spray, foam at its foot),
+	-- framed by stone cheeks on both sides so no raw edge shows.
+	local fallWidth = 2 * bathNearX
+	local fallHeight = WATER_TOP - POOL_WATER_TOP
 	local pour = makePart(
 		geometry,
 		"PoolFall",
-		Vector3.new(2 * bathNearX, WATER_TOP - POOL_WATER_TOP, 0.4),
+		Vector3.new(fallWidth, fallHeight + 0.2, 0.4),
 		at(0, (WATER_TOP + POOL_WATER_TOP) / 2, POOL_BACK_Z - 0.2),
 		LANE_COLOR
 	)
 	pour.Material = Enum.Material.Glass
-	pour.Transparency = 0.2
 	pour.CanCollide = false
 	pour.CastShadow = false
 	Skin.tile(pour, "water", { Enum.NormalId.Front })
-	local pourFoam = makePart(
-		geometry,
-		"PoolFallFoam",
-		Vector3.new(2 * bathNearX, 0.2, 2),
-		at(0, POOL_WATER_TOP + 0.1, POOL_BACK_Z - 1.2),
-		Color3.new(1, 1, 1)
-	)
-	pourFoam.Transparency = 1
-	pourFoam.CanCollide = false
-	pourFoam.CanQuery = false
-	pourFoam.CanTouch = false
-	Decor.foam(pourFoam)
+	Decor.waterfallDetail(pour, Enum.NormalId.Front)
+	-- A short drop: a softer glow than the big falls (it read as a white bar).
+	local glow = pour:FindFirstChild("FallGlow")
+	if glow and glow:IsA("SurfaceGui") then
+		glow.Brightness = 0.5
+		for _, child in glow:GetChildren() do
+			if child:IsA("Frame") then
+				child.BackgroundTransparency = 0.45
+			end
+		end
+	end
+	-- Stone cheeks fill the rest of the pool's width either side of the fall.
+	local cheekWidth = math.max(0.6, (POOL_WIDTH - fallWidth) / 2)
+	for _, side in { -1, 1 } do
+		local cheek = makePart(
+			geometry,
+			"PoolFallCheek",
+			Vector3.new(cheekWidth, fallHeight + 0.6, 1.4),
+			at(side * (fallWidth / 2 + cheekWidth / 2), (WATER_TOP + POOL_WATER_TOP) / 2 + 0.2, POOL_BACK_Z - 0.4),
+			STONE_COLOR
+		)
+		Skin.apply(cheek, "stone", RIM_TINT)
+	end
 	-- Collection pool: the front of the sunken water, jutting out toward the spawn.
 	local poolDepth = POOL_BACK_Z - POOL_FRONT_Z
 	local poolCenterZ = (POOL_FRONT_Z + POOL_BACK_Z) / 2
@@ -1705,9 +1719,7 @@ function Plots.onStep(plot: Plot, pad: Pad, onStep: (Player) -> boolean?, repeat
 				end
 				if repeating and repeatEvery and os.clock() >= nextRepeat then
 					nextRepeat = os.clock() + repeatEvery
-					-- Re-press the pad: the press animation and click play again.
-					pad.part:SetAttribute("Pressed", false)
-					pad.part:SetAttribute("Pressed", true)
+					-- (the client clicks, flashes and bounces on BuyFlash for each purchase)
 					repeating = run()
 				end
 			end

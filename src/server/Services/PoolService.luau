@@ -2,8 +2,11 @@
 -- The brainrot spots of each plot (Economy.MAX_SPOTS). Brainrots are stored as counts per tier;
 -- this service lays them out as placeholder blocks (highest tier at the front)
 -- and remembers which tier sits in which spot so drops can float next to them.
--- Rendering only rebuilds spots whose tier changed; each new block gets a
--- SpawnedAt attribute so clients play the rise-out-of-the-bath animation.
+-- Rendering only rebuilds spots whose tier changed. Only brainrots that are really new
+-- (a tier's count went up) get a SpawnedAt attribute, so clients play the rise-out-
+-- of-the-bath animation for them; lower tiers that just move back a spot when higher
+-- ones arrive appear in place (2026-10-11, user: buying Frigo Camelo made the shifted
+-- Tim Cheese rise, so it looked like Tim Cheese was bought).
 -- Merging and Buy 100 live in ShopService; this only lays out the result.
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -28,13 +31,15 @@ local spotParts: { [number]: { [number]: Model } } = {}
 -- plot index -> spot index -> os.clock() when that spot's brainrot was placed
 local spotSince: { [number]: { [number]: number } } = {}
 
-local function makeBrainrot(parent: Instance, spot: CFrame, tier: number): Model
+local function makeBrainrot(parent: Instance, spot: CFrame, tier: number, rise: boolean): Model
 	local def = Tiers.get(tier)
 	local model = Models.makeBrainrot(tier)
 	-- Sit up on the bath's water, above the rims (the model's origin is its bottom centre).
 	model:PivotTo(spot * CFrame.new(0, SIT_HEIGHT, 0))
 	model:SetAttribute("Tier", tier)
-	model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
+	if rise then
+		model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
+	end
 
 	local anchor = model:FindFirstChild("Label")
 	if anchor and anchor:IsA("BasePart") then
@@ -58,6 +63,14 @@ function PoolService.render(plot: Plot, data: Data)
 	local parts = spotParts[plot.index] or {}
 	local since = spotSince[plot.index] or {}
 	local now = os.clock()
+	-- How many of each tier are new since the last render: only those rise.
+	local fresh: { [number]: number } = {}
+	for _, tier in tiers do
+		fresh[tier] = (fresh[tier] or 0) + 1
+	end
+	for _, tier in old do
+		fresh[tier] = (fresh[tier] or 0) - 1
+	end
 	for i = 1, math.max(#tiers, #old) do
 		if tiers[i] ~= old[i] then
 			local existing = parts[i]
@@ -67,7 +80,12 @@ function PoolService.render(plot: Plot, data: Data)
 			end
 			since[i] = nil
 			if tiers[i] then
-				parts[i] = makeBrainrot(plot.brainrotFolder, plot.spots[i], tiers[i])
+				local tier = tiers[i]
+				local rise = (fresh[tier] or 0) > 0
+				if rise then
+					fresh[tier] -= 1
+				end
+				parts[i] = makeBrainrot(plot.brainrotFolder, plot.spots[i], tier, rise)
 				since[i] = now
 			end
 		end
