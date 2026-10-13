@@ -8,7 +8,7 @@ Last updated: 2026-10-12
 **Read in this order:** this section, then "Blockers / needs from you", then the newest Log lines, then `CLAUDE.md` (rules, module map). The design doc (link in CLAUDE.md, read with the Claude Docs tools) is the source of truth for game rules.
 
 ### Where things are
-- **Code:** `main` in `C:\dev\BrainrotOnsen` (user decision 2026-09-30: work only here, no worktrees). Last commit `030e1c2` (2026-10-11); later work is uncommitted (see the Log).
+- **Code:** `main` in `C:\dev\BrainrotOnsen`, pushed to GitHub `origin` (https://github.com/janfontanilla/BrainrotOnsen) (user decision 2026-09-30: work only here, no worktrees). Last commit `030e1c2` (2026-10-11); later work is uncommitted (see the Log).
 - **Game name:** players see **Brainrot Bathhouse** (Creator Hub name set 2026-10-11); code and docs say "Onsen" internally.
 - **Ownership:** transferred to the group **PCC. Studios** (group 834891952) on 2026-10-10; it cannot move again for 30 days. Edit it from the group's Creations in the Creator Hub.
 - **Live listing:** Private (alt testers need the audience set to Public / Limited, or Tester role access), Maturity Minimal, shown Ages 16+ (likely from the paid random item answer: the 89 Robux chest unlock; undecided), server size 6, description set, icon set, 4 thumbnails active on the Home Page tab (the Experience Detail Page tab still needs its own upload).
@@ -151,6 +151,7 @@ Seen by the user in Studio (screenshots in chat). Fix these before launch:
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
 
 ## Log (newest first)
+- 2026-10-12: Repo pushed to GitHub: https://github.com/janfontanilla/BrainrotOnsen (remote `origin`, `main` tracks `origin/main`).
 - 2026-10-12: User checked the price carry-over in Studio ("looks good"). Left before ads: publish it.
 - 2026-10-12: Price carry-over built (user decision 2026-10-11): Upgrade Buy Tier sets boughtAtBuyTier to `Economy.carriedBought` (the new tier starts at the price reached, never below its base price; fractional count) instead of 0. BUY_TIER_UPGRADE_GROWTH 2.9 -> 2.35 to keep the pace (sim: free tier 20 day 47.5 -> 50, x7 day 8 -> 9; without the retune free would take ~day 345). Lucky chest prices and Cash packs follow the lower growth. Sim reads PRICE_CARRY_OVER; fixed a sim crash pricing a chest at buy tier 20. CLAUDE.md + design doc updated.
 - 2026-10-12: Game confirmed public and owned by PCC. Studios (games API) but not on the community page signed out; likely the 16+ rating (no questionnaire answer causes it per the user, probably because it is new). Blocker updated.
