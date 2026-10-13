@@ -1,7 +1,8 @@
 --!strict
 -- Brainrot polish, on the client only: a newly placed brainrot rises up out of
 -- the bath water instead of popping in (only ones the server stamped moments ago
--- animate, so ones streaming in later just appear in place), and every brainrot near
+-- animate, so ones streaming in later just appear in place), a merged-away brainrot
+-- sinks back into the water (SinkAt) before the new one rises, and every brainrot near
 -- the camera bobs and sways gently in the water (2026-10-06; the pack's own idle
 -- animations belong to its creator and Roblox refuses them here).
 
@@ -11,6 +12,7 @@ local RunService = game:GetService("RunService")
 local RISE_TIME = 0.5
 local RISE_WINDOW = 1 -- seconds after SpawnedAt during which a block still animates
 local RISE_INFO = TweenInfo.new(RISE_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SINK_INFO = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 local BOB_HEIGHT = 0.18 -- studs up and down
 local BOB_SPEED = 1.6 -- radians per second
 local SWAY = math.rad(4) -- side-to-side turn
@@ -34,6 +36,14 @@ local function rise(child: Instance)
 	local height = child:GetExtentsSize().Y
 	child:SetAttribute("Rising", true)
 	child:PivotTo(target * CFrame.new(0, -height, 0))
+	-- After a merge the new one waits under the water until the old ones have sunk.
+	local wait = spawnedAt - workspace:GetServerTimeNow()
+	if wait > 0 then
+		task.wait(wait)
+		if not child.Parent then
+			return
+		end
+	end
 	-- Tween a number and move the whole model with it.
 	local progress = Instance.new("NumberValue")
 	progress.Changed:Connect(function(value)
@@ -43,6 +53,27 @@ local function rise(child: Instance)
 	tween.Completed:Once(function()
 		progress:Destroy()
 		child:SetAttribute("Rising", nil)
+	end)
+	tween:Play()
+end
+
+-- A merged-away brainrot sinks into the water (the server removes it afterwards).
+local function sink(child: Instance)
+	if not child:IsA("Model") then
+		return
+	end
+	child:SetAttribute("Rising", true) -- stop the bob
+	local start = child:GetPivot()
+	local height = child:GetExtentsSize().Y
+	local progress = Instance.new("NumberValue")
+	progress.Changed:Connect(function(value)
+		if child.Parent then
+			child:PivotTo(start * CFrame.new(0, -height * value, 0))
+		end
+	end)
+	local tween = TweenService:Create(progress, SINK_INFO, { Value = 1 })
+	tween.Completed:Once(function()
+		progress:Destroy()
 	end)
 	tween:Play()
 end
@@ -66,9 +97,18 @@ local function watchPlot(plot: Instance)
 	for _, child in folder:GetChildren() do
 		addBob(child)
 	end
+	local function watchSink(child: Instance)
+		child:GetAttributeChangedSignal("SinkAt"):Connect(function()
+			sink(child)
+		end)
+	end
+	for _, child in folder:GetChildren() do
+		watchSink(child)
+	end
 	folder.ChildAdded:Connect(function(child)
-		rise(child)
+		watchSink(child)
 		addBob(child)
+		task.spawn(rise, child)
 	end)
 end
 

@@ -2,11 +2,9 @@
 -- The brainrot spots of each plot (Economy.MAX_SPOTS). Brainrots are stored as counts per tier;
 -- this service lays them out as placeholder blocks (highest tier at the front)
 -- and remembers which tier sits in which spot so drops can float next to them.
--- Rendering only rebuilds spots whose tier changed. Only brainrots that are really new
--- (a tier's count went up) get a SpawnedAt attribute, so clients play the rise-out-
--- of-the-bath animation for them; lower tiers that just move back a spot when higher
--- ones arrive appear in place (2026-10-11, user: buying Frigo Camelo made the shifted
--- Tim Cheese rise, so it looked like Tim Cheese was bought).
+-- Rendering only rebuilds spots whose tier changed: the old brainrot there sinks into
+-- the bath (SinkAt) and the new one rises (SpawnedAt), whether bought, merged or just
+-- moved along (2026-10-11, user).
 -- Merging and Buy 100 live in ShopService; this only lays out the result.
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -20,6 +18,10 @@ local DataService = require(script.Parent.DataService)
 type Plot = Plots.Plot
 type Data = DataService.Data
 
+-- Merges (2026-10-11, user: merging looked instant): brainrots that are really gone
+-- sink into their bath (SinkAt attribute; BrainrotController animates it) and are
+-- removed after SINK_TIME, and the new ones rise once they have sunk.
+local SINK_TIME = 0.45
 local SIT_HEIGHT = 0.8 -- studs above the water surface the models stand (pack models reach a bit below their pivot)
 
 local PoolService = {}
@@ -31,14 +33,14 @@ local spotParts: { [number]: { [number]: Model } } = {}
 -- plot index -> spot index -> os.clock() when that spot's brainrot was placed
 local spotSince: { [number]: { [number]: number } } = {}
 
-local function makeBrainrot(parent: Instance, spot: CFrame, tier: number, rise: boolean): Model
+local function makeBrainrot(parent: Instance, spot: CFrame, tier: number, rise: boolean, riseDelay: number): Model
 	local def = Tiers.get(tier)
 	local model = Models.makeBrainrot(tier)
 	-- Sit up on the bath's water, above the rims (the model's origin is its bottom centre).
 	model:PivotTo(spot * CFrame.new(0, SIT_HEIGHT, 0))
 	model:SetAttribute("Tier", tier)
 	if rise then
-		model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
+		model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow() + riseDelay)
 	end
 
 	local anchor = model:FindFirstChild("Label")
@@ -63,29 +65,39 @@ function PoolService.render(plot: Plot, data: Data)
 	local parts = spotParts[plot.index] or {}
 	local since = spotSince[plot.index] or {}
 	local now = os.clock()
-	-- How many of each tier are new since the last render: only those rise.
-	local fresh: { [number]: number } = {}
-	for _, tier in tiers do
-		fresh[tier] = (fresh[tier] or 0) + 1
+	-- Every brainrot that leaves its spot sinks into that bath, and every one that
+	-- arrives in a spot rises out of it (merged, bought, or just moved along a spot;
+	-- 2026-10-11, user: moving ones should animate too). When some sink, the new ones
+	-- rise after them.
+	local sinking = false
+	for i = 1, math.max(#tiers, #old) do
+		if tiers[i] ~= old[i] and parts[i] then
+			sinking = true
+			break
+		end
 	end
-	for _, tier in old do
-		fresh[tier] = (fresh[tier] or 0) - 1
-	end
+	local riseDelay = if sinking then SINK_TIME else 0
 	for i = 1, math.max(#tiers, #old) do
 		if tiers[i] ~= old[i] then
 			local existing = parts[i]
 			if existing then
-				existing:Destroy()
+				existing:SetAttribute("SinkAt", workspace:GetServerTimeNow())
+				local label = existing:FindFirstChild("Label", true)
+				if label then
+					for _, gui in label:GetChildren() do
+						if gui:IsA("BillboardGui") then
+							gui.Enabled = false
+						end
+					end
+				end
+				task.delay(SINK_TIME + 0.1, function()
+					existing:Destroy()
+				end)
 				parts[i] = nil
 			end
 			since[i] = nil
 			if tiers[i] then
-				local tier = tiers[i]
-				local rise = (fresh[tier] or 0) > 0
-				if rise then
-					fresh[tier] -= 1
-				end
-				parts[i] = makeBrainrot(plot.brainrotFolder, plot.spots[i], tier, rise)
+				parts[i] = makeBrainrot(plot.brainrotFolder, plot.spots[i], tiers[i], true, riseDelay)
 				since[i] = now
 			end
 		end

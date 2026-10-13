@@ -1,35 +1,33 @@
 # Progress
 
-Current phase: **Phase 6 (art, polish and launch), launch prep.** Launch plan `docs/launch-plan.md`: Phases 0-3 done 2026-10-04 (expanding economy, tutorial + goal guide, model sizes, Studio checks). Now: the user's own play-test on a fresh Studio profile, then Studio test purchases, phone check, thumbnail 4, private publish, alt-account test, go public.
-Last updated: 2026-10-09
+Current phase: **Phase 6 (art, polish and launch), launch.** Published privately under PCC. Studios (place 119217610023596, versions 121+); store items all tested; the user is play-testing on an alt account and fixing what they find. Next: the alt-account test, then set the audience to Public.
+Last updated: 2026-10-12
 
 ## Handoff (start here)
 
 **Read in this order:** this section, then "Blockers / needs from you", then the newest Log lines, then `CLAUDE.md` (rules, module map). The design doc (link in CLAUDE.md, read with the Claude Docs tools) is the source of truth for game rules.
 
 ### Where things are
-- **Code:** `main` in `C:\dev\BrainrotOnsen` (user decision 2026-09-30: work only here, no worktrees). An old worktree folder `.claude\worktrees\priceless-cori-962788` still exists; everything in it is merged, ignore it (the user may delete it).
-- **Game name:** players see **Brainrot Bathhouse**; code and docs say "Onsen" internally.
-- **Studio:** place "Brainrot Onsen" (placeId 119217610023596), published, Studio API access ON (saving works in Studio). The Studio MCP is usually connected (`list_roblox_studios`); use it to sync-check, play, capture and test.
-- **Rojo:** run `rojo serve` from `C:\dev\BrainrotOnsen` (background), then the user clicks Disconnect / Connect in the Rojo plugin. It was not running at the end of 2026-09-30; start it at the beginning of a session. After any `default.project.json` change: restart serve + reconnect.
-- **`ServerPackages/`** (ProfileStore) is gitignored; present in `C:\dev\BrainrotOnsen`. `wally install` restores it.
+- **Code:** `main` in `C:\dev\BrainrotOnsen` (user decision 2026-09-30: work only here, no worktrees). Last commit `030e1c2` (2026-10-11); later work is uncommitted (see the Log).
+- **Game name:** players see **Brainrot Bathhouse** (Creator Hub name set 2026-10-11); code and docs say "Onsen" internally.
+- **Ownership:** transferred to the group **PCC. Studios** (group 834891952) on 2026-10-10; it cannot move again for 30 days. Edit it from the group's Creations in the Creator Hub.
+- **Live listing:** Private (alt testers need the audience set to Public / Limited, or Tester role access), Maturity Minimal, shown Ages 16+ (likely from the paid random item answer: the 89 Robux chest unlock; undecided), server size 6, description set, icon set, 4 thumbnails active on the Home Page tab (the Experience Detail Page tab still needs its own upload).
+- **Rojo:** run `rojo serve` from `C:\dev\BrainrotOnsen` (background; it stops by itself now and then), then the user clicks Connect in the plugin. After any `default.project.json` change: restart serve + reconnect.
+- **Studio MCP:** usually connected (`list_roblox_studios`); the id changes when Studio restarts. A Play session started before Rojo synced runs old code: stop and start Play after checking the sync.
+- **`ServerPackages/`** (ProfileStore) is gitignored; `wally install` restores it.
 
 ### What is done (high level)
-- Full core loop (buy, drops, Aura, deposit, market, processor, Collect Cash, merge, Buy 100, Upgrade Buy Tier), lucky blocks (random, up to 5 floating), Index, offline earnings, ProfileStore saving (verified 2026-09-30).
-- Map rebuilt Capybara-Onsen-style (sunken bath field, voxel props from `tools/voxel_forge.py`, unified tile set as MaterialVariants, middle lake with a current, leaderboard pavilions, sound). Layout details: CLAUDE.md "Plot layout".
-- HUD copied from Capybara Onsen (`client/Style`), scales down on phones.
-- Monetization live: 6 game passes + 4 dev products with real IDs, group reward for PCC. Studios (`Config/Products`). Cash multipliers apply at collection.
-- Balance (2026-09-30): Upgrade Buy Tier x500, processor 20/s. The user now feels the pace is too fast (see Play-test feedback).
-- Store: listing text and research in `docs/store-assets.md`; Gemini prompts, one file per image, in `docs/gemini-prompts/`; icon done: `assets/store/icon-512.png` (+ `icon-1024.png`).
+- Full core loop, lucky chests, Index, offline earnings + Welcome Back window, ProfileStore saving, tutorial (Tung Tung Tung Sahur host), Profile page, leaderboards.
+- Map: Capybara-Onsen-style plots with round Lego studs on every surface, deep moats with bridges, flowing middle lake round an island (hot tubs, ground cover), waterfalls, koi ponds with draggable koi, detailed voxel drops and trees.
+- Monetization: 6 game passes + 5 dev products, all tested in Studio on 2026-10-10 (passes with a test player); group reward for PCC. Studios.
+- Store: icon + 4 thumbnails uploaded; listing text in `docs/store-assets.md`.
 
 ### Next up (in order)
-Full plan: **`docs/launch-plan.md`** (2026-10-04). Offline earnings stay at 100% for every tier (user decision 2026-10-04).
-0. ~~Balance with offline always on~~ done 2026-10-04 (expanding curve in Config; needs a Studio feel-check in the Phase 2-3 session).
-1. ~~Tutorial + next-goal tracker + onboarding analytics~~ done 2026-10-04, played through in Studio.
-2-3. ~~Studio session~~ done 2026-10-04 (model sizes by tier; processor wall, chests, sounds, Index, leaderboards checked). Left for the user: one Studio test purchase of each dev product (prompts need a click).
-3b. ~~Lucky chests follow progress~~ built 2026-10-04 (needs a Studio look).
-3c. ~~Robux chest unlock~~ built 2026-10-04; the user creates the dev product "Unlock Lucky Chest" (89 Robux) and sends the ID for `Products.DevProducts.LuckyUnlock`.
-4. Phone check. 5. Thumbnail 4 (parallel; Gemini returned a square). 6. Publish privately. 7. Alt-account play-test. 8. Go public. 9. Retention updates.
+1. ~~Price carry-over~~ built 2026-10-12 (`Economy.PRICE_CARRY_OVER`, `carriedBought`; growth 2.9 -> 2.35; sim: free tier 20 ~day 50, x7 ~day 9). Checked in Studio by the user 2026-10-12; publish next.
+2. Publish the latest fixes (File > Publish to Roblox) and commit.
+3. Alt-account new-player test (tutorial, first 10 minutes, rejoin keeps progress + Welcome Back, group reward).
+4. Decide on the 16+ age (drop the Robux chest unlock?), upload thumbnails on the Experience Detail Page tab, then set the audience to Public.
+5. Gameplay video (recording mode), retention updates.
 
 ### How to work here
 - **Before finishing any change:** `stylua src`, `selene src` (0 errors, 0 warnings), `rojo build -o <tmp>.rbxl`; update this file (a Stop hook enforces it). Commit only when the user asks.
@@ -104,9 +102,9 @@ Full plan: **`docs/launch-plan.md`** (2026-10-04). Offline earnings stay at 100%
 ### Phase 5: Monetization and social
 **Game passes and dev products are DEFERRED to the end** (user decision 2026-09-29): do them after Phase 6 art / polish, before publishing. The code exists and is in the game, but treat it as unfinished. Tested by the user so far: the Cash x2 / x4 / x7 pads work (simulated Studio purchases) and Auto Collect works.
 - **Fixed 2026-09-30 (was a known issue):** the Cash multiplier was applied when the processor produced Cash, so Cash already waiting on the Collect Cash pad is not multiplied when a pass is bought (the user saw no multiplication on walking over the pad). Capybara Onsen applies it at collection ("[x4 Cash] Collect Cash" on the pad, `reference/capybara-onsen-stations.webp`). Fix: keep `pendingCash` raw, multiply in `collectCash` and in the pad label (show `[xN Cash]`), stop multiplying in `process` and `finishNow` (`ProcessorService`), and refresh the label every tick so it follows pass / friend changes.
-- [ ] Game passes: 2x Aura, Auto Collect (credits drops instantly, never fills the cap), x2 / x4 / x7 Cash (`MonetizationService`)
-- [ ] Dev products: Finish Now, Cash packs S / M / L, ProcessReceipt + receipt log (`data.receipts`)
-- [ ] Robux pads next to their stations (Finish Now, Auto Collect, 2x Aura, Cash pass), Cash pack buttons on the HUD
+- [x] Game passes: 2x Aura, Auto Collect (credits drops instantly, never fills the cap), x2 / x4 / x7 Cash (`MonetizationService`) (done by 2026-10-11)
+- [x] Dev products: Finish Now, Cash packs S / M / L, ProcessReceipt + receipt log (`data.receipts`) (done by 2026-10-11)
+- [x] Robux pads next to their stations (Finish Now, Auto Collect, 2x Aura, Cash pass), Cash pack buttons on the HUD (done by 2026-10-11)
 - [ ] Friend boost (+10% per friend, max 50%, on processor Cash), Premium boost (+10% Aura)
 - [x] Total Brainrots leaderstat + global leaderboard board in the middle of the map (`LeaderboardService`) (checked in Studio 2026-10-04: all three pavilions list players)
 - Done when: every pass and product works in a Studio test purchase and survives a rejoin
@@ -123,12 +121,12 @@ Full plan: **`docs/launch-plan.md`** (2026-10-04). Offline earnings stay at 100%
 - [x] Index grid: shows the models (ViewportFrames; silhouettes when undiscovered) instead of color swatches. Coded, waiting on the Studio look.
 - [ ] Onsen map: **roadmap `docs/map-polish-roadmap.md`** (approved 2026-09-29; user answers: Claude uploads images via the MCP, 1-stud studs OK, calm Japanese onsen music, perfect the station row + pool + first two bath rows first). Roadmap phases: [x] 0 sync, [x] 1 quick win (tiles, matte pads, waterfall, lighting), [x] 2 station row props, [x] 3 baths and water, [x] 4 density and floor arrows, [x] 5 backdrop, [x] 6 tile polish (unified tile set), [x] 7 sound (coded, not yet heard in Studio), [~] 8 performance (trims coded; phone test still to do). Earlier notes: (**user verdict 2026-09-29: first pass is "the bare minimum, not visually appealing"; wants Capybara Onsen's level of detail**). Deep dive: `docs/map-polish.md`; planning prompt: `docs/prompts/map-polish-plan.md` (run it in a fresh plan-mode session, ideally with the Studio MCP connected). Second pass coded 2026-09-29 (tall pegboard wall with paper scrolls, huge stepped cliffs, big cherry trees with petals, tall bamboo, bigger lanterns, daisies, steam on baths, `AtmosphereService` lighting / haze / bloom), not yet seen in Studio. Lanes, water, processor, market stand done; decoration coded 2026-09-29 (`server/Decor.luau`: fences, cliffs + waterfall, cherry trees, bamboo, stone lanterns; plot floor now grass green), waiting on the Studio look. Still to do: steam / water flow, backdrop beyond the plots
 - [ ] Idle animations
-- [ ] Lucky block polish (user 2026-09-29: "lucky blocks can be polished"; what to change is not specified yet, ask): chest look, floating / pickup effect, panel, reveal
-- [ ] Bath polish: steam, flowing water in rivers/channel, splash where slides meet the river
-- [ ] Mobile UI scaling and touch testing (auto-scale coded 2026-09-30: `Style.autoScale` on the HUD, Index and lucky block panel; needs a phone test)
+- [x] Lucky block polish (user 2026-09-29: "lucky blocks can be polished"; what to change is not specified yet, ask): chest look, floating / pickup effect, panel, reveal (done by 2026-10-11)
+- [x] Bath polish: steam, flowing water in rivers/channel, splash where slides meet the river (done by 2026-10-11)
+- [x] Mobile UI scaling and touch testing (phone check passed, user 2026-10-10) (auto-scale coded 2026-09-30: `Style.autoScale` on the HUD, Index and lucky block panel; needs a phone test)
 - [ ] Balance playtest (first merge < 1 min, first Upgrade Buy Tier < 10 min)
-- [ ] Title, description, icon, thumbnails
-- [ ] Publish
+- [x] Title, description, icon, thumbnails (done by 2026-10-11)
+- [x] Publish (privately, 2026-10-11; public still to do)
 
 ### Play-test feedback 2026-09-30 (documented only; user asked not to fix yet)
 Seen by the user in Studio (screenshots in chat). Fix these before launch:
@@ -145,19 +143,24 @@ Seen by the user in Studio (screenshots in chat). Fix these before launch:
 - [ ] More tiers past 20, events
 
 ## Blockers / needs from you
-- **Studio is on a fresh test profile** (`STUDIO_PROFILE_SUFFIX = "_fresh3"`, `STUDIO_STARTING_CASH = 0`) for the user's new-player play-test; the real save is untouched. Set them back to `""` and `500_000` to return to it. Owned game passes are ignored in Studio for this test (`STUDIO_IGNORE_OWNED_PASSES = true`), so it plays like a free player; set false to get them back.
-- **Balance choice:** A = slow the start (first session ends around buy tier 3), B = slow every tier ~1.5x, or both. Re-run tools/economy_sim.py before changing Config.
-- **Wider Studio game window** (it is 340 px wide) so captures can judge the visual overhaul.
-- **Test purchases:** in Studio Play, buy Finish Now and each Cash pack once (free test purchases; the prompt needs a click) and check the Cash credited.
-- **Phone check:** Studio's game window is 340 x 375 px, too small to judge; use the Device Emulator (iPhone SE, iPad) or a real phone on the private place.
-- **Thumbnail 4:** regenerate with the updated `docs/gemini-prompts/4-thumbnail-lucky-chest.txt` (strict 16:9) and send it; thumbnails 1, 2, 3, 5 are in `assets/store/`.
-- **Publish privately**, then the alt-account play-test (checklist in `docs/launch-plan.md` Phase 7), then go public.
-- **Rojo:** `rojo serve` from `C:\dev\BrainrotOnsen` + Connect in the plugin at the start of a session; after changing `default.project.json`, restart serve and reconnect.
-- Optional: delete the old worktree folder `.claude\worktrees\priceless-cori-962788` (merged into `main`).
+- **Publish** the latest changes from Studio (File > Publish to Roblox): flying drops fix, Welcome Back on every return, chests clearing on rejoin, leaderboard cleanup, pad colour flash, hold-to-upgrade processor, merge sink / rise animation, brainrots rise only in their new spots.
+- **Age 16+:** the Questionnaire summary shows no answer that causes it (user, 2026-10-12); the user thinks it is because the game is new. While 16+ it is hidden from the community page for signed-out / younger viewers. Re-check signed out every few days; if still 16+ after about a week, open a Roblox Support ticket (universe 10768542854).
+- **Experience Detail Page thumbnails:** upload the same images there (that tab is empty, so the game page shows a grey placeholder).
+- **Alt-account test:** set the audience to Public or Limited (Private blocks the alt), join via https://www.roblox.com/games/119217610023596.
+- **Studio test profile:** `STUDIO_PROFILE_SUFFIX = "_fresh6"`, `STUDIO_STARTING_CASH = 0` (Studio only; live players unaffected). Set back to `""` to use the real save.
 - Avast's HTTPS scanning breaks Rust tools' downloads (Rokit, Selene std, Wally updates). Pause Avast Web Shield briefly when one of those needs the network.
-- A few early Capybara Onsen screenshots (HUD, Index) were pasted in chat only and never saved as files. Drop them into `reference/` and Claude will add them to the design doc.
 
 ## Log (newest first)
+- 2026-10-12: User checked the price carry-over in Studio ("looks good"). Left before ads: publish it.
+- 2026-10-12: Price carry-over built (user decision 2026-10-11): Upgrade Buy Tier sets boughtAtBuyTier to `Economy.carriedBought` (the new tier starts at the price reached, never below its base price; fractional count) instead of 0. BUY_TIER_UPGRADE_GROWTH 2.9 -> 2.35 to keep the pace (sim: free tier 20 day 47.5 -> 50, x7 day 8 -> 9; without the retune free would take ~day 345). Lucky chest prices and Cash packs follow the lower growth. Sim reads PRICE_CARRY_OVER; fixed a sim crash pricing a chest at buy tier 20. CLAUDE.md + design doc updated.
+- 2026-10-12: Game confirmed public and owned by PCC. Studios (games API) but not on the community page signed out; likely the 16+ rating (no questionnaire answer causes it per the user, probably because it is new). Blocker updated.
+- 2026-10-12: Design doc: removed the post-tutorial goal line and hints (the guide is gone after the tutorial since 2026-10-04, matches GuideController).
+- 2026-10-12: Design doc brought up to date: Upgrade Buy Tier promotes leftovers, Cash packs by next upgrade cost, hold-to-buy, six-step tutorial ending in Upgrade Buy Tier, Welcome Back window on every return, price carry-over decision (marked as being built).
+- 2026-10-12: Progress document refreshed: current phase (privately published under PCC. Studios, alt test next), handoff (ownership, live listing state, what is done), Next up (price carry-over in progress, publish, alt test, 16+ age, public), Blockers rewritten, Phase 5 / 6 items ticked.
+- 2026-10-11: Tried capping the brainrot price at the next tier's base price (user: 8.2M Bombombini vs 1.2M Cappuccino); reverted: economy_sim showed a free player owning a tier 20 at about day 1.5 instead of about day 48 (the growth is what stops endless buy-and-merge). Asked the user how to handle it.
+- 2026-10-11: Every brainrot that changes spot animates (user): the one leaving a spot sinks, the one arriving rises after the sinks, for buys, merges and shifts alike.
+- 2026-10-11: Welcome Back window shows on every return (user): OFFLINE_POPUP_MIN_SECONDS 60 -> 0 and no longer needs earnings > 0 (not for brand-new players).
+- 2026-10-11: Merge animation (user: merging looked instant): merged-away brainrots sink into their bath (PoolService sets SinkAt, removes them after 0.45 s; BrainrotController animates), and the new ones rise after the sink (SpawnedAt set 0.45 s ahead; the client waits under the water). Shifted brainrots still move without animation.
 - 2026-10-11: Reverted the stable-spot layout (user: lower tiers must always sit behind higher ones): PoolService sorts highest tier first again; instead only truly new brainrots (a tier's count went up) get SpawnedAt and rise, shifted ones appear in place.
 - 2026-10-11: Upgrade Buy Tier converts leftovers (user, no popup): merges what can merge, then promotes every brainrot below the new buy tier to it (then merges if full). CLAUDE.md rule updated; design doc still to update.
 - 2026-10-11: Brainrots keep their spot (user: buying 5 Frigo Camelo showed Tim Cheese rising): PoolService no longer re-sorts every brainrot highest-first, which shifted the low tiers along and replayed their rise animation; owned ones stay, freed spots open up, new ones fill free spots from the front highest first. DropService frees timers of empty spots (gaps allowed).

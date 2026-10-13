@@ -219,8 +219,8 @@ local function upgradeBuyTier(player: Player, plot: Plot)
 		notify:FireClient(player, `Not enough Cash (need {Format.short(cost)})`)
 		return
 	end
+	data.boughtAtBuyTier = Economy.carriedBought(data.buyTier, data.boughtAtBuyTier)
 	data.buyTier += 1
-	data.boughtAtBuyTier = 0
 	-- Leftovers below the new buy tier can never be completed (the pads don't sell
 	-- them any more): merge what can merge, then promote the rest to the buy tier,
 	-- silently (2026-10-11, user).

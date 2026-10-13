@@ -48,13 +48,17 @@ Economy.BUY_REPEAT_INTERVAL = 0.5 -- (2026-10-11, user: half a second; was 0.35)
 Economy.PRICE_GROWTH = 1.08 -- unit price x this per brainrot bought at the current buy tier (2026-10-04: 1.005 -> 1.08, keeps the best brainrot ~3 tiers ahead of the pads)
 -- Upgrade Buy Tier cost = next tier's base price x MULTIPLIER x GROWTH ^ tierGrowthSteps(buy tier).
 -- An expanding curve (2026-10-04, tools/economy_sim.py): fast at the start, each step
--- ~2-3x longer from buy tier 4 to 15, then about the same length per step. Simulated:
--- first upgrade 3-9 min, free player buy tier 12 ~day 3 and a tier 20 ~day 48, x7 Cash
--- player a tier 20 ~day 8 (2 h play a day, offline the rest).
+-- ~2-3x longer from buy tier 4 to 15, then about the same length per step. Simulated
+-- with the price carry-over: free player a tier 20 ~day 50, x7 Cash player a tier 20
+-- ~day 9 (2 h play a day, offline the rest).
 Economy.BUY_TIER_UPGRADE_MULTIPLIER = 15 -- (2026-10-04: 500 -> 15; the growth below does the rest)
-Economy.BUY_TIER_UPGRADE_GROWTH = 2.9
+Economy.BUY_TIER_UPGRADE_GROWTH = 2.35 -- (2026-10-12: 2.9 -> 2.35 with the price carry-over)
 Economy.TIER_GROWTH_FROM = 4 -- the growth starts after this buy tier...
 Economy.TIER_GROWTH_TO = 15 -- ...and stops at this one
+-- Upgrade Buy Tier keeps the brainrot price reached instead of resetting it (2026-10-11,
+-- user): the new tier's first unit costs what the old tier's next unit would have, never
+-- less than the new tier's base price (Economy.carriedBought).
+Economy.PRICE_CARRY_OVER = true
 
 -- Merging
 Economy.MERGE_COUNT = 3
@@ -118,7 +122,7 @@ Economy.GROUP_REWARD_MULTIPLIER = 25
 
 -- Offline
 Economy.OFFLINE_RATE = 1.0 -- 100%, no time cap, straight into Aura
-Economy.OFFLINE_POPUP_MIN_SECONDS = 60 -- show "While you were away" only after this long offline
+Economy.OFFLINE_POPUP_MIN_SECONDS = 0 -- the Welcome Back window shows on every return (2026-10-11, user; was 60)
 
 function Economy.basePrice(tier: number): number
 	return Tiers.get(tier).aura * Economy.BASE_PRICE_MULTIPLIER
@@ -127,6 +131,19 @@ end
 -- Unit price after `boughtAtBuyTier` brainrots were already bought at this buy tier.
 function Economy.unitPrice(buyTier: number, boughtAtBuyTier: number): number
 	return Economy.basePrice(buyTier) * Economy.PRICE_GROWTH ^ boughtAtBuyTier
+end
+
+-- The `boughtAtBuyTier` a player starts the next buy tier with: the count at which the
+-- new tier's unit price equals the price reached at the old tier (fractional is fine).
+function Economy.carriedBought(oldBuyTier: number, boughtAtBuyTier: number): number
+	if not Economy.PRICE_CARRY_OVER or oldBuyTier >= Tiers.MAX_TIER then
+		return 0
+	end
+	local ratio = Economy.unitPrice(oldBuyTier, boughtAtBuyTier) / Economy.basePrice(oldBuyTier + 1)
+	if ratio <= 1 then
+		return 0
+	end
+	return math.log(ratio) / math.log(Economy.PRICE_GROWTH)
 end
 
 -- Bulk costs exactly n x the current unit price (no bulk discount).

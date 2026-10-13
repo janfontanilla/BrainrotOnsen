@@ -64,7 +64,8 @@ local function onPlayerAdded(player: Player)
 		task.spawn(sendHome, player, player.Character)
 	end
 
-	if awaySince > 0 and os.time() - awaySince >= Economy.OFFLINE_POPUP_MIN_SECONDS and awayAura + awayCash > 0 then
+	-- On every return (not a brand-new player), whatever was earned.
+	if awaySince > 0 and os.time() - awaySince >= Economy.OFFLINE_POPUP_MIN_SECONDS then
 		-- Give the client a moment to load its HUD.
 		task.delay(3, function()
 			if player.Parent == Players then

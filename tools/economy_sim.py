@@ -14,7 +14,7 @@ active sessions and offline stretches. Mirrors the server code:
   the processor moves queue -> pending Cash at its rate; the Cash pass applies at
   Collect Cash. Group reward Cash is not multiplied.
 - buying: unit price = aura x BASE_PRICE_MULTIPLIER x PRICE_GROWTH^boughtAtBuyTier;
-  bulk = n x unit price; Merge! merges every triple, cascading; 80 spots.
+  Upgrade Buy Tier carries the price reached over (PRICE_CARRY_OVER); bulk = n x unit price; Merge! merges every triple, cascading; 80 spots.
 - lucky blocks: one every 40-100 s of online production; weighted type; price =
   unlock tier aura x LUCKY_BLOCK_PRICE_MULTIPLIER; contents -1/0/+1/+2 at 60/30/9/1.
 
@@ -57,6 +57,7 @@ def load_config() -> dict:
     m = re.search(r"CASH_PACK_MIN = \{ S = ([0-9_.]+), M = ([0-9_.]+), L = ([0-9_.]+)", econ)
     cfg["PACK_MIN"] = {k: float(v.replace("_", "")) for k, v in zip("SML", m.groups())} if m else {}
     # Upgrade Buy Tier cost growth per tier between TIER_GROWTH_FROM and _TO (1.0 = none).
+    cfg["PRICE_CARRY_OVER"] = 1.0 if re.search(r"^Economy\.PRICE_CARRY_OVER = true", econ, re.M) else 0.0
     cfg.setdefault("BUY_TIER_UPGRADE_GROWTH", 1.0)
     cfg.setdefault("TIER_GROWTH_FROM", 1)
     cfg.setdefault("TIER_GROWTH_TO", 20)
@@ -154,6 +155,14 @@ class Sim:
 
     def unit_price(self) -> float:
         return self.base_price(self.buy_tier) * self.c["PRICE_GROWTH"] ** self.bought
+
+    def carried_bought(self, reached: float) -> float:
+        """Price carry-over (Economy.carriedBought): the new buy tier starts at the price
+        reached, never below its own base price."""
+        if not self.c.get("PRICE_CARRY_OVER", 0):
+            return 0
+        ratio = reached / self.base_price(self.buy_tier)
+        return max(0.0, math.log(ratio) / math.log(self.c["PRICE_GROWTH"])) if ratio > 1 else 0
 
     def upgrade_cost(self) -> float | None:
         if self.buy_tier >= self.max_tier:
@@ -304,7 +313,7 @@ class Sim:
             if r <= 0:
                 break
         # Priced as what it gives: never below a chest whose lowest result is the buy tier.
-        price = self.block_price(max(unlock, self.buy_tier + 1))
+        price = self.block_price(min(max(unlock, self.buy_tier + 1), self.max_tier))
         if (
             not self.p.lucky
             or price > self.cash * self.p.lucky_max_spend
@@ -360,8 +369,9 @@ class Sim:
             up = self.upgrade_cost()
             if up is not None and self.cash >= up:
                 self.cash -= up
+                reached = self.unit_price()
                 self.buy_tier += 1
-                self.bought = 0
+                self.bought = self.carried_bought(reached)
                 self.mark(f"buy tier {self.buy_tier}")
                 self.mark("first upgrade")
                 self.spent("Upgrade Buy Tier")
